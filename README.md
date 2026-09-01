@@ -121,6 +121,33 @@ player works more out, the picture degrades in step with the sound.
 **Narration.** The story opens and closes on a third-person narrator, in the
 register of a 1960s anthology show.
 
+## Cutscenes
+
+Five beats: the **prologue** in the cabin, the **drive** up the mountain,
+**arrival** at the gate, the **aperture** the first time he reaches it, and the
+**epilogue**.
+
+They render to their own surface at **768×432** — twice the game's linear
+resolution, four times the pixels — while gameplay keeps its 384×216 backbuffer
+untouched. The gameplay grid exists so a walk cycle stays crisp; a full-screen
+still has no such constraint, and holding one at 384×216 was throwing away most
+of the detail in source art that is 2688×1520.
+
+One honest trade: 768×432 does not land on an integer multiple of a 1080p
+display (it is 2.5×), so cutscene stills are smoothed on the way out while
+gameplay stays nearest-neighbour and exact. On a slow pan that reads as film
+rather than as a mistake, but it is a real difference — `O` → **Soft cutscenes**
+turns it off.
+
+Cutscenes are also the only place the frame changes shape: 2.39:1 letterbox
+bars, which is most of what tells the player they are not in control. A beat can
+cut between stills, cross-fading rather than snapping — the epilogue does, from
+the threshold with Hale standing in it to the same room without him.
+
+```bash
+python3 tools/make_stills.py     # the drive composite and the aperture chamber
+```
+
 ## Sound
 
 There are no audio files. Everything is synthesised at runtime, including the
@@ -199,6 +226,8 @@ node tools/verify/game.cjs             # engine: movement, lighting, doors, save
 node tools/verify/investigation.cjs    # the whole mystery, cabin to aperture
 node tools/verify/editor.cjs           # the editor round-trips
 node tools/verify/audio.cjs            # the score and the radio, measured
+node tools/verify/mono.cjs             # the conversion, measured off the frame
+node tools/verify/cutscenes.cjs        # the five beats, and gameplay pixel-for-pixel
 ```
 
 `check_scenes.py` validates the scene graph without a browser: doors pointing
@@ -214,5 +243,18 @@ effect was filtered into silence, and that the output never clips under load.
 own evidence and *not* one clue short, that the keypad refuses `0000` and
 accepts `0614`, that containers empty exactly once, and that all seven
 realizations survive a reload.
+
+`cutscenes.cjs` checks the beats fire once each in order, that the cutscene
+surface really is 768×432 and carries a still intact where 384×216 could not,
+and — the check that matters — that gameplay frames are **pixel-identical** to
+`tools/verify/baseline/`, captured with `tools/verify/frames.cjs` against the
+commit before the cutscene work began. Raising the cutscenes was supposed to
+leave gameplay alone, and that is a claim about pixels, so it is tested as one.
+
+Almost everything on screen moves by itself — grain cycles, the vertical roll
+creeps, the lamps flicker off a running PRNG, the idle animation breathes — so
+two captures of the *same unchanged build* differ in tens of thousands of pixels
+unless every one of those clocks is pinned first. `frames.cjs` is the only place
+that knows how to pin them, and both sides of the comparison go through it.
 
 Screenshots are written to `tools/verify/shots/`.

@@ -67,7 +67,7 @@ def fit(img, w=None, h=None):
     return img.resize((w, h), Image.LANCZOS)
 
 
-def crisp(img, colors=48):
+def crisp(img, colors=48, levels=24):
     """
     Snap to a limited palette so the reduced art reads as pixel art again
     instead of as a soft photograph.
@@ -78,7 +78,7 @@ def crisp(img, colors=48):
     about to be discarded, leaving fewer distinct values where they matter.
     """
     if MONO:
-        out = to_mono(img)
+        out = to_mono(img, levels=levels)
         out.putalpha(img.convert("RGBA").getchannel("A"))
         return out
     rgb = img.convert("RGB").quantize(colors=colors, method=Image.MEDIANCUT,
@@ -143,13 +143,35 @@ def build_backdrops():
 
 # ------------------------------------------------------------------- stills
 
+# Cutscenes render on their own surface at twice the gameplay resolution, so
+# their stills are derived at that size rather than at the game's. This is where
+# the detail in the 2688x1520 references actually gets used.
+STILL_W, STILL_H = SCREEN_W * 2, SCREEN_H * 2
+
+
 def build_stills():
     d = ensure("stills")
-    # Rendered at 2x screen width so a cutscene can pan and zoom across it
-    # without the image going soft.
-    still = crisp(fit(ref("facility_exterior_night.png"), w=SCREEN_W * 2), colors=64)
-    still.save(os.path.join(d, "facility_exterior_night.png"))
-    print(f"  stills/facility_exterior_night.png  {still.width}x{still.height}")
+
+    def still_from(name, out, focus=None):
+        """Derive one still. `focus` is a crop box in source pixels, for
+        framing a shot tighter than the whole reference."""
+        img = ref(name)
+        if focus:
+            img = img.crop(focus)
+        img = crisp(fit(img, w=STILL_W), colors=64, levels=40)
+        if img.height > STILL_H:
+            top = (img.height - STILL_H) // 2
+            img = img.crop((0, top, STILL_W, top + STILL_H))
+        elif img.height < STILL_H:
+            pad = Image.new("RGBA", (STILL_W, STILL_H), (0, 0, 0, 255))
+            pad.paste(img, (0, (STILL_H - img.height) // 2))
+            img = pad
+        img.convert("RGB").save(os.path.join(d, out))
+        print(f"  stills/{out}  {img.width}x{img.height}")
+
+    still_from("facility_exterior_night.png", "facility_exterior_night.png")
+    # The room he is about to leave, framed on the bed and the window.
+    still_from("cabin_bedroom_night.png", "cabin_prologue.png")
 
 
 # ------------------------------------------------------------------ sprites

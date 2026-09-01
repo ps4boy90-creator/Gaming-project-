@@ -24,13 +24,15 @@ export const ROWS = [
     help: 'off shows the colour beneath the conversion' },
   { key: 'broadcast', label: 'Broadcast', min: 0, max: 1, step: 0.1,
     help: 'vertical roll and signal tearing' },
+  { key: 'softCutscenes', label: 'Soft cutscenes', min: 0, max: 1, step: 1,
+    help: 'off keeps cutscenes hard-edged like gameplay' },
   { key: 'grain', label: 'Film grain', min: 0, max: 0.2, step: 0.01 },
   { key: 'scanlines', label: 'Scanlines', min: 0, max: 0.5, step: 0.05 },
   { key: 'vignette', label: 'Vignette', min: 0, max: 1, step: 0.05 },
 ];
 
 export const DEFAULTS = {
-  volume: 0.7, music: 0.8, radio: 1, mono: 1, broadcast: 1,
+  volume: 0.7, music: 0.8, radio: 1, mono: 1, broadcast: 1, softCutscenes: 1,
   grain: 0.06, scanlines: 0.22, vignette: 0.68,
 };
 
@@ -72,6 +74,7 @@ export class Options {
     this.postfx.settings.vignette = this.values.vignette;
     this.postfx.settings.broadcast = this.values.broadcast;
     if (this.screen) {
+      this.screen.smoothCutscenes = !!this.values.softCutscenes;
       // A touch of added contrast: the art is already converted with its own
       // tone curve, but the coloured lights arrive here unconverted and land
       // slightly flat once their hue is discarded.

@@ -233,6 +233,24 @@
     },
     {
       "type": "trigger",
+      "id": "t_aperture",
+      "x": 640,
+      "y": 186,
+      "w": 300,
+      "h": 120,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "saw_aperture",
+        "line": "",
+        "portrait": "",
+        "cutscene": "aperture",
+        "shake": 2.5,
+        "sound": ""
+      }
+    },
+    {
+      "type": "trigger",
       "id": "t_epilogue",
       "x": 640,
       "y": 186,

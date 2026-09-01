@@ -167,7 +167,13 @@ const check = (name, cond, extra = '') => {
   check('cutscene pans', Math.abs(view1.x - view0.x) > 20 || Math.abs(view1.w - view0.w) > 20,
         `${Math.round(view0.x)},${Math.round(view0.w)} -> ${Math.round(view1.x)},${Math.round(view1.w)}`);
   await page.screenshot({ path: path.join(SHOTS, '17-cutscene-pan.png') });
-  await press('Escape'); await settle(400);
+  await press('Escape'); await settle(600);
+  // The drive hands off to the gate, where the establishing shot plays before
+  // the player takes control, so skipping one cutscene lands in another.
+  check('the drive arrives at the gate', await G(() => window.game.scene.id) === 'station_gate');
+  for (let i = 0; i < 6 && await G(() => window.game.state) === 'cutscene'; i++) {
+    await press('Escape'); await settle(300);
+  }
   check('cutscene ends back in play', await G(() => window.game.state) === 'playing');
 
   // --- reload restores

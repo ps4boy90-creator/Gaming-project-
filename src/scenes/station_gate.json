@@ -28,6 +28,24 @@
   },
   "entities": [
     {
+      "type": "trigger",
+      "id": "t_arrival",
+      "x": 110,
+      "y": 176,
+      "w": 150,
+      "h": 110,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "saw_arrival",
+        "line": "",
+        "portrait": "",
+        "cutscene": "arrival",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
       "type": "player_start",
       "id": "from_road",
       "x": 90,

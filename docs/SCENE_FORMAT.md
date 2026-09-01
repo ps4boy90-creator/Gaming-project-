@@ -164,8 +164,24 @@ arrival: {
 }
 ```
 
-`view` is a window onto the still, in the still's own pixels; a `384×216` window
-is a 1:1 crop and anything larger is zoomed out. A step may set several things at
-once. `duration: 0` applies instantly and moves on; `waitForKey: true` holds.
-Every cutscene image is preloaded at boot, because a cutscene fires mid-step from
-a trigger with no chance to await a load.
+`view` is a window onto the still, in the still's own pixels. Cutscenes render to
+a **768×432** surface — twice the gameplay resolution — so a `768×432` window is
+1:1 and anything smaller is a push in. A step may set several things at once.
+`duration: 0` applies instantly and moves on; `waitForKey: true` holds.
+
+A step may also carry `image`, which cuts to a second still by cross-fading over
+that step's `duration` rather than snapping:
+
+```js
+{ image: 'stills/aperture_empty.png', view: { x: 120, y: 68, w: 528, h: 297 },
+  duration: 4.0 }
+```
+
+Every still a cutscene can show is preloaded at boot — step cuts included, via
+`cutsceneImages()` in the manifest — because a cutscene fires mid-step from a
+trigger, where there is nothing to await and nowhere to put a failure.
+
+Other fields: `letterbox: false` turns off the 2.39:1 bars (they are on by
+default, and are most of what says the player is not in control), `skippable:
+false` makes Escape do nothing, and `then: { scene, spawn }` hands off to a scene
+when the cutscene ends instead of returning to the one it played over.

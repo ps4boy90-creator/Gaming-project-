@@ -86,7 +86,7 @@
         "setsFlag": "arrived_at_station",
         "line": "",
         "portrait": "",
-        "cutscene": "arrival",
+        "cutscene": "drive",
         "shake": 0,
         "sound": "door"
       }

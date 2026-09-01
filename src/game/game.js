@@ -1,4 +1,4 @@
-import { Screen, NATIVE_W, NATIVE_H } from '../core/screen.js';
+import { Screen, NATIVE_W, NATIVE_H, CUTSCENE_W, CUTSCENE_H } from '../core/screen.js';
 import { Loop } from '../core/loop.js';
 import { Input } from '../core/input.js';
 import { Assets } from '../core/assets.js';
@@ -23,7 +23,7 @@ import { Options } from './options.js';
 import { Save } from './save.js';
 import { Interaction, updateTriggers } from './interaction.js';
 import { drawJournal, journalRows, JOURNAL_TABS, INK, INK_DIM, ACCENT, panel } from './ui.js';
-import { CUTSCENES, START_SCENE, START_SPAWN } from '../scenes/manifest.js';
+import { CUTSCENES, START_SCENE, START_SPAWN, cutsceneImages } from '../scenes/manifest.js';
 
 const PORTRAIT_NAMES = ['neutral', 'stern', 'worried', 'resolute', 'smile'];
 
@@ -36,6 +36,7 @@ export class Game {
     this.camera = new Camera(NATIVE_W, NATIVE_H);
     this.lighting = new Lighting(NATIVE_W, NATIVE_H);
     this.postfx = new PostFX(NATIVE_W, NATIVE_H);
+    this.cutscenePostfx = new PostFX(CUTSCENE_W, CUTSCENE_H);
     this.audio = new Audio();
     this.flags = new Flags();
     this.journal = new Journal();
@@ -105,6 +106,7 @@ export class Game {
     if (this.music) this.music.setTension(t);
     if (this.audio.radio) this.audio.radio.setTension(t);
     this.postfx.setTension(t);
+    this.cutscenePostfx.setTension(t);
     return t;
   }
 
@@ -143,8 +145,10 @@ export class Game {
           'sprites/scientist/scientist.png',
           ...PORTRAIT_NAMES.map((n) => `portraits/scientist/${n}.png`),
           // Cutscene stills load up front: a cutscene fires mid-step from a
-          // trigger, with no opportunity to await anything.
-          ...Object.values(CUTSCENES).map((c) => c.image).filter(Boolean),
+          // trigger, with no opportunity to await anything. Steps can cut to a
+          // second still, so those count too -- a cross-fade to an image that
+          // was never loaded would silently fade to black.
+          ...cutsceneImages(),
         ],
         json: ['sprites/scientist/scientist.json'],
       });
@@ -280,6 +284,7 @@ export class Game {
   update(dt) {
     this.lighting.update(dt);
     this.postfx.update(dt);
+    this.cutscenePostfx.update(dt);
     this.camera.update(dt);
     this.audio.update(dt);
     if (this.music) this.music.update(dt);
@@ -428,9 +433,16 @@ export class Game {
     ctx.fillStyle = '#05060a';
     ctx.fillRect(0, 0, NATIVE_W, NATIVE_H);
 
+    // A cutscene draws to its own higher-resolution surface and presents from
+    // there. Gameplay's path through this function is unchanged.
+    if (this.state === 'cutscene') {
+      this.renderCutscene();
+      return;
+    }
+    this.screen.useCutsceneSurface = false;
+
     if (this.state === 'boot') this.renderBoot();
     else if (this.state === 'error') this.renderError();
-    else if (this.state === 'cutscene') this.cutscene.draw(ctx, NATIVE_W, NATIVE_H);
     else this.renderWorld();
 
     if (this.state === 'journal') drawJournal(ctx, this.journal, this.journalState, NATIVE_W, NATIVE_H);
@@ -447,6 +459,24 @@ export class Game {
     this.postfx.render(ctx);
     if (this.showDebug) this.renderDebug();
 
+    this.screen.present();
+  }
+
+  renderCutscene() {
+    const ctx = this.screen.cutsceneCtx;
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, CUTSCENE_W, CUTSCENE_H);
+
+    this.cutscene.draw(ctx, CUTSCENE_W, CUTSCENE_H);
+    // The fade lives on the gameplay PostFX, which the cutscene surface never
+    // sees, so carry it across rather than letting fades silently stop working.
+    this.cutscenePostfx.setFade(this.postfx.fade.color, this.postfx.fade.amount);
+    this.cutscenePostfx.render(ctx);
+
+    this.screen.useCutsceneSurface = true;
     this.screen.present();
   }
 

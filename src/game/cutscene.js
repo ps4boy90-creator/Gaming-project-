@@ -1,5 +1,5 @@
 import { clamp } from '../core/rng.js';
-import { wrap, drawParagraph, lineHeight, measure } from '../gfx/text.js';
+import { wrap, drawParagraph, drawTextShadowed, lineHeight, measure } from '../gfx/text.js';
 import { INK, ACCENT } from './ui.js';
 
 /**
@@ -26,6 +26,10 @@ export class Cutscene {
     this.active = false;
     this.def = null;
     this.image = null;
+    this.prevImage = null;
+    this.crossfade = 0;      // 1 fully on the previous still, 0 fully on the new
+    this.crossfadeFor = 0;
+    this.letterbox = true;
     this.step = 0;
     this.time = 0;
     this.view = null;
@@ -56,6 +60,9 @@ export class Cutscene {
     this.time = 0;
     this.text = null;
     this.textTime = 0;
+    this.prevImage = null;
+    this.crossfade = 0;
+    this.letterbox = def.letterbox !== false;
     this.onDone = onDone;
     this.skippable = def.skippable !== false;
 
@@ -94,6 +101,22 @@ export class Cutscene {
     this.viewFrom = { ...this.view };
     this.fadeFrom = this.fadeTo;
 
+    if (s.image !== undefined) {
+      // Cutting to a new still cross-fades from the old one rather than
+      // snapping, so a beat can be built from several images.
+      const next = s.image && this.assets.images.has(s.image)
+        ? this.assets.image(s.image) : null;
+      if (next !== this.image) {
+        this.prevImage = this.image;
+        this.image = next;
+        this.crossfadeFor = s.duration || 0.8;
+        this.crossfade = this.prevImage ? 1 : 0;
+      }
+      if (s.view) {
+        this.view = { ...s.view };
+        this.viewFrom = { ...s.view };
+      }
+    }
     if (s.text !== undefined) {
       this.text = s.text;
       this.textStyle = s.style || 'card';
@@ -116,6 +139,10 @@ export class Cutscene {
 
     this.time += dt;
     this.textTime += dt;
+    if (this.crossfade > 0) {
+      this.crossfade = Math.max(0, this.crossfade - dt / Math.max(0.05, this.crossfadeFor));
+      if (this.crossfade === 0) this.prevImage = null;
+    }
 
     const duration = s.duration || 0;
     const t = duration > 0 ? clamp(this.time / duration, 0, 1) : 1;
@@ -148,20 +175,47 @@ export class Cutscene {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    if (this.image && this.view) {
+    const blit = (image, alpha) => {
+      if (!image || !this.view || alpha <= 0) return;
       // Round the source rect: a fractional source on a scaled draw makes the
       // pixel art crawl during a slow pan.
       const sx = Math.round(this.view.x);
       const sy = Math.round(this.view.y);
       const sw = Math.round(this.view.w);
       const sh = Math.round(this.view.h);
-      ctx.drawImage(this.image, sx, sy, sw, sh, 0, 0, w, h);
+      const prev = ctx.globalAlpha;
+      ctx.globalAlpha = prev * alpha;
+      ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
+      ctx.globalAlpha = prev;
+    };
+    blit(this.image, 1);
+    blit(this.prevImage, this.crossfade);
+
+    if (this.letterbox) {
+      // 2.39:1 bars. Cutscenes are the only place the frame changes shape,
+      // which is most of what tells the player they are not in control.
+      const bar = Math.round((h - w / 2.39) / 2);
+      if (bar > 0) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, bar);
+        ctx.fillRect(0, h - bar, w, bar);
+      }
     }
 
     if (this.text) {
       const reveal = Math.min(1, this.textTime / 0.9);
       const prev = ctx.globalAlpha;
       ctx.globalAlpha = prev * reveal;
+
+      // The bitmap font draws at a fixed pixel size, so on the higher-resolution
+      // cutscene surface it would come out half as large relative to the frame.
+      // Scale the transform and work in logical units, which also keeps the
+      // glyphs on whole pixels instead of resampling them.
+      const k = Math.max(1, Math.round(w / 384));
+      ctx.save();
+      if (k > 1) ctx.scale(k, k);
+      w = Math.round(w / k);
+      h = Math.round(h / k);
 
       if (this.textStyle === 'narration') {
         // Centred in the frame, in the narrator's voice rather than Hale's.
@@ -170,8 +224,34 @@ export class Cutscene {
         const lines = wrap(this.text, w - 72);
         const blockH = lines.length * lineHeight();
         const top = Math.round(h / 2 - blockH / 2);
+
+        // A scrim behind the block, fading out sideways. Narration is centred
+        // in the frame and the frame is often brightest in the middle -- the
+        // aperture is a white arch right where the words go. Feathered darkness
+        // reads as a shadow falling across the picture; a rectangle would read
+        // as a dialogue box.
+        const scrimTop = top - 14;
+        const scrimH = blockH + 28;
+        const scrim = ctx.createLinearGradient(0, 0, w, 0);
+        scrim.addColorStop(0, 'rgba(4,5,9,0)');
+        scrim.addColorStop(0.5, 'rgba(4,5,9,1)');
+        scrim.addColorStop(1, 'rgba(4,5,9,0)');
+        ctx.fillStyle = scrim;
+        const alpha = ctx.globalAlpha;
+        for (let row = 0; row < scrimH; row++) {
+          // Feathered on the vertical too, by modulating alpha per row: a band
+          // with hard top and bottom edges is a letterbox, not a shadow.
+          const t = row / (scrimH - 1);
+          ctx.globalAlpha = alpha * 0.82 * Math.sin(Math.PI * t) ** 0.7;
+          ctx.fillRect(0, scrimTop + row, w, 1);
+        }
+        ctx.globalAlpha = alpha;
+
         lines.forEach((line, i) => {
-          drawParagraph(ctx, [line], Math.round((w - measure(line)) / 2),
+          // Shadowed rather than plated: narration sits in the picture, and a
+          // panel behind it would make it part of the interface. It still has
+          // to survive landing on the brightest thing in the frame.
+          drawTextShadowed(ctx, line, Math.round((w - measure(line)) / 2),
             top + i * lineHeight(), { color: INK });
         });
       } else if (this.textStyle === 'title') {
@@ -185,13 +265,16 @@ export class Cutscene {
         });
       } else {
         const lines = wrap(this.text, w - 48);
-        const top = h - 22 - lines.length * lineHeight();
+        // Sit above the letterbox bar rather than behind it.
+        const bar = this.letterbox ? Math.max(0, Math.round((h - w / 2.39) / 2)) : 0;
+        const top = h - bar - 14 - lines.length * lineHeight();
         ctx.fillStyle = 'rgba(4,5,9,0.62)';
         ctx.fillRect(0, top - 6, w, lines.length * lineHeight() + 12);
         lines.forEach((line, i) => {
           drawParagraph(ctx, [line], Math.round((w - measure(line)) / 2), top + i * lineHeight(), { color: INK });
         });
       }
+      ctx.restore();
       ctx.globalAlpha = prev;
     }
   }

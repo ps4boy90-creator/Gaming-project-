@@ -4,6 +4,16 @@
 export const NATIVE_W = 384;
 export const NATIVE_H = 216;
 
+/**
+ * Cutscenes render at twice the linear resolution -- four times the pixels.
+ *
+ * The gameplay grid exists so a walk cycle stays crisp; a full-screen still has
+ * no such constraint, and capping it at 384x216 was throwing away most of the
+ * detail in the source art, which is 2688x1520.
+ */
+export const CUTSCENE_W = NATIVE_W * 2;
+export const CUTSCENE_H = NATIVE_H * 2;
+
 /** An offscreen drawing surface with smoothing already disabled. */
 export function createSurface(w, h) {
   const canvas = document.createElement('canvas');
@@ -31,6 +41,21 @@ export class Screen {
     const surface = createSurface(w, h);
     this.canvas = surface.canvas;
     this.ctx = surface.ctx;
+
+    // A second, higher-resolution surface used only while a cutscene plays.
+    const hi = createSurface(CUTSCENE_W, CUTSCENE_H);
+    this.cutsceneCanvas = hi.canvas;
+    this.cutsceneCtx = hi.ctx;
+    /** Which surface present() blits. Gameplay never touches this. */
+    this.useCutsceneSurface = false;
+    /**
+     * The cutscene surface does not land on an integer multiple of the display
+     * (768x432 into 1920x1080 is 2.5x), so it is smoothed on the way out while
+     * gameplay stays exact. On a slow pan across a detailed still that reads as
+     * film rather than as a mistake -- but it is a real difference, so it can be
+     * turned off.
+     */
+    this.smoothCutscenes = true;
 
     this.scale = 1;
     this.offsetX = 0;
@@ -76,12 +101,20 @@ export class Screen {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.host.width, this.host.height);
     if (this.filter) ctx.filter = this.filter;
+
+    // Both surfaces occupy the same letterboxed rectangle; only their pixel
+    // density differs, so switching between them never moves the picture.
+    const source = this.useCutsceneSurface ? this.cutsceneCanvas : this.canvas;
+    ctx.imageSmoothingEnabled = this.useCutsceneSurface && this.smoothCutscenes;
+    if (ctx.imageSmoothingEnabled) ctx.imageSmoothingQuality = 'high';
+
     ctx.drawImage(
-      this.canvas,
+      source,
       this.offsetX, this.offsetY,
       this.w * this.scale, this.h * this.scale,
     );
     ctx.filter = 'none';
+    ctx.imageSmoothingEnabled = false;
   }
 
   /** Map a DOM mouse/touch position to a native-resolution coordinate. */

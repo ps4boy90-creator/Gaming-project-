@@ -63,7 +63,11 @@ const check = (name, cond, extra = '') => {
         real: window.game.realization.open,
         keypad: window.game.keypad.open,
       }));
-      if (s.state === 'transition' || s.state === 'cutscene') { await settle(180); continue; }
+      if (s.state === 'transition') { await settle(180); continue; }
+      // Cutscenes are skippable and some run for half a minute; waiting one
+      // out would spend the whole budget here and leave the world untouched.
+      // Escape, not E: E advances a cutscene rather than ending it.
+      if (s.state === 'cutscene') { await page.keyboard.press('Escape'); await settle(240); continue; }
       if (!s.reader && !s.real && !s.keypad && s.state === 'playing') return true;
       if (s.real) await settle(820);
       await press('KeyE');
@@ -91,6 +95,10 @@ const check = (name, cond, extra = '') => {
       return false;
     }
     await settle(160);
+    // Arriving somewhere can fire a trigger -- the aperture stops the player
+    // the first time they reach it -- and the E below would go to the cutscene
+    // instead of the object.
+    await drain();
     const targeted = await G((id) => window.game.interaction.target && window.game.interaction.target.id === id, entityId);
     await press('KeyE');
     await drain();

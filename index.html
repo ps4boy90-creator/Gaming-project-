@@ -33,10 +33,21 @@
   window.game = game;          // handy from the console and for the test harness
   canvas.focus();
 
+  // The controls hint belongs to gameplay, so it waits for gameplay: printing
+  // it over the opening narration puts a keyboard legend inside the picture.
+  // It appears when the player first has control, and stays out of every
+  // cutscene after that.
   const hint = document.getElementById('hint');
-  const hideHint = () => hint.classList.add('gone');
-  setTimeout(hideHint, 9000);
-  window.addEventListener('keydown', hideHint, { once: true });
+  let dismissed = false;
+  let shownAt = 0;
+  const dismiss = () => { dismissed = true; };
+  window.addEventListener('keydown', dismiss, { once: true });
+  setInterval(() => {
+    const playing = game.state === 'playing';
+    if (playing && !shownAt) shownAt = performance.now();
+    const expired = shownAt && performance.now() - shownAt > 9000;
+    hint.classList.toggle('gone', dismissed || expired || !playing);
+  }, 200);
 
   game.boot();
 </script>

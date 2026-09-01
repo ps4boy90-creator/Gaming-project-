@@ -150,8 +150,14 @@ After any change run `node tools/render_audio.cjs` and listen, then
 ## Add a cutscene
 
 Add it to `CUTSCENES` in `src/scenes/manifest.js`, then set a trigger's
-`cutscene` property to its id. Its image is preloaded automatically at boot.
-See [SCENE_FORMAT.md](SCENE_FORMAT.md#cutscenes) for the step vocabulary.
+`cutscene` property to its id. Every still it can show is preloaded at boot,
+step cuts included. See [SCENE_FORMAT.md](SCENE_FORMAT.md#cutscenes) for the step
+vocabulary.
+
+Author the still at **768×432**, not 384×216: cutscenes render to their own
+surface at twice the gameplay resolution. `tools/verify/pixels.py stills
+assets/stills` holds every one of them to the same bounds — monochrome, exposed
+between 14 and 120 mean, at least 24 greys, highlights not blown.
 
 ## Notes on the architecture
 
@@ -159,7 +165,10 @@ See [SCENE_FORMAT.md](SCENE_FORMAT.md#cutscenes) for the step vocabulary.
   render pass interpolates. Walking speed is identical on any monitor.
 - **One backbuffer.** Everything draws at 384×216 and is scaled once at the end
   (`src/core/screen.js`). Scaling individual sprites instead would leave uneven
-  pixels wherever a sprite landed on a fractional coordinate.
+  pixels wherever a sprite landed on a fractional coordinate. Cutscenes are the
+  one exception: they draw to a second surface at 768×432 and `present()` blits
+  whichever is active. Gameplay's path through `render()` is untouched, and
+  `tools/verify/cutscenes.cjs` proves it pixel-for-pixel against a baseline.
 - **Lighting is two passes.** A darkness sheet tinted by `ambient` with holes
   carved where lights fall, then the lights' own colour added back on top. That
   second pass is what makes a lamp read as *warm* rather than merely as brighter.
