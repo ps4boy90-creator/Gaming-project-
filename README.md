@@ -13,6 +13,7 @@ Three scenes ship as a working demonstration; the rest is authored in the editor
 - Scenes are painted backdrop layers plus collision boxes you draw over the art
 - Real coloured lighting: warm lamps against cold moonlight, with named flicker profiles
 - All sound is synthesised at runtime; there are no audio files
+- A generative score and a 1950s radio the whole mix plays through
 
 ## Running it
 
@@ -42,6 +43,7 @@ It deploys to GitHub Pages as-is.
 | Tab | journal |
 | Esc | close, skip a cutscene |
 | Digits | enter a keypad code |
+| O | options (volume, radio amount, post-processing) |
 | F3 | debug overlay (collision boxes, fps, position) |
 
 ## What's here
@@ -87,6 +89,34 @@ Two nice consequences fall out of this: the code for the sealed stairwell door
 is `0614`, which you can only know by working out when everything stopped; and
 the last realization is personal — the message that told him to come in early
 is the only reason he wasn't there at 06:14.
+
+## Sound
+
+There are no audio files. Everything is synthesised at runtime, including the
+music.
+
+**The score** is generative: a low drone, a pad that never quite arrives, and
+single struck notes that ring out and decay, minutes apart. It is re-rolled from
+a weighted minor scale each time rather than looped, and each scene picks a bed
+(`cabin`, `road`, `facility`, `deep`, `aperture`).
+
+**The whole mix plays through a 1950s tabletop radio.** Band-limited to roughly
+300 Hz – 3.5 kHz, with valve saturation, cabinet resonance, mains hum, hiss,
+crackle and wow. Not a filter over a score — the game *is* the transmission,
+footsteps and all.
+
+**Both degrade as you work things out.** A hidden tension value rises with each
+realization: the root sags, the flattened second creeps into the scale, the
+low-pass closes, hiss and dropouts increase, and a heterodyne whistle starts
+sliding through the top of the band. By the aperture the station is barely
+holding. You should never notice a single step of it.
+
+`O` opens options, where **Radio** can be turned down to 0 — a full bypass, in
+case band-limiting the entire game is a problem rather than a mood.
+
+```bash
+node tools/render_audio.cjs      # renders .wav captures you can listen to
+```
 
 ## Authoring a scene
 
@@ -137,11 +167,17 @@ npm install playwright-core
 node tools/verify/game.cjs             # engine: movement, lighting, doors, saves
 node tools/verify/investigation.cjs    # the whole mystery, cabin to aperture
 node tools/verify/editor.cjs           # the editor round-trips
+node tools/verify/audio.cjs            # the score and the radio, measured
 ```
 
 `check_scenes.py` validates the scene graph without a browser: doors pointing
 at scenes and spawns that exist, gates nothing can open, clues no deduction
 listens for, and deductions whose evidence is locked behind their own flag.
+
+`audio.cjs` measures the sound rather than inspecting the graph: that there is
+real output, that the spectrum is genuinely band-limited where a period set
+band-limits it, that bypassing restores both ends, that no ambience preset or
+effect was filtered into silence, and that the output never clips under load.
 
 `investigation.cjs` plays the game: it asserts each realization fires on its
 own evidence and *not* one clue short, that the keypad refuses `0000` and

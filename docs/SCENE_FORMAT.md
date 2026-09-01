@@ -24,6 +24,7 @@ file can be hand-edited and reopened in the editor without losing anything.
 | `size` | The scene in native pixels. The screen is 384×216; anything larger scrolls. |
 | `allowJump` | Off by default. A scientist walking a facility should feel grounded. |
 | `ambience` | Name from `Audio.ambienceNames()`: `none`, `night_cabin`, `forest_night`, `facility_hum`, `basement`. |
+| `music` | Optional score bed: `cabin`, `road`, `facility`, `deep`, `aperture`, `silent`. Leave it out and one is derived from `ambience`. |
 | `ambient` | The colour and depth of the dark. `strength` 0 is full daylight, 1 is pitch black. |
 
 ## Layers

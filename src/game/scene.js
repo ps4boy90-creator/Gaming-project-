@@ -18,6 +18,9 @@ export class Scene {
     this.allowJump = !!data.allowJump;
     this.ambient = data.ambient || { color: '#000010', strength: 0 };
     this.ambience = data.ambience || 'none';
+    // Optional. Left unset, the score is derived from the ambience name, so
+    // every scene authored before the music existed still works.
+    this.music = data.music || '';
     this.entities = (data.entities || []).map(hydrate);
     this.backdrop = new Backdrop(data.layers || [], assets);
     this.world = new CollisionWorld(data.collision || [], this.size);

@@ -74,7 +74,7 @@ export function drawJournal(ctx, journal, state, w, h) {
     tx += tw + 4;
   });
 
-  drawText(ctx, 'LEFT/RIGHT tab   UP/DOWN select   ESC close', 10, h - 12, { color: INK_DIM });
+  drawText(ctx, 'LEFT/RIGHT tab   UP/DOWN select   O options   ESC close', 10, h - 12, { color: INK_DIM });
 
   const rows = journalRows(journal, state.tab);
   const top = 26;

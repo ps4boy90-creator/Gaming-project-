@@ -5,6 +5,7 @@ import { ENTITY_TYPES, makeEntity, entityBox, flagsUsed } from '../game/entities
 import { SCENES } from '../scenes/manifest.js';
 import { Deductions } from '../game/deductions.js';
 import { Audio } from '../game/audio.js';
+import { Music } from '../game/music.js';
 import { EditorDoc, blankScene } from './doc.js';
 import { buildInspector, buildFields, el } from './inspector.js';
 
@@ -242,6 +243,8 @@ export class Editor {
       id: { type: 'string', help: 'Also the key to add to src/scenes/manifest.js.' },
       name: { type: 'string' },
       ambience: { type: 'select', options: Audio.ambienceNames() },
+      music: { type: 'select', options: ['', ...Music.presetNames()],
+        help: 'Leave empty to derive the score from the ambience.' },
       allowJump: { type: 'bool', help: 'Off suits a grounded, walking character.' },
     };
     host.append(buildFields(fields, s, (k, v) => {

@@ -117,6 +117,36 @@ alarm: { type: 'tone', freq: 740, to: 480, dur: 0.5, gain: 0.12 },
 add a preset to `AMBIENCE` at the top of the same file and it becomes selectable
 in the editor's scene panel.
 
+## Add a score bed
+
+`MUSIC_PRESETS` in `src/game/music.js`. Root in Hz, how loud each layer sits,
+the filter cutoff, and the range of seconds between struck notes:
+
+```js
+observation: { root: 155.6, drone: 0.05, pad: 0.02, air: 0.014,
+               brightness: 1200, gap: [16, 34], octaves: [1, 2] },
+```
+
+Pitch it to survive the radio: the whole mix is high-passed at 300 Hz, so a
+root below that is heard through its harmonics, which is why the drone voices
+are triangles rather than sines. Then set `music` on a scene, or add it to
+`AMBIENCE_TO_MUSIC` to make it the default for an ambience name.
+
+## Tuning the radio
+
+`src/game/radio.js`. The constants at the top are the character: `HP_HZ` and
+`LP_CLEAR` set the band, `LP_DEGRADED` is where it closes to at full tension,
+`HUM_HZ` is the rectifier ripple. The cabinet resonances and the valve curve are
+in the constructor.
+
+One thing to know before changing the order of the chain: the valve stage is
+followed by a second band limit on purpose. Saturation fed a band-limited signal
+generates intermodulation products whose difference tones land *below* the
+passband — about 12 dB of bass that the first high-pass had already removed.
+
+After any change run `node tools/render_audio.cjs` and listen, then
+`node tools/verify/audio.cjs` to confirm the spectrum and that nothing clips.
+
 ## Add a cutscene
 
 Add it to `CUTSCENES` in `src/scenes/manifest.js`, then set a trigger's

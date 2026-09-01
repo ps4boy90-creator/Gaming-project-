@@ -12,6 +12,7 @@ export const DEFAULT_BINDINGS = {
   jump: ['Space'],
   interact: ['KeyE', 'Enter'],
   journal: ['Tab'],
+  options: ['KeyO'],
   cancel: ['Escape'],
   advance: ['KeyE', 'Enter', 'Space'],
   backspace: ['Backspace'],

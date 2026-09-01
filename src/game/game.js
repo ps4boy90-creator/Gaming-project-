@@ -17,7 +17,9 @@ import { Audio } from './audio.js';
 import { Cutscene } from './cutscene.js';
 import { Keypad } from './keypad.js';
 import { Realization } from './realization.js';
-import { Deductions } from './deductions.js';
+import { Deductions, DEDUCTIONS } from './deductions.js';
+import { Music, AMBIENCE_TO_MUSIC } from './music.js';
+import { Options } from './options.js';
 import { Save } from './save.js';
 import { Interaction, updateTriggers } from './interaction.js';
 import { drawJournal, journalRows, JOURNAL_TABS, INK, INK_DIM, ACCENT, panel } from './ui.js';
@@ -45,6 +47,8 @@ export class Game {
     this.cutscene = new Cutscene(this.assets, this.audio, this.postfx);
     this.cutscene.onShake = (n) => this.camera.shake(n);
     this.keypad = new Keypad(this.audio);
+    this.music = null;                       // built on the first audio unlock
+    this.options = new Options(this.audio, this.postfx);
     this.realization = new Realization(this.audio);
     this.deductions = new Deductions();
     this.deductions.watch(this.flags);
@@ -65,9 +69,42 @@ export class Game {
     });
 
     // Any gesture unlocks audio; browsers will not start a context otherwise.
-    const unlock = () => this.audio.resume();
+    const unlock = () => {
+      this.audio.resume();
+      this.startMusic();
+    };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+  }
+
+  /**
+   * The score cannot exist before the AudioContext does, and the context cannot
+   * exist before a gesture -- so this runs on the first one and is a no-op
+   * afterwards.
+   */
+  startMusic() {
+    if (this.music || !this.audio.ctx) return;
+    this.music = new Music(this.audio.ctx, this.audio.musicBus, this.audio._noiseBuffer(3));
+    this.music.setPreset(this.musicPresetFor(this.scene));
+    this.pushTension();
+  }
+
+  musicPresetFor(scene) {
+    if (!scene) return 'silent';
+    return scene.music || AMBIENCE_TO_MUSIC[scene.ambience] || 'facility';
+  }
+
+  /**
+   * How much of the mystery is assembled, 0 to 1. It drives both the score and
+   * the radio's reception, so the building sounds worse the more he understands.
+   */
+  pushTension() {
+    const t = DEDUCTIONS.length
+      ? Math.min(1, this.journal.deductions.length / DEDUCTIONS.length)
+      : 0;
+    if (this.music) this.music.setTension(t);
+    if (this.audio.radio) this.audio.radio.setTension(t);
+    return t;
   }
 
   readTestScene() {
@@ -136,6 +173,7 @@ export class Game {
         this.flags.load(save.flags);
         await this.travel(save.scene || START_SCENE, save.spawn || START_SPAWN, { instant: true });
         if (save.x !== undefined) this.player.setPosition(save.x, save.y);
+        this.pushTension();
         this.camera.snapTo(this.player.x, this.player.y - 20);
         this.dialogue.say('Where I left off.', { portrait: 'neutral' });
       } else {
@@ -174,6 +212,7 @@ export class Game {
       this.camera.setBounds(scene.size.w, scene.size.h);
       this.camera.snapTo(spawn.x, spawn.y - 20);
       this.audio.setAmbience(scene.ambience);
+      if (this.music) this.music.setPreset(this.musicPresetFor(scene));
     };
 
     if (instant) {
@@ -230,6 +269,8 @@ export class Game {
     this.lighting.update(dt);
     this.postfx.update(dt);
     this.camera.update(dt);
+    this.audio.update(dt);
+    if (this.music) this.music.update(dt);
 
     switch (this.state) {
       case 'boot':
@@ -287,6 +328,11 @@ export class Game {
         if (!this.keypad.open) this.state = 'playing';
         break;
 
+      case 'options':
+        this.options.update(dt, this.input);
+        if (!this.options.open) this.state = 'playing';
+        break;
+
       case 'realization':
         this.realization.update(dt, this.input);
         if (!this.realization.open) this.state = 'playing';
@@ -312,6 +358,8 @@ export class Game {
       if (next) {
         this.dialogue.clear();
         this.journal.addDeduction({ id: next.id, title: next.title, pages: next.note });
+        // The score and the reception both degrade a step here.
+        this.pushTension();
         this.realization.show(next, () => {
           if (next.setsFlag) this.flags.set(next.setsFlag);
         });
@@ -345,6 +393,13 @@ export class Game {
       else if (this.keypad.open) this.state = 'keypad';
     }
 
+    if (this.input.justPressed('options')) {
+      this.options.show();
+      this.state = 'options';
+      this.audio.play('blip');
+      return;
+    }
+
     if (this.input.justPressed('journal')) {
       this.journal.markRead();
       this.journalState.index = Math.min(this.journalState.index, Math.max(0, this.journal.notes.length - 1));
@@ -369,9 +424,10 @@ export class Game {
     if (this.state === 'journal') drawJournal(ctx, this.journal, this.journalState, NATIVE_W, NATIVE_H);
     if (this.reader.open) this.reader.draw(ctx, NATIVE_W, NATIVE_H);
     if (this.keypad.open) this.keypad.draw(ctx, NATIVE_W, NATIVE_H);
+    if (this.options.open) this.options.draw(ctx, NATIVE_W, NATIVE_H);
     this.realization.draw(ctx, NATIVE_W, NATIVE_H, this.portraits);
     // Each overlay owns the screen while it is open.
-    if (this.state !== 'journal' && !this.reader.open
+    if (this.state !== 'journal' && !this.reader.open && !this.options.open
       && !this.keypad.open && !this.realization.open) {
       this.dialogue.draw(ctx, NATIVE_W, NATIVE_H);
     }
