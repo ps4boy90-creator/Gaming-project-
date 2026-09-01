@@ -30,7 +30,8 @@ off, which brings the crisp flat areas back.
 | `assets/backdrops/cabin_bedroom/room.png` | the bedroom reference at 384×216 |
 | `assets/stills/facility_exterior_night.png` | the facility at 768×432, the cutscene surface's size, so a pan can push in without going soft |
 | `assets/stills/cabin_prologue.png` | the bedroom again, framed wide and dark, for the opening narration |
-| `assets/stills/drive_night.png` | built by `make_stills.py`: the Veridian cut from its spec sheet, on a procedural night road |
+| `assets/stills/drive_night.png` | built by `make_stills.py`: the Veridian cut from its spec sheet, on a procedural night road. The drive beat animates instead, so this is now its fallback |
+| `assets/stills/parts/car_side.png` | the same cut-out with nothing behind it, for the animated drive to move against |
 | `assets/stills/aperture_reveal.png`, `aperture_empty.png` | built by `make_stills.py`: the containment chamber, with Hale at the threshold and then without him |
 | `assets/sprites/scientist/scientist.png` + `.json` | the front, side and back views packed into one atlas |
 | `assets/portraits/scientist/*.png` | the five expressions: `neutral`, `stern`, `worried`, `resolute`, `smile` |

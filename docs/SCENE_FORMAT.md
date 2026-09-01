@@ -23,7 +23,7 @@ file can be hand-edited and reopened in the editor without losing anything.
 | `id` | Must match the key in `manifest.js`. Doors target scenes by this. |
 | `size` | The scene in native pixels. The screen is 384×216; anything larger scrolls. |
 | `allowJump` | Off by default. A scientist walking a facility should feel grounded. |
-| `ambience` | Name from `Audio.ambienceNames()`: `none`, `night_cabin`, `forest_night`, `facility_hum`, `basement`. |
+| `ambience` | Name from `Audio.ambienceNames()`: `none`, `night_cabin`, `forest_night`, `facility_hum`, `basement`, `driving`. |
 | `music` | Optional score bed: `cabin`, `road`, `facility`, `deep`, `aperture`, `silent`. Leave it out and one is derived from `ambience`. |
 | `ambient` | The colour and depth of the dark. `strength` 0 is full daylight, 1 is pitch black. |
 
@@ -180,6 +180,27 @@ that step's `duration` rather than snapping:
 Every still a cutscene can show is preloaded at boot — step cuts included, via
 `cutsceneImages()` in the manifest — because a cutscene fires mid-step from a
 trigger, where there is nothing to await and nowhere to put a failure.
+
+A beat can be **animated** instead of, or as well as, a still. `fx` names a
+painter from `src/game/cutscene_fx.js` and `phase` says which beat of it a step
+is; the painter repaints the frame every tick and the pan, letterbox and text
+work over it unchanged:
+
+```js
+prologue: {
+  fx: 'wake', phase: 'sleep',
+  image: 'stills/cabin_prologue.png',   // the fallback if the painter cannot run
+  steps: [
+    { phase: 'stir', duration: 1.2 },
+    { phase: 'sit', view: { x: 20, y: 80, w: 520, h: 293 }, duration: 2.6 },
+  ],
+}
+```
+
+The two painters are `wake` (Hale asleep, the alarm, sitting up, getting out of
+bed, crossing to the window — phases `sleep`, `stir`, `sit`, `stand`, `walk`,
+`window`) and `drive` (a side-on night road, which takes no phases and runs off
+the cutscene clock).
 
 Other fields: `letterbox: false` turns off the 2.39:1 bars (they are on by
 default, and are most of what says the player is not in control), `skippable:

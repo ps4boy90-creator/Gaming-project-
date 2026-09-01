@@ -56,6 +56,14 @@ export class Screen {
      * turned off.
      */
     this.smoothCutscenes = true;
+    /**
+     * Bilinear, not the browser's 'high' setting. 'high' is a multi-pass
+     * resample built for *downscaling*; on a 2.5x upscale it looks the same as
+     * bilinear and costs half the frame rate -- a still cutscene ran at 32fps
+     * with it on, which is the sort of thing that only shows up if you measure
+     * frames during a cutscene rather than during gameplay.
+     */
+    this.smoothQuality = 'low';
 
     this.scale = 1;
     this.offsetX = 0;
@@ -106,7 +114,7 @@ export class Screen {
     // density differs, so switching between them never moves the picture.
     const source = this.useCutsceneSurface ? this.cutsceneCanvas : this.canvas;
     ctx.imageSmoothingEnabled = this.useCutsceneSurface && this.smoothCutscenes;
-    if (ctx.imageSmoothingEnabled) ctx.imageSmoothingQuality = 'high';
+    if (ctx.imageSmoothingEnabled) ctx.imageSmoothingQuality = this.smoothQuality;
 
     ctx.drawImage(
       source,

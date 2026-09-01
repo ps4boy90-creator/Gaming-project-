@@ -97,8 +97,69 @@ const head = (t) => console.log(`\n--- ${t}`);
       await settle(240);
     }
   };
-  await settle(2400);   // past the fade-in, into the first pan
+  await settle(2400);   // past the fade-in, onto the bed
   await page.screenshot({ path: path.join(SHOTS, '60-prologue.png') });
+
+  // ------------------------------------------------------------- it moves
+  head('the animated beats');
+
+  /**
+   * How much of the frame changed over `ms`, ignoring the pan.
+   *
+   * A cutscene that pans across a still also changes every frame, so "the
+   * pixels differ" proves nothing on its own. This samples with the view held
+   * still, so what it measures is the animation.
+   */
+  const motion = async (ms) => {
+    await G(() => {
+      const c = window.game.cutscene;
+      window.__frozen = { ...c.view };
+      // Hold the window: the painter keeps running, the camera does not.
+      Object.defineProperty(c, 'view', {
+        configurable: true, get: () => window.__frozen, set: () => {},
+      });
+    });
+    const grab = () => G(() => {
+      const c = window.game.screen.cutsceneCanvas;
+      return [...c.getContext('2d').getImageData(0, 120, c.width, 200).data]
+        .filter((_, i) => i % 4 === 0);
+    });
+    const a = await grab();
+    await settle(ms);
+    const b = await grab();
+    await G(() => { delete window.game.cutscene.view; window.game.cutscene.view = window.__frozen; });
+    let moved = 0;
+    for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 6) moved++;
+    return moved / a.length;
+  };
+
+  const wakeMoves = await motion(420);
+  check('the prologue is animated, not a pan over a photograph', wakeMoves > 0.002,
+    `${(wakeMoves * 100).toFixed(2)}% of the frame changed in 0.4s`);
+  check('the prologue runs a painter', await G(() => !!window.game.cutscene.fx));
+
+  // He gets out of bed: every phase of the animation is reached, in order.
+  const phases = [];
+  await G(() => {
+    window.__phases = [];
+    const tick = () => {
+      const c = window.game.cutscene;
+      if (c.active && c.fxPhase && window.__phases[window.__phases.length - 1] !== c.fxPhase) {
+        window.__phases.push(c.fxPhase);
+      }
+      if (c.active) requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  await page.waitForFunction(() => window.__phases.includes('window') || !window.game.cutscene.active,
+    null, { timeout: 40000 }).catch(() => {});
+  phases.push(...await G(() => window.__phases));
+  check('he wakes, sits up, stands, walks and reaches the window',
+    JSON.stringify(phases.slice(0, 6))
+      === JSON.stringify(['sleep', 'stir', 'sit', 'stand', 'walk', 'window']),
+    phases.join(' -> '));
+  await page.screenshot({ path: path.join(SHOTS, '59-prologue-window.png') });
+
   await skip();
   check('prologue hands off to the cabin', await G(() => window.game.scene.id) === 'cabin_bedroom');
 
@@ -115,6 +176,16 @@ const head = (t) => console.log(`\n--- ${t}`);
   check('the drive has a trigger', driveTrigger !== null);
   await G((x) => window.game.player.setPosition(x, window.game.player.y), driveTrigger);
   check('the drive plays on reaching the car', await awaitBeat('drive'));
+  await settle(2600);
+  const driveMoves = await motion(300);
+  check('the drive is animated', driveMoves > 0.03,
+    `${(driveMoves * 100).toFixed(1)}% of the frame changed in 0.3s`);
+  check('the drive runs a painter', await G(() => !!window.game.cutscene.fx));
+  // The heaviest frame in the game: five scrolling layers and a hundred
+  // gradient slices of headlight, all at 768x432.
+  await settle(1400);
+  const driveFps = await G(() => window.game.loop.fps);
+  check('and holds frame rate while it does', driveFps >= 50, `${driveFps} fps`);
 
   // ------------------------------------------------- the cutscene surface
   head('cutscenes gained resolution');
@@ -222,6 +293,11 @@ const head = (t) => console.log(`\n--- ${t}`);
   await G((x) => window.game.player.setPosition(x, window.game.player.y), apertureX);
   check('the aperture stops the player on arrival', await awaitBeat('aperture'));
   await settle(3200);
+  // A still cutscene is where the frame-rate regression actually lived: the
+  // 768x432 surface was being resampled to the display with the browser's
+  // 'high' quality setting, which halved the frame rate and looked identical.
+  const stillFps = await G(() => window.game.loop.fps);
+  check('a still cutscene holds frame rate too', stillFps >= 50, `${stillFps} fps`);
   await page.screenshot({ path: path.join(SHOTS, '63-aperture.png') });
   await skip();
 

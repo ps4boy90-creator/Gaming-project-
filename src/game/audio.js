@@ -27,6 +27,10 @@ const AMBIENCE = {
   forest_night: { drone: 132, droneGain: 0.013, noise: 0.018, filter: 1600, wobble: 0.20 },
   facility_hum: { drone: 120, droneGain: 0.028, noise: 0.010, filter: 1200, wobble: 0.04 },
   basement: { drone: 105, droneGain: 0.034, noise: 0.008, filter: 800, wobble: 0.02 },
+  // Inside the Veridian: engine at a steady cruise, plus tyre roar. More noise
+  // and more wobble than anywhere else in the game -- it is the one moving
+  // scene, and the wobble is what says the road is not smooth.
+  driving: { drone: 98, droneGain: 0.030, noise: 0.030, filter: 1900, wobble: 0.26 },
 };
 
 export class Audio {
@@ -185,6 +189,9 @@ export class Audio {
       locked: { type: 'tone', freq: 430, to: 320, dur: 0.16, gain: 0.13 },
       save: { type: 'tone', freq: 520, to: 780, dur: 0.32, gain: 0.09 },
       blip: { type: 'tone', freq: 880, to: 880, dur: 0.04, gain: 0.05 },
+      // A wind-up bell: struck, not beeped. Well inside the radio's passband,
+      // which is where a 1950s alarm clock would have lived anyway.
+      alarm: { type: 'tone', freq: 1480, to: 1180, dur: 0.34, gain: 0.09 },
     }[name];
     if (!spec) return;
 

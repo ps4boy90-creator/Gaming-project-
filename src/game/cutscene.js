@@ -1,6 +1,8 @@
 import { clamp } from '../core/rng.js';
 import { wrap, drawParagraph, drawTextShadowed, lineHeight, measure } from '../gfx/text.js';
 import { INK, ACCENT } from './ui.js';
+import { SCENE_FX } from './cutscene_fx.js';
+import { CUTSCENE_W, CUTSCENE_H } from '../core/screen.js';
 
 /**
  * Plays a scripted sequence over a single full-screen still.
@@ -17,6 +19,12 @@ import { INK, ACCENT } from './ui.js';
  *   { fadeTo: 0, duration: 2 }         fade from black
  *   { sound: 'door' } { ambience: 'forest_night' }
  *   { waitForKey: true }               hold until the player presses a key
+ *   { fx: 'wake', phase: 'sit' }       run an animated painter (cutscene_fx.js)
+ *
+ * A step with `fx` repaints the frame every tick instead of showing a still,
+ * and `phase` names which beat of that animation it is. The pan, the letterbox
+ * and the text all work exactly the same over it -- an animated beat and a
+ * painted one are the same kind of thing to everything else.
  */
 export class Cutscene {
   constructor(assets, audio, postfx) {
@@ -32,6 +40,12 @@ export class Cutscene {
     this.letterbox = true;
     this.step = 0;
     this.time = 0;
+    /** Seconds since the cutscene started, for animation that spans steps. */
+    this.clock = 0;
+    this.fx = null;
+    this.fxPhase = null;
+    this.fxCache = {};
+    this.fxSurface = null;
     this.view = null;
     this.viewFrom = null;
     this.text = null;
@@ -58,6 +72,13 @@ export class Cutscene {
     this.active = true;
     this.step = -1;
     this.time = 0;
+    this.clock = 0;
+    // A painter's cached layers belong to one playing of one cutscene: the
+    // forest strips are built for the frame size and the scratch surface holds
+    // the last figure drawn.
+    this.fxCache = {};
+    this.fx = def.fx ? SCENE_FX[def.fx] || null : null;
+    this.fxPhase = def.phase || null;
     this.text = null;
     this.textTime = 0;
     this.prevImage = null;
@@ -68,7 +89,7 @@ export class Cutscene {
 
     const startView = def.view || (this.image
       ? { x: 0, y: 0, w: this.image.width, h: this.image.height }
-      : { x: 0, y: 0, w: 384, h: 216 });
+      : { x: 0, y: 0, w: CUTSCENE_W, h: CUTSCENE_H });
     this.view = { ...startView };
     this.viewFrom = { ...startView };
 
@@ -117,6 +138,11 @@ export class Cutscene {
         this.viewFrom = { ...s.view };
       }
     }
+    if (s.fx !== undefined) {
+      this.fx = s.fx ? SCENE_FX[s.fx] || null : null;
+      if (!this.fx && s.fx) console.warn(`Cutscene "${this.def.id}": no painter "${s.fx}"`);
+    }
+    if (s.phase !== undefined) this.fxPhase = s.phase;
     if (s.text !== undefined) {
       this.text = s.text;
       this.textStyle = s.style || 'card';
@@ -138,6 +164,7 @@ export class Cutscene {
     if (!s) { this.stop(); return; }
 
     this.time += dt;
+    this.clock += dt;
     this.textTime += dt;
     if (this.crossfade > 0) {
       this.crossfade = Math.max(0, this.crossfade - dt / Math.max(0.05, this.crossfadeFor));
@@ -169,6 +196,45 @@ export class Cutscene {
     if (t >= 1 && keyDone) this._advance();
   }
 
+  /**
+   * Run the active painter into an offscreen frame the size of the still it is
+   * standing in for. Returns the canvas, or null when this beat is a still.
+   */
+  _paintFx(w, h) {
+    if (!this.fx) return null;
+    const size = this.view && this.view.w
+      ? { w: Math.max(w, Math.round(this.view.w)), h: Math.max(h, Math.round(this.view.h)) }
+      : { w, h };
+    if (!this.fxSurface || this.fxSurface.canvas.width !== size.w
+      || this.fxSurface.canvas.height !== size.h) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size.w;
+      canvas.height = size.h;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      this.fxSurface = { canvas, ctx };
+      this.fxCache = {};        // layers are built for a size
+    }
+    const steps = (this.def && this.def.steps) || [];
+    const s = steps[this.step] || {};
+    const T = s.duration || 0;
+    const t = this.time;
+    const raw = T > 0 ? clamp(t / T, 0, 1) : 1;
+    this.fx.draw(this.fxSurface.ctx, {
+      w: size.w,
+      h: size.h,
+      phase: this.fxPhase,
+      t,
+      T,
+      k: raw * raw * (3 - 2 * raw),
+      clock: this.clock,
+      assets: this.assets,
+      audio: this.audio,
+      cache: this.fxCache,
+    });
+    return this.fxSurface.canvas;
+  }
+
   draw(ctx, w, h) {
     if (!this.active) return;
 
@@ -188,7 +254,12 @@ export class Cutscene {
       ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
       ctx.globalAlpha = prev;
     };
-    blit(this.image, 1);
+    // An animated beat paints a full frame of its own, which is then shown
+    // through the same view window as a still -- so a painter never has to know
+    // anything about panning, and a pan works over animation for free.
+    const painted = this._paintFx(w, h);
+    blit(painted, 1);
+    blit(this.image, painted ? 0 : 1);
     blit(this.prevImage, this.crossfade);
 
     if (this.letterbox) {

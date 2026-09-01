@@ -154,6 +154,14 @@ Add it to `CUTSCENES` in `src/scenes/manifest.js`, then set a trigger's
 step cuts included. See [SCENE_FORMAT.md](SCENE_FORMAT.md#cutscenes) for the step
 vocabulary.
 
+To animate one instead, add a painter to `SCENE_FX` in
+`src/game/cutscene_fx.js` — `{ images, draw(ctx, api) }`, where `api` carries
+the frame size, the current `phase`, seconds into the step, the cutscene clock,
+the assets and a per-playing `cache` for prebuilt layers. Build scrolling layers
+into cached canvases once and blit only the band each occupies; anything
+character-sized goes through the 384×216 scratch surface so it lands on the
+gameplay pixel grid.
+
 Author the still at **768×432**, not 384×216: cutscenes render to their own
 surface at twice the gameplay resolution. `tools/verify/pixels.py stills
 assets/stills` holds every one of them to the same bounds — monochrome, exposed

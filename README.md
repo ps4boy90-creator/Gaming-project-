@@ -127,6 +127,22 @@ Five beats: the **prologue** in the cabin, the **drive** up the mountain,
 **arrival** at the gate, the **aperture** the first time he reaches it, and the
 **epilogue**.
 
+**Two of them are animated rather than panned.** In the prologue Hale is asleep
+in the bed, the clock goes off, he sits up, gets out and crosses to the window —
+played with his own sprite, rotated about the hip for the sit-up, because the
+character sheet is a turnaround with no lying-down frame and never will have
+one. The drive is a side-on night road: five bands at five speeds, from a ridge
+that barely moves to trunks that cross the frame in a third of a second, with
+the centre line streaming past, a headlight beam on the tarmac and a sign that
+goes by once. Parallax is the only depth cue a flat side view gets, so it does
+all the work.
+
+Painters live in `src/game/cutscene_fx.js` and repaint the whole frame every
+tick; a step names one with `fx` and which beat of it with `phase`. The pan,
+the letterbox, the text and the broadcast treatment all apply over the top, so
+an animated beat and a painted one are the same kind of thing to everything
+else.
+
 They render to their own surface at **768×432** — twice the game's linear
 resolution, four times the pixels — while gameplay keeps its 384×216 backbuffer
 untouched. The gameplay grid exists so a walk cycle stays crisp; a full-screen
@@ -138,6 +154,12 @@ display (it is 2.5×), so cutscene stills are smoothed on the way out while
 gameplay stays nearest-neighbour and exact. On a slow pan that reads as film
 rather than as a mistake, but it is a real difference — `O` → **Soft cutscenes**
 turns it off.
+
+That smoothing is bilinear, not the browser's `high` setting. `high` is a
+multi-pass resample built for *downscaling*; on a 2.5× upscale it halved the
+frame rate — 32fps in any cutscene — while differing from bilinear by an
+average of 0.3 of one grey level. The suite now measures frames during a
+cutscene, which is the only reason that was ever found.
 
 Cutscenes are also the only place the frame changes shape: 2.39:1 letterbox
 bars, which is most of what tells the player they are not in control. A beat can

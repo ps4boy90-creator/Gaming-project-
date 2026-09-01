@@ -518,8 +518,28 @@ def paste_figure(img, x, base_y, height=120):
     return img
 
 
+def build_car_part():
+    """
+    The Veridian on its own, with the plate removed and nothing behind it.
+
+    The drive is animated at runtime -- parallax forest, a moving road, a
+    headlight beam -- so the car cannot be baked into a still. It is cut here
+    once, converted here once, and drawn by src/game/cutscene_fx.js.
+    """
+    sheet = Image.open(os.path.join(REFS, 'car_veridian_2400.png')).convert('RGBA')
+    car = cut_plate(sheet.crop((745, 164, 1809, 516)))
+    car = to_mono(car, lift=0.96, contrast=1.10, levels=44, dither=0.6)
+    width = 512
+    return car.resize((width, max(1, round(car.height * width / car.width))), Image.LANCZOS)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
+    parts = os.path.join(OUT, 'parts')
+    os.makedirs(parts, exist_ok=True)
+    car = build_car_part()
+    car.save(os.path.join(parts, 'car_side.png'))
+    print(f'  stills/parts/car_side.png  {car.width}x{car.height}')
     for name, img in [('drive_night', build_drive()),
                       ('aperture_reveal', build_aperture(True)),
                       ('aperture_empty', build_aperture(False))]:
