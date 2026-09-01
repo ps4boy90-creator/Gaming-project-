@@ -29,7 +29,7 @@
   ],
   "ambient": {
     "color": "#06101c",
-    "strength": 0.6
+    "strength": 0.44
   },
   "entities": [
     {
@@ -59,8 +59,8 @@
       "y": 30,
       "props": {
         "color": "#dfeaff",
-        "radius": 113,
-        "intensity": 1.003,
+        "radius": 152,
+        "intensity": 0.622,
         "warmth": 0.4,
         "flicker": "fluorescent",
         "phase": 0,
@@ -74,8 +74,8 @@
       "y": 30,
       "props": {
         "color": "#dfeaff",
-        "radius": 108,
-        "intensity": 0.885,
+        "radius": 145,
+        "intensity": 0.549,
         "warmth": 0.4,
         "flicker": "fluorescent",
         "phase": 1.7,
@@ -89,8 +89,8 @@
       "y": 30,
       "props": {
         "color": "#dfeaff",
-        "radius": 82,
-        "intensity": 0.236,
+        "radius": 110,
+        "intensity": 0.146,
         "warmth": 0.4,
         "flicker": "dying",
         "phase": 0,
@@ -104,8 +104,8 @@
       "y": 30,
       "props": {
         "color": "#dfeaff",
-        "radius": 108,
-        "intensity": 0.944,
+        "radius": 145,
+        "intensity": 0.585,
         "warmth": 0.4,
         "flicker": "fluorescent",
         "phase": 0.4,
@@ -119,8 +119,8 @@
       "y": 120,
       "props": {
         "color": "#7fd0c0",
-        "radius": 63,
-        "intensity": 0.649,
+        "radius": 85,
+        "intensity": 0.402,
         "warmth": 0.6,
         "flicker": "steady",
         "phase": 0,
@@ -283,7 +283,7 @@
       "props": {
         "color": "#4a5a80",
         "radius": 576,
-        "intensity": 0.3,
+        "intensity": 0.46,
         "warmth": 0.18,
         "flicker": "steady",
         "phase": 0,

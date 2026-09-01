@@ -11,18 +11,38 @@ export class PostFX {
     this.w = w;
     this.h = h;
     this.settings = {
-      grain: 0.05,
-      vignette: 0.55,
-      scanlines: 0,
+      grain: 0.06,
+      vignette: 0.68,
+      // The reference is a 1960s anthology broadcast, so the set is on by
+      // default now rather than off.
+      scanlines: 0.22,
+      broadcast: 1,
       chromatic: 0,
     };
     this.fade = { color: '#000000', amount: 0 };
+
+    /**
+     * How badly the signal is holding, 0..1. Driven from the same value as the
+     * radio, so the picture degrades in step with the sound as the player works
+     * more out -- one idea expressed twice rather than two unrelated effects.
+     */
+    this.tension = 0;
 
     this._grainFrames = this._buildGrain(4);
     this._grainIndex = 0;
     this._grainClock = 0;
     this._vignette = this._buildVignette();
     this._scanlines = this._buildScanlines();
+
+    this._rng = makeRng(1961);
+    this._rollY = 0;
+    this._tear = null;
+    this._tearIn = 9;
+    this._scratch = createSurface(this.w, this.h);
+  }
+
+  setTension(t) {
+    this.tension = Math.max(0, Math.min(1, t));
   }
 
   _buildGrain(count) {
@@ -70,6 +90,27 @@ export class PostFX {
       this._grainClock = 0;
       this._grainIndex = (this._grainIndex + 1) % this._grainFrames.length;
     }
+
+    // Vertical hold drifting: the band creeps down faster as the signal worsens.
+    const rollSpeed = 6 + this.tension * 26;
+    this._rollY = (this._rollY + rollSpeed * dt) % (this.h + 60);
+
+    if (this._tear) {
+      this._tear.life -= dt;
+      if (this._tear.life <= 0) this._tear = null;
+    } else {
+      this._tearIn -= dt;
+      if (this._tearIn <= 0) {
+        // Frequent and violent only once he understands what happened.
+        this._tear = {
+          y: Math.floor(this._rng() * this.h),
+          h: 3 + Math.floor(this._rng() * (4 + this.tension * 20)),
+          dx: Math.round((this._rng() * 2 - 1) * (2 + this.tension * 14)),
+          life: 0.05 + this._rng() * 0.12,
+        };
+        this._tearIn = (14 - this.tension * 11) * (0.4 + this._rng());
+      }
+    }
   }
 
   /** Fade to or from a colour; amount 0 is clear, 1 is fully covered. */
@@ -80,6 +121,34 @@ export class PostFX {
 
   render(ctx) {
     const s = this.settings;
+
+    // Signal artefacts first, so grain and scanlines land on top of a torn
+    // frame rather than being torn along with it.
+    if (s.broadcast > 0 && this._tear) {
+      const t = this._tear;
+      // Copy through a scratch surface: reading and writing the same canvas in
+      // one drawImage is well defined but the overlapping case is not worth
+      // relying on across browsers.
+      const sc = this._scratch.ctx;
+      sc.clearRect(0, 0, this.w, this.h);
+      sc.drawImage(ctx.canvas, 0, 0);
+      ctx.clearRect(0, t.y, this.w, t.h);
+      ctx.drawImage(this._scratch.canvas, 0, t.y, this.w, t.h,
+        t.dx * s.broadcast, t.y, this.w, t.h);
+    }
+
+    if (s.broadcast > 0) {
+      // The roll: a soft bright band easing down the frame, the way a set with
+      // failing vertical hold behaves.
+      const y = this._rollY - 30;
+      const grad = ctx.createLinearGradient(0, y, 0, y + 60);
+      const a = 0.05 * s.broadcast * (0.6 + this.tension * 0.8);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.5, `rgba(255,255,255,${a.toFixed(4)})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, y, this.w, 60);
+    }
 
     if (s.grain > 0) {
       const prev = ctx.globalCompositeOperation;

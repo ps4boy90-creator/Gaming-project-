@@ -163,7 +163,18 @@ export class Cutscene {
       const prev = ctx.globalAlpha;
       ctx.globalAlpha = prev * reveal;
 
-      if (this.textStyle === 'title') {
+      if (this.textStyle === 'narration') {
+        // Centred in the frame, in the narrator's voice rather than Hale's.
+        // Deliberately not the gold used for titles and prompts: this sits
+        // above the story, not inside its interface.
+        const lines = wrap(this.text, w - 72);
+        const blockH = lines.length * lineHeight();
+        const top = Math.round(h / 2 - blockH / 2);
+        lines.forEach((line, i) => {
+          drawParagraph(ctx, [line], Math.round((w - measure(line)) / 2),
+            top + i * lineHeight(), { color: INK });
+        });
+      } else if (this.textStyle === 'title') {
         const lines = wrap(this.text, w - 40);
         const blockH = lines.length * lineHeight();
         const top = Math.round(h / 2 - blockH / 2);

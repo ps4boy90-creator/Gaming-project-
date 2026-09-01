@@ -36,8 +36,18 @@ const check = (name, cond, extra = '') => {
   await page.goto(`${BASE}/index.html`);
   await G(() => localStorage.clear());
   await page.reload();
-  await page.waitForFunction(() => window.game && ['playing', 'error'].includes(window.game.state),
+  await page.waitForFunction(() => window.game && ['playing', 'cutscene', 'error'].includes(window.game.state),
     null, { timeout: 15000 });
+
+  /** A new game now opens on the prologue narration; skip past it. */
+  const skipPrologue = async () => {
+    for (let i = 0; i < 14; i++) {
+      if (await page.evaluate(() => window.game.state) !== 'cutscene') return;
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(260);
+    }
+  };
+  await skipPrologue();
   check('boots', await G(() => window.game.state) === 'playing', await G(() => window.game.error || ''));
 
   /**
@@ -239,7 +249,8 @@ const check = (name, cond, extra = '') => {
   await G(() => window.game.save());
   const evidence = await G(() => window.game.journal.notes.length);
   await page.reload();
-  await page.waitForFunction(() => window.game && window.game.state === 'playing', null, { timeout: 15000 });
+  await page.waitForFunction(() => window.game && ['playing', 'cutscene'].includes(window.game.state), null, { timeout: 15000 });
+  await skipPrologue();
   await settle(400);
   check('restores into Sublevel 3', await sceneId() === 'sublevel_3');
   check('deductions survive a reload', await G(() => window.game.journal.deductions.length) === 7);

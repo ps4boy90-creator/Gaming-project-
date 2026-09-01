@@ -9,11 +9,21 @@ plain: replace the folders under assets/backdrops/ with painted art when you
 have it and the scene JSON keeps working unchanged.
 
     python3 tools/make_corridor.py
+
+
+The palette is monochrome by construction rather than by conversion. Converting
+colour art to grey collides values that differ only in hue -- the pine
+silhouettes and the night sky behind them landed on the same grey and the trees
+disappeared. For art this file generates there is no reason to accept that:
+the greys are chosen with the separation built in.
 """
 
 import math
 import os
+import sys
 import random
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PIL import Image
 
@@ -24,13 +34,13 @@ W, H = 768, 216
 FLOOR_Y = 168
 
 # Sampled from the bedroom reference so the two scenes sit in the same world.
-WALL_DARK = (26, 19, 15)
-WALL_MID = (44, 32, 23)
-WALL_LIT = (58, 43, 30)
-FLOOR_DARK = (22, 16, 12)
-FLOOR_MID = (38, 27, 19)
-TRIM = (62, 46, 31)
-NIGHT = (14, 18, 42)
+WALL_DARK = (30, 30, 30)
+WALL_MID = (52, 52, 52)
+WALL_LIT = (72, 72, 72)
+FLOOR_DARK = (22, 22, 22)
+FLOOR_MID = (42, 42, 42)
+TRIM = (80, 80, 80)
+NIGHT = (38, 38, 38)
 
 rand = random.Random(4242)
 
@@ -152,22 +162,36 @@ def build_fore():
     return img
 
 
+def save_mono(img, path):
+    """
+    Save greyscale.
+
+    The palette constants above are already grey, but both generators also
+    place inline colours -- warning LEDs, the moon, lit window glass, monitor
+    phosphor. Converting on save catches those without hunting each one, and
+    keeps the deliberate greys intact: with a neutral tone curve a grey value
+    maps to itself, so this only touches the accents.
+    """
+    from monochrome import to_mono
+    to_mono(img, lift=1.0, contrast=1.0, levels=48, dither=0.5).save(path)
+
+
 def build_corridor():
     os.makedirs(OUT, exist_ok=True)
-    build_far().save(os.path.join(OUT, 'far.png'))
-    build_wall().save(os.path.join(OUT, 'wall.png'))
-    build_fore().save(os.path.join(OUT, 'fore.png'))
+    save_mono(build_far(), os.path.join(OUT, 'far.png'))
+    save_mono(build_wall(), os.path.join(OUT, 'wall.png'))
+    save_mono(build_fore(), os.path.join(OUT, 'fore.png'))
     print(f'  backdrops/cabin_landing/  far.png wall.png fore.png  ({W}x{H})')
 
 
 # --------------------------------------------------------------- exterior
 
-SKY_TOP = (8, 11, 28)
-SKY_LOW = (22, 30, 62)
-PINE = (10, 20, 22)
-PINE_FAR = (16, 24, 40)
-GRAVEL = (26, 26, 30)
-CABIN = (30, 22, 15)
+SKY_TOP = (12, 12, 12)
+SKY_LOW = (44, 44, 44)
+PINE = (8, 8, 8)
+PINE_FAR = (18, 18, 18)
+GRAVEL = (38, 38, 38)
+CABIN = (34, 34, 34)
 EX_GROUND_Y = 172
 
 
@@ -273,8 +297,8 @@ def build_exterior_ground():
 def build_exterior():
     os.makedirs(os.path.join(ROOT, 'assets', 'backdrops', 'cabin_drive'), exist_ok=True)
     out = os.path.join(ROOT, 'assets', 'backdrops', 'cabin_drive')
-    build_exterior_sky().save(os.path.join(out, 'sky.png'))
-    build_exterior_ground().save(os.path.join(out, 'ground.png'))
+    save_mono(build_exterior_sky(), os.path.join(out, 'sky.png'))
+    save_mono(build_exterior_ground(), os.path.join(out, 'ground.png'))
     print(f'  backdrops/cabin_drive/  sky.png ground.png  ({W}x{H})')
 
 

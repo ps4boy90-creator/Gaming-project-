@@ -29,7 +29,7 @@
   ],
   "ambient": {
     "color": "#04060f",
-    "strength": 0.72
+    "strength": 0.54
   },
   "entities": [
     {
@@ -49,9 +49,9 @@
       "y": 120,
       "props": {
         "color": "#8fd8ff",
-        "radius": 260,
-        "intensity": 1.5,
-        "warmth": 0.85,
+        "radius": 190,
+        "intensity": 0.72,
+        "warmth": 0.55,
         "flicker": "pulse",
         "phase": 0,
         "requiresFlag": ""
@@ -64,9 +64,9 @@
       "y": 130,
       "props": {
         "color": "#ffffff",
-        "radius": 120,
-        "intensity": 1.0,
-        "warmth": 0.6,
+        "radius": 96,
+        "intensity": 0.5,
+        "warmth": 0.4,
         "flicker": "candle",
         "phase": 0,
         "requiresFlag": ""
@@ -79,8 +79,8 @@
       "y": 26,
       "props": {
         "color": "#dfeaff",
-        "radius": 75,
-        "intensity": 0.225,
+        "radius": 78,
+        "intensity": 0.124,
         "warmth": 0.4,
         "flicker": "dying",
         "phase": 0,
@@ -94,8 +94,8 @@
       "y": 140,
       "props": {
         "color": "#ffd8a0",
-        "radius": 67,
-        "intensity": 0.375,
+        "radius": 70,
+        "intensity": 0.206,
         "warmth": 0.5,
         "flicker": "dying",
         "phase": 2.4,
@@ -224,11 +224,29 @@
       "props": {
         "color": "#4a5a80",
         "radius": 576,
-        "intensity": 0.3,
+        "intensity": 0.4,
         "warmth": 0.18,
         "flicker": "steady",
         "phase": 0,
         "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_epilogue",
+      "x": 640,
+      "y": 186,
+      "w": 360,
+      "h": 120,
+      "props": {
+        "once": true,
+        "requiresFlag": "knows_ending",
+        "setsFlag": "saw_epilogue",
+        "line": "",
+        "portrait": "",
+        "cutscene": "epilogue",
+        "shake": 0,
+        "sound": ""
       }
     }
   ],

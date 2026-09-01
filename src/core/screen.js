@@ -35,6 +35,8 @@ export class Screen {
     this.scale = 1;
     this.offsetX = 0;
     this.offsetY = 0;
+    /** A CSS filter string applied to the final blit, or '' for none. */
+    this.filter = '';
 
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
@@ -58,17 +60,28 @@ export class Screen {
     this.offsetY = Math.floor((availH - this.h * this.scale) / 2);
   }
 
-  /** Blit the backbuffer to the visible canvas, letterboxed and centred. */
+  /**
+   * Blit the backbuffer to the visible canvas, letterboxed and centred.
+   *
+   * `filter` is applied here rather than per-draw so it costs one GPU-side
+   * operation on the final image. The art is already monochrome on disk; this
+   * catches what the pipeline cannot -- the additive coloured lights, and the
+   * UI accent -- so that turning it off genuinely restores colour rather than
+   * revealing a half-converted picture.
+   */
   present() {
     const ctx = this.hostCtx;
     ctx.imageSmoothingEnabled = false;
+    ctx.filter = 'none';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.host.width, this.host.height);
+    if (this.filter) ctx.filter = this.filter;
     ctx.drawImage(
       this.canvas,
       this.offsetX, this.offsetY,
       this.w * this.scale, this.h * this.scale,
     );
+    ctx.filter = 'none';
   }
 
   /** Map a DOM mouse/touch position to a native-resolution coordinate. */

@@ -9,11 +9,21 @@ folder under assets/backdrops/ with painted art of the same dimensions and the
 scene JSON keeps working untouched.
 
     python3 tools/make_facility.py
+
+
+The palette is monochrome by construction rather than by conversion. Converting
+colour art to grey collides values that differ only in hue -- the pine
+silhouettes and the night sky behind them landed on the same grey and the trees
+disappeared. For art this file generates there is no reason to accept that:
+the greys are chosen with the separation built in.
 """
 
 import math
 import os
+import sys
 import random
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PIL import Image
 
@@ -23,19 +33,19 @@ OUT = os.path.join(ROOT, 'assets', 'backdrops')
 H = 216
 
 # One palette across the whole building, so eight rooms read as one place.
-CONCRETE_LO = (26, 28, 33)
-CONCRETE_HI = (44, 47, 54)
-FLOOR_LO = (20, 22, 26)
-FLOOR_HI = (36, 38, 44)
-TRIM = (58, 62, 71)
-STEEL = (72, 78, 88)
-DARK = (12, 13, 16)
-TEAL = (38, 66, 66)
-RUST = (74, 48, 32)
-WARN = (92, 78, 30)
-NIGHT_SKY_TOP = (8, 11, 28)
-NIGHT_SKY_LOW = (22, 30, 62)
-PINE = (10, 20, 22)
+CONCRETE_LO = (34, 34, 34)
+CONCRETE_HI = (58, 58, 58)
+FLOOR_LO = (26, 26, 26)
+FLOOR_HI = (46, 46, 46)
+TRIM = (78, 78, 78)
+STEEL = (96, 96, 96)
+DARK = (10, 10, 10)
+TEAL = (64, 64, 64)
+RUST = (72, 72, 72)
+WARN = (112, 112, 112)
+NIGHT_SKY_TOP = (12, 12, 12)
+NIGHT_SKY_LOW = (44, 44, 44)
+PINE = (8, 8, 8)
 
 rand = random.Random(714)
 
@@ -534,13 +544,27 @@ SCENES = {
 }
 
 
+def save_mono(img, path):
+    """
+    Save greyscale.
+
+    The palette constants above are already grey, but both generators also
+    place inline colours -- warning LEDs, the moon, lit window glass, monitor
+    phosphor. Converting on save catches those without hunting each one, and
+    keeps the deliberate greys intact: with a neutral tone curve a grey value
+    maps to itself, so this only touches the accents.
+    """
+    from monochrome import to_mono
+    to_mono(img, lift=1.0, contrast=1.0, levels=48, dither=0.5).save(path)
+
+
 def main():
     for name, (fn, w, posts, exterior) in SCENES.items():
         d = os.path.join(OUT, name)
         os.makedirs(d, exist_ok=True)
-        fn(w).save(os.path.join(d, 'room.png'))
+        save_mono(fn(w), os.path.join(d, 'room.png'))
         if not exterior:
-            fore_beam(w, posts).save(os.path.join(d, 'fore.png'))
+            save_mono(fore_beam(w, posts), os.path.join(d, 'fore.png'))
         print(f'  backdrops/{name}/  {w}x{H}')
 
 

@@ -22,6 +22,9 @@ try:
 except ImportError:
     sys.exit("Pillow is required:  pip install pillow")
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from monochrome import to_mono  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFS = os.path.join(ROOT, "art", "refs")
 OUT = os.path.join(ROOT, "assets")
@@ -36,6 +39,11 @@ SCREEN_W, SCREEN_H = 384, 216
 # re-run rather than scaling at draw time.
 PLAYER_H = 88
 PORTRAIT_H = 56
+
+# The reference for this project is Midnight Scenes, whose early episodes are
+# monochrome. Set False to derive the colour assets instead; the scene files and
+# the engine are unchanged either way, so the two can be compared directly.
+MONO = True
 
 
 def ref(name):
@@ -60,8 +68,19 @@ def fit(img, w=None, h=None):
 
 
 def crisp(img, colors=48):
-    """Snap to a limited adaptive palette so the reduced art reads as pixel art
-    again instead of as a soft photograph. Dithering is off on purpose."""
+    """
+    Snap to a limited palette so the reduced art reads as pixel art again
+    instead of as a soft photograph.
+
+    In monochrome this hands over to tools/monochrome.py, which does its own
+    quantisation on a grey ramp. Converting *after* a colour quantisation would
+    be worse: the adaptive palette spends its entries separating hues that are
+    about to be discarded, leaving fewer distinct values where they matter.
+    """
+    if MONO:
+        out = to_mono(img)
+        out.putalpha(img.convert("RGBA").getchannel("A"))
+        return out
     rgb = img.convert("RGB").quantize(colors=colors, method=Image.MEDIANCUT,
                                       dither=Image.NONE).convert("RGB")
     out = rgb.convert("RGBA")

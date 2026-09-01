@@ -29,7 +29,7 @@
   ],
   "ambient": {
     "color": "#080c22",
-    "strength": 0.6
+    "strength": 0.42
   },
   "entities": [
     {
@@ -59,8 +59,8 @@
       "y": 140,
       "props": {
         "color": "#ffcf92",
-        "radius": 110,
-        "intensity": 1.092,
+        "radius": 148,
+        "intensity": 0.677,
         "warmth": 0.5,
         "flicker": "fluorescent",
         "phase": 0,
@@ -74,8 +74,8 @@
       "y": 30,
       "props": {
         "color": "#8fa8d8",
-        "radius": 69,
-        "intensity": 0.172,
+        "radius": 93,
+        "intensity": 0.107,
         "warmth": 0.3,
         "flicker": "dying",
         "phase": 0,
@@ -89,8 +89,8 @@
       "y": 130,
       "props": {
         "color": "#a8c4ff",
-        "radius": 105,
-        "intensity": 0.632,
+        "radius": 141,
+        "intensity": 0.392,
         "warmth": 0.4,
         "flicker": "steady",
         "phase": 0,
@@ -104,8 +104,8 @@
       "y": 200,
       "props": {
         "color": "#5a6a92",
-        "radius": 218,
-        "intensity": 0.23,
+        "radius": 294,
+        "intensity": 0.143,
         "warmth": 0.2,
         "flicker": "steady",
         "phase": 0,
@@ -270,7 +270,7 @@
       "props": {
         "color": "#4a5a80",
         "radius": 384,
-        "intensity": 0.3,
+        "intensity": 0.46,
         "warmth": 0.18,
         "flicker": "steady",
         "phase": 0,

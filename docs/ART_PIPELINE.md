@@ -46,6 +46,31 @@ PLAYER_H = 88      # how tall the protagonist stands, in native pixels
 PORTRAIT_H = 56    # portrait height in the dialogue box
 ```
 
+## Monochrome
+
+`tools/monochrome.py`, shared by all three generators so they cannot drift.
+
+Three steps, each answering a specific failure:
+
+1. **Weighted mix, not luma.** Blue at 0.06 against the standard 0.114, red at
+   0.34 against 0.299. Cold light darkens, warm light holds, and the two
+   separate by brightness once hue is gone. Measured on the bedroom's two
+   lights this widens the gap from 25.5 to 39.1 out of 255.
+2. **A tone curve pivoted on the image's median.** Not on mid-grey: these are
+   night scenes living in the bottom tenth of the range, and an S-curve about
+   0.5 took the bedroom from a mean of 18/255 to 8/255 and destroyed it.
+3. **A quantised ramp with a 4×4 ordered dither**, in perceptual space. A linear
+   ramp spends its steps on highlights these scenes never reach — a 20-step
+   linear ramp resolved to eight actual greys on the bedroom.
+
+`MONO = False` at the top of `slice_refs.py` derives the colour assets instead;
+the engine and the scene files are identical either way, so the two can be
+compared directly.
+
+Set the runtime filter off with `O` → **Black and white** to see the colour
+beneath, which is also how to check that a scene's lighting is doing the work
+rather than its palette.
+
 ## The animation placeholder
 
 The character reference is a **turnaround, not a walk cycle** — there are no

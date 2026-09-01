@@ -48,7 +48,7 @@ export class Game {
     this.cutscene.onShake = (n) => this.camera.shake(n);
     this.keypad = new Keypad(this.audio);
     this.music = null;                       // built on the first audio unlock
-    this.options = new Options(this.audio, this.postfx);
+    this.options = new Options(this.audio, this.postfx, this.screen);
     this.realization = new Realization(this.audio);
     this.deductions = new Deductions();
     this.deductions.watch(this.flags);
@@ -104,6 +104,7 @@ export class Game {
       : 0;
     if (this.music) this.music.setTension(t);
     if (this.audio.radio) this.audio.radio.setTension(t);
+    this.postfx.setTension(t);
     return t;
   }
 
@@ -177,8 +178,14 @@ export class Game {
         this.camera.snapTo(this.player.x, this.player.y - 20);
         this.dialogue.say('Where I left off.', { portrait: 'neutral' });
       } else {
-        await this.travel(START_SCENE, START_SPAWN, { instant: true });
-        this.dialogue.say('Four-forty. The alarm never got the chance.', { portrait: 'worried' });
+        // A new game opens on the narration, which hands off to the cabin via
+        // the cutscene's own `then`. Returning here rather than falling through
+        // keeps boot from immediately overwriting the cutscene state.
+        this.state = 'cutscene';
+        this.playCutscene('prologue', () => {
+          this.dialogue.say('Four-forty. The alarm never got the chance.', { portrait: 'worried' });
+        });
+        return;
       }
 
       this.state = 'playing';
@@ -232,7 +239,7 @@ export class Game {
     this.state = 'playing';
   }
 
-  playCutscene(id) {
+  playCutscene(id, after = null) {
     const def = CUTSCENES[id];
     if (!def) {
       console.warn(`Unknown cutscene "${id}"`);
@@ -245,12 +252,17 @@ export class Game {
       // played over -- that is how the drive up the mountain arrives at the gate.
       if (def.then && def.then.scene) {
         this.travel(def.then.scene, def.then.spawn || 'start', { instant: true })
-          .then(() => { this.state = 'playing'; this.postfx.setFade('#000000', 0); });
+          .then(() => {
+            this.state = 'playing';
+            this.postfx.setFade('#000000', 0);
+            if (after) after();
+          });
         return;
       }
       this.state = 'playing';
       this.audio.setAmbience(returnAmbience);
       this.postfx.setFade('#000000', 0);
+      if (after) after();
     });
   }
 

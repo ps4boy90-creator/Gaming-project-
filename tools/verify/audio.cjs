@@ -39,10 +39,21 @@ const check = (name, cond, extra = '') => {
   await page.goto(`${BASE}/index.html`);
   await G(() => localStorage.clear());
   await page.reload();
-  await page.waitForFunction(() => window.game && ['playing', 'error'].includes(window.game.state),
+  await page.waitForFunction(() => window.game && ['playing', 'cutscene', 'error'].includes(window.game.state),
     null, { timeout: 15000 });
 
+  /** A new game now opens on the prologue narration; skip past it. */
+  const skipPrologue = async () => {
+    for (let i = 0; i < 14; i++) {
+      if (await page.evaluate(() => window.game.state) !== 'cutscene') return;
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(260);
+    }
+  };
   check('context is not created before a gesture', await G(() => window.game.audio.ctx === null));
+
+  await skipPrologue();
+
 
   // A real key event is the gesture that unlocks the context.
   await page.keyboard.press('KeyE');
@@ -262,7 +273,8 @@ const check = (name, cond, extra = '') => {
   await page.keyboard.press('Escape');
   await settle(250);
   await page.reload();
-  await page.waitForFunction(() => window.game && window.game.state === 'playing', null, { timeout: 15000 });
+  await page.waitForFunction(() => window.game && ['playing', 'cutscene'].includes(window.game.state), null, { timeout: 15000 });
+  await skipPrologue();
   await settle(400);
   check('options survive a reload', await G(() => window.game.options.values.music) === musicVol,
     `${musicVol} -> ${await G(() => window.game.options.values.music)}`);

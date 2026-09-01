@@ -8,12 +8,13 @@ deserted, and works out why.
 Three scenes ship as a working demonstration; the rest is authored in the editor.
 
 - Pure atmosphere and investigation — no enemies, no combat, no death, no fail state
-- Full-colour high-detail pixel art at a native **384×216**, integer-scaled (5× is exactly 1080p)
+- **Monochrome** high-detail pixel art at a native **384×216**, integer-scaled (5× is exactly 1080p)
 - Vanilla JavaScript, **zero dependencies, no build step**
 - Scenes are painted backdrop layers plus collision boxes you draw over the art
 - Real coloured lighting: warm lamps against cold moonlight, with named flicker profiles
 - All sound is synthesised at runtime; there are no audio files
 - A generative score and a 1950s radio the whole mix plays through
+- A 1960s anthology-broadcast presentation: narration, scanlines, vertical roll, signal tearing
 
 ## Running it
 
@@ -89,6 +90,36 @@ Two nice consequences fall out of this: the code for the sealed stairwell door
 is `0614`, which you can only know by working out when everything stopped; and
 the last realization is personal — the message that told him to come in early
 is the only reason he wasn't there at 06:14.
+
+## Look
+
+Black and white, after Midnight Scenes — Octavi Navarro's Twilight Zone
+pastiches, whose early episodes are monochrome.
+
+The conversion is deliberately not a desaturation. Desaturating maps hue to
+nothing, so two colours that differ only in hue collapse to the same grey: the
+bedroom's warm lamp and its cold moonlight sit at almost the same luminance and
+the room would go from two light sources to one flat wash. Instead
+`tools/monochrome.py` weights blue well below the standard luma coefficient and
+red slightly above, so cold light darkens and warm light holds — roughly
+doubling the gap between them — then applies a tone curve pivoted on each
+image's own median (these are night scenes; an S-curve about mid-grey crushes
+them) and quantises onto a grey ramp with an ordered dither.
+
+The ten procedurally generated backdrops skip the conversion entirely and are
+drawn from a grey palette chosen for separation. There is no reason to convert
+colours and hope they do not collide when you can pick the values.
+
+The lights keep their colours in the scene files, and convert at render time,
+so the warm/cold relationship survives as brightness. `O` → **Black and white**
+turns the filter off and shows the colour underneath.
+
+**Broadcast treatment.** Scanlines, vignette, a vertical roll and occasional
+signal tearing, all driven by the same tension value as the radio — so as the
+player works more out, the picture degrades in step with the sound.
+
+**Narration.** The story opens and closes on a third-person narrator, in the
+register of a 1960s anthology show.
 
 ## Sound
 

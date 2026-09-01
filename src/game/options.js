@@ -20,19 +20,25 @@ export const ROWS = [
   { key: 'music', label: 'Music', min: 0, max: 1, step: 0.05 },
   { key: 'radio', label: 'Radio', min: 0, max: 1, step: 0.05,
     help: '0 bypasses the 1950s set entirely' },
+  { key: 'mono', label: 'Black and white', min: 0, max: 1, step: 1,
+    help: 'off shows the colour beneath the conversion' },
+  { key: 'broadcast', label: 'Broadcast', min: 0, max: 1, step: 0.1,
+    help: 'vertical roll and signal tearing' },
   { key: 'grain', label: 'Film grain', min: 0, max: 0.2, step: 0.01 },
   { key: 'scanlines', label: 'Scanlines', min: 0, max: 0.5, step: 0.05 },
   { key: 'vignette', label: 'Vignette', min: 0, max: 1, step: 0.05 },
 ];
 
 export const DEFAULTS = {
-  volume: 0.7, music: 0.8, radio: 1, grain: 0.05, scanlines: 0, vignette: 0.55,
+  volume: 0.7, music: 0.8, radio: 1, mono: 1, broadcast: 1,
+  grain: 0.06, scanlines: 0.22, vignette: 0.68,
 };
 
 export class Options {
-  constructor(audio, postfx) {
+  constructor(audio, postfx, screen = null) {
     this.audio = audio;
     this.postfx = postfx;
+    this.screen = screen;
     this.open = false;
     this.index = 0;
     this.values = { ...DEFAULTS, ...Options.read() };
@@ -64,6 +70,13 @@ export class Options {
     this.postfx.settings.grain = this.values.grain;
     this.postfx.settings.scanlines = this.values.scanlines;
     this.postfx.settings.vignette = this.values.vignette;
+    this.postfx.settings.broadcast = this.values.broadcast;
+    if (this.screen) {
+      // A touch of added contrast: the art is already converted with its own
+      // tone curve, but the coloured lights arrive here unconverted and land
+      // slightly flat once their hue is discarded.
+      this.screen.filter = this.values.mono ? 'grayscale(1) contrast(1.06)' : '';
+    }
   }
 
   show() {
