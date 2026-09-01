@@ -1,0 +1,213 @@
+{
+  "id": "cabin_landing",
+  "name": "Cabin -- Landing",
+  "size": {
+    "w": 768,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "night_cabin",
+  "layers": [
+    {
+      "image": "backdrops/cabin_landing/far.png",
+      "parallax": 0.3,
+      "repeat": true
+    },
+    {
+      "image": "backdrops/cabin_landing/wall.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/cabin_landing/fore.png",
+      "parallax": 1.08,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 168,
+      "w": 768,
+      "h": 48,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#080c22",
+    "strength": 0.64
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_bedroom",
+      "x": 72,
+      "y": 168,
+      "props": {
+        "id": "from_bedroom",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_outside",
+      "x": 700,
+      "y": 168,
+      "props": {
+        "id": "from_outside",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "hall_dark",
+      "x": 200,
+      "y": 168,
+      "w": 120,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "The hall light's been going for a month. I keep meaning to change it.",
+        "portrait": "neutral",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "note",
+      "id": "pinned_note",
+      "x": 300,
+      "y": 156,
+      "props": {
+        "title": "Pinned by the window",
+        "pages": [
+          "In his own handwriting, three weeks old:\n\nCALL MARGARET BACK.\n\nUnderlined twice. He never did."
+        ],
+        "prompt": "Read",
+        "setsFlag": "",
+        "once": false
+      }
+    },
+    {
+      "type": "terminal",
+      "id": "answering_machine",
+      "x": 560,
+      "y": 168,
+      "props": {
+        "title": "Answering machine -- 1 NEW",
+        "pages": [
+          "[TUESDAY, 11:48 PM]\n\nStatic. Then a room tone that is much too large for a telephone.",
+          "\"...Hale. It's Margaret. Don't come in tomorrow.\"\n\nA long pause. Something moves behind her voice.",
+          "\"Actually -- come in. Come in early, before the day shift. You need to see what's on Sublevel 3 before they seal it.\"\n\nThe tape runs out."
+        ],
+        "prompt": "Play",
+        "requiresFlag": "",
+        "lockedText": "The power's out to it.",
+        "setsFlag": "heard_message",
+        "portrait": "worried"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "hall_chair",
+      "x": 430,
+      "y": 168,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "back_to_bedroom",
+      "x": 72,
+      "y": 168,
+      "props": {
+        "to": "cabin_bedroom",
+        "spawn": "from_landing",
+        "prompt": "Bedroom",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "door"
+      }
+    },
+    {
+      "type": "door",
+      "id": "front_door",
+      "x": 716,
+      "y": 168,
+      "props": {
+        "to": "cabin_drive",
+        "spawn": "from_cabin",
+        "prompt": "Go outside",
+        "requiresFlag": "heard_message",
+        "lockedText": "The machine's blinking. One new message. I should hear it first.",
+        "setsFlag": "left_cabin",
+        "sound": "door"
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_1",
+      "x": 336,
+      "y": 88,
+      "props": {
+        "color": "#7fa8ff",
+        "radius": 118,
+        "intensity": 0.42,
+        "warmth": 0.4,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_2",
+      "x": 560,
+      "y": 34,
+      "props": {
+        "color": "#ffcf92",
+        "radius": 126,
+        "intensity": 1.15,
+        "warmth": 0.55,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_3",
+      "x": 72,
+      "y": 140,
+      "props": {
+        "color": "#ffb066",
+        "radius": 78,
+        "intensity": 0.75,
+        "warmth": 0.5,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_4",
+      "x": 716,
+      "y": 130,
+      "props": {
+        "color": "#8fa8d8",
+        "radius": 58,
+        "intensity": 0.4,
+        "warmth": 0.35,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

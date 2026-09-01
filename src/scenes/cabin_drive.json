@@ -1,0 +1,155 @@
+{
+  "id": "cabin_drive",
+  "name": "Cabin -- The Drive",
+  "size": {
+    "w": 768,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "forest_night",
+  "layers": [
+    {
+      "image": "backdrops/cabin_drive/sky.png",
+      "parallax": 0.25
+    },
+    {
+      "image": "backdrops/cabin_drive/ground.png",
+      "parallax": 1
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 172,
+      "w": 768,
+      "h": 44,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#0a1030",
+    "strength": 0.62
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_cabin",
+      "x": 110,
+      "y": 172,
+      "props": {
+        "id": "from_cabin",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "prop",
+      "id": "veridian",
+      "x": 440,
+      "y": 178,
+      "props": {
+        "image": "props/car_veridian/side.png",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Ninety-one thousand miles, most of them up this one road.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "step_outside",
+      "x": 150,
+      "y": 172,
+      "w": 90,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "No wind. The whole ridge is holding its breath.",
+        "portrait": "worried",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "drive_up",
+      "x": 480,
+      "y": 172,
+      "w": 70,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "has_keys",
+        "setsFlag": "arrived_at_station",
+        "line": "",
+        "portrait": "",
+        "cutscene": "arrival",
+        "shake": 0,
+        "sound": "door"
+      }
+    },
+    {
+      "type": "door",
+      "id": "back_inside",
+      "x": 66,
+      "y": 172,
+      "props": {
+        "to": "cabin_landing",
+        "spawn": "from_outside",
+        "prompt": "Go back in",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "door"
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_1",
+      "x": 610,
+      "y": 44,
+      "props": {
+        "color": "#8fb0ff",
+        "radius": 190,
+        "intensity": 0.5,
+        "warmth": 0.3,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_2",
+      "x": 79,
+      "y": 110,
+      "props": {
+        "color": "#ffb066",
+        "radius": 74,
+        "intensity": 0.8,
+        "warmth": 0.55,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_3",
+      "x": 300,
+      "y": 176,
+      "props": {
+        "color": "#7f96c8",
+        "radius": 90,
+        "intensity": 0.22,
+        "warmth": 0.25,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

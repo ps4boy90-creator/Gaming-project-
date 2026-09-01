@@ -1,0 +1,243 @@
+{
+  "id": "cabin_bedroom",
+  "name": "Cabin -- Bedroom",
+  "size": {
+    "w": 384,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "night_cabin",
+  "layers": [
+    {
+      "image": "backdrops/cabin_bedroom/room.png",
+      "parallax": 1
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 204,
+      "w": 384,
+      "h": 12,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#0b1030",
+    "strength": 0.58
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "wake",
+      "x": 214,
+      "y": 204,
+      "props": {
+        "id": "wake",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_landing",
+      "x": 360,
+      "y": 204,
+      "props": {
+        "id": "from_landing",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "wake_thoughts",
+      "x": 214,
+      "y": 204,
+      "w": 110,
+      "h": 96,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "awake",
+        "line": "Rain all night and the power held. That's new.",
+        "portrait": "neutral",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "notice_desk",
+      "x": 140,
+      "y": 204,
+      "w": 80,
+      "h": 96,
+      "props": {
+        "once": true,
+        "requiresFlag": "awake",
+        "setsFlag": "",
+        "line": "I left the desk lamp on again. Third time this week.",
+        "portrait": "worried",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "note",
+      "id": "desk_memo",
+      "x": 152,
+      "y": 144,
+      "props": {
+        "title": "Interoffice Memo -- UNOPENED",
+        "pages": [
+          "BLACKRIDGE STATION / DIRECTORATE OF APPLIED PHYSICS\n\nEffective 06:00 Thursday, Sublevel 3 is closed to all personnel below Clearance B pending the shutdown review.",
+          "Dr. Hale --\n\nYou are listed as the only Clearance B remaining on the roster. Everyone else has been reassigned off-site.\n\nCome in early. Come in alone.\n\n-- M."
+        ],
+        "prompt": "Read",
+        "setsFlag": "read_memo",
+        "once": false
+      }
+    },
+    {
+      "type": "item",
+      "id": "car_keys",
+      "x": 112,
+      "y": 142,
+      "props": {
+        "name": "Car keys",
+        "description": "A worn fob for the Veridian, and a brass key for the cabin door.",
+        "prompt": "Take",
+        "setsFlag": "has_keys",
+        "line": "Keys. Right. Forty minutes up the ridge."
+      }
+    },
+    {
+      "type": "prop",
+      "id": "backpack",
+      "x": 302,
+      "y": 158,
+      "props": {
+        "image": "",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Packed since Sunday. I keep not going anywhere.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "prop",
+      "id": "bookshelf",
+      "x": 352,
+      "y": 186,
+      "props": {
+        "image": "",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Textbooks I haven't opened since the doctorate. And the photo I keep face-down.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "prop",
+      "id": "window_view",
+      "x": 250,
+      "y": 202,
+      "props": {
+        "image": "",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Clear sky for once. You can see the ridge line from here. No lights on it.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "bed",
+      "x": 76,
+      "y": 202,
+      "props": {
+        "prompt": "Sit",
+        "line": "Five more minutes. Then the mountain."
+      }
+    },
+    {
+      "type": "door",
+      "id": "leave_cabin",
+      "x": 378,
+      "y": 204,
+      "props": {
+        "to": "cabin_landing",
+        "spawn": "from_bedroom",
+        "prompt": "Leave",
+        "requiresFlag": "has_keys",
+        "lockedText": "Not without the keys. They're on the desk somewhere.",
+        "setsFlag": "left_bedroom",
+        "sound": "door"
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_1",
+      "x": 38,
+      "y": 112,
+      "props": {
+        "color": "#ffb066",
+        "radius": 86,
+        "intensity": 1,
+        "warmth": 0.55,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_2",
+      "x": 122,
+      "y": 96,
+      "props": {
+        "color": "#ffc98a",
+        "radius": 62,
+        "intensity": 0.9,
+        "warmth": 0.5,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_3",
+      "x": 250,
+      "y": 72,
+      "props": {
+        "color": "#7fa8ff",
+        "radius": 132,
+        "intensity": 0.5,
+        "warmth": 0.4,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "light_4",
+      "x": 200,
+      "y": 210,
+      "props": {
+        "color": "#5a6a92",
+        "radius": 150,
+        "intensity": 0.26,
+        "warmth": 0.2,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Veridian</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230b1030'/><rect x='6' y='3' width='4' height='10' fill='%23e8e6dc'/></svg>">
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #8b8778;
+  }
+  #game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; cursor: none; }
+  #hint {
+    position: fixed; left: 0; right: 0; bottom: 8px; text-align: center;
+    pointer-events: none; opacity: .55; letter-spacing: .06em; font-size: 11px;
+    transition: opacity .6s ease;
+  }
+  #hint.gone { opacity: 0; }
+  noscript { position: fixed; inset: 0; display: grid; place-items: center; color: #ddd; }
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="0"></canvas>
+<div id="hint">ARROWS / WASD move &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; E interact &nbsp;·&nbsp; TAB journal &nbsp;·&nbsp; F3 debug</div>
+<noscript>This game needs JavaScript.</noscript>
+<script type="module">
+  import { Game } from './src/game/game.js';
+
+  const canvas = document.getElementById('game');
+  const game = new Game(canvas);
+  window.game = game;          // handy from the console and for the test harness
+  canvas.focus();
+
+  const hint = document.getElementById('hint');
+  const hideHint = () => hint.classList.add('gone');
+  setTimeout(hideHint, 9000);
+  window.addEventListener('keydown', hideHint, { once: true });
+
+  game.boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veridian — Scene Editor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23131722'/><rect x='3' y='6' width='10' height='6' fill='%23c9a44c'/></svg>">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d0e12; --panel: #15161d; --panel-2: #1b1d26; --edge: #2a2c38;
+    --ink: #d7d9e0; --dim: #878c9b; --accent: #c9a44c; --danger: #d0674a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 176px 1fr 300px; grid-template-rows: 40px 1fr 26px; height: 100%; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+    background: var(--panel); border-bottom: 1px solid var(--edge); }
+  header .title { color: var(--accent); letter-spacing: .1em; margin-right: 8px; }
+  header .spacer { flex: 1; }
+  button, select, input, textarea { font: inherit; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--edge); border-radius: 3px; padding: 3px 7px; }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: #4a4d5e; background: #23262f; }
+  button:disabled { opacity: .38; cursor: default; }
+  button.active { border-color: var(--accent); color: var(--accent); }
+  button.danger, .danger { border-color: #5a3028; color: var(--danger); }
+  button.mini { padding: 1px 5px; }
+  aside { background: var(--panel); overflow-y: auto; padding: 8px; }
+  aside.left { border-right: 1px solid var(--edge); }
+  aside.right { border-left: 1px solid var(--edge); }
+  h2 { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
+    margin: 14px 0 6px; font-weight: 400; }
+  h2:first-child { margin-top: 2px; }
+  h3 { font-size: 12px; margin: 0 0 6px; color: var(--accent); }
+  #stage { position: relative; overflow: hidden; background: #0a0b0e; }
+  #canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  #tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #palette { display: flex; flex-direction: column; gap: 3px; }
+  .chip { text-align: left; border-left-width: 3px; }
+  .fields { display: flex; flex-direction: column; gap: 7px; }
+  .field { display: flex; flex-direction: column; gap: 2px; }
+  .field-name { color: var(--dim); font-size: 10px; letter-spacing: .06em; }
+  .control { width: 100%; }
+  textarea.control { resize: vertical; font-size: 11px; line-height: 1.45; }
+  .help { color: #6d7280; font-size: 10px; line-height: 1.35; }
+  .color-row { display: flex; gap: 4px; }
+  .color-row input[type=color] { width: 34px; padding: 1px; height: 24px; }
+  .color-row .hex { flex: 1; }
+  .divider { height: 1px; background: var(--edge); margin: 10px 0; }
+  .muted { color: var(--dim); }
+  .layer { border: 1px solid var(--edge); border-radius: 3px; padding: 5px; margin-bottom: 5px; background: var(--panel-2); }
+  .layer-name { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .layer-controls { display: flex; align-items: center; gap: 3px; margin-top: 4px; color: var(--dim); font-size: 10px; }
+  .layer-controls input[type=number] { width: 46px; padding: 1px 3px; }
+  .layer-add { display: flex; gap: 4px; margin-top: 6px; }
+  .layer-add input { flex: 1; min-width: 0; }
+  .flag { font-size: 11px; padding: 2px 0; border-bottom: 1px solid #1e2029; }
+  .flag.orphan { color: var(--danger); }
+  footer { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--edge);
+    display: flex; align-items: center; padding: 0 10px; color: var(--dim); font-size: 11px; }
+  #play-wrap { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; z-index: 20; }
+  /* `display: flex` beats the hidden attribute's default display:none, which
+     would otherwise leave the invisible iframe swallowing every canvas click. */
+  #play-wrap[hidden] { display: none; }
+  #play-wrap .bar { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--panel); }
+  #play { flex: 1; width: 100%; border: 0; }
+  #json-out { width: 100%; height: 120px; margin-top: 8px; }
+  label.opt { display: inline-flex; align-items: center; gap: 4px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">VERIDIAN EDITOR</span>
+    <button id="btn-new">New</button>
+    <button id="btn-import">Import…</button>
+    <select id="load-scene" title="Load a scene from the manifest"><option value="">Load scene…</option></select>
+    <button id="btn-export">Export JSON</button>
+    <button id="btn-copy">Copy JSON</button>
+    <button id="btn-test">▶ Test play</button>
+    <span class="spacer"></span>
+    <label class="opt"><input type="checkbox" id="opt-lighting" checked> lighting</label>
+    <label class="opt"><input type="checkbox" id="opt-grid"> grid</label>
+    <button id="btn-frame" title="Fit the scene in the view">Fit</button>
+    <button id="btn-undo" title="Ctrl+Z">Undo</button>
+    <button id="btn-redo" title="Ctrl+Shift+Z">Redo</button>
+    <input type="file" id="file" accept="application/json" hidden>
+  </header>
+
+  <aside class="left">
+    <h2>Tools</h2>
+    <div id="tools">
+      <button data-tool="select" class="active" title="V">Select</button>
+      <button data-tool="collision" title="C">Collision</button>
+      <button data-tool="entity" title="E">Place</button>
+      <button data-tool="pan" title="H · or hold Shift">Pan</button>
+    </div>
+    <h2>Place</h2>
+    <div id="palette"></div>
+  </aside>
+
+  <div id="stage">
+    <canvas id="canvas"></canvas>
+    <div id="play-wrap" hidden>
+      <div class="bar">
+        <strong>Test play</strong>
+        <span class="spacer" style="flex:1"></span>
+        <button onclick="document.getElementById('play').src='about:blank';document.getElementById('play-wrap').hidden=true">Close</button>
+      </div>
+      <iframe id="play" title="Test play"></iframe>
+    </div>
+  </div>
+
+  <aside class="right">
+    <h2>Selection</h2>
+    <div id="inspector"></div>
+    <h2>Scene</h2>
+    <div id="scene-panel"></div>
+    <h2>Backdrop layers</h2>
+    <div id="layers-panel"></div>
+    <h2>Flags in this scene</h2>
+    <div id="flags-panel"></div>
+    <textarea id="json-out" hidden readonly></textarea>
+  </aside>
+
+  <footer><span id="status">Drag with Collision to draw floors · Place drops entities · Shift-drag or scroll to navigate</span></footer>
+</div>
+
+<datalist id="all-images"></datalist>
+
+<script type="module">
+  import { Editor } from './src/editor/editor.js';
+  const editor = new Editor(document.getElementById('app'));
+  window.editor = editor;
+  editor.frameScene();
+
+  // Populate the shared image datalist from the same list the inspector uses.
+  const list = document.getElementById('all-images');
+  for (const path of editor.context().images) {
+    const o = document.createElement('option');
+    o.value = path;
+    list.append(o);
+  }
+</script>
+</body>
+</html>

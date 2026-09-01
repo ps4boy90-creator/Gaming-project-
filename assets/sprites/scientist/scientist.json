@@ -1,0 +1,63 @@
+{
+  "image": "sprites/scientist/scientist.png",
+  "origin": "bottom-center",
+  "frames": {
+    "front": {
+      "x": 1,
+      "y": 1,
+      "w": 30,
+      "h": 88
+    },
+    "side": {
+      "x": 32,
+      "y": 1,
+      "w": 16,
+      "h": 88
+    },
+    "back": {
+      "x": 49,
+      "y": 1,
+      "w": 29,
+      "h": 88
+    }
+  },
+  "clips": {
+    "idle": {
+      "frames": [
+        "side"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "walk": {
+      "frames": [
+        "side"
+      ],
+      "fps": 10,
+      "loop": true,
+      "bob": [
+        0,
+        -1,
+        0,
+        1
+      ],
+      "lean": 1
+    },
+    "idle_front": {
+      "frames": [
+        "front"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "idle_back": {
+      "frames": [
+        "back"
+      ],
+      "fps": 1,
+      "loop": true
+    }
+  },
+  "placeholder": true,
+  "note": "Derived from the turnaround reference; no true walk frames exist yet. The 'bob' and 'lean' fields let the renderer fake motion until real frames land. Replace this file and scientist.png together."
+}
