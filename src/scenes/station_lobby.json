@@ -1,0 +1,281 @@
+{
+  "id": "station_lobby",
+  "name": "Blackridge -- Lobby",
+  "size": {
+    "w": 768,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "facility_hum",
+  "layers": [
+    {
+      "image": "backdrops/station_lobby/room.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/station_lobby/fore.png",
+      "parallax": 1.06,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 180,
+      "w": 768,
+      "h": 36,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#080c22",
+    "strength": 0.6
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_gate",
+      "x": 40,
+      "y": 180,
+      "props": {
+        "id": "from_gate",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_office",
+      "x": 700,
+      "y": 180,
+      "props": {
+        "id": "from_office",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_desk",
+      "x": 306,
+      "y": 140,
+      "props": {
+        "color": "#ffcf92",
+        "radius": 110,
+        "intensity": 1.092,
+        "warmth": 0.5,
+        "flicker": "fluorescent",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_dead",
+      "x": 250,
+      "y": 30,
+      "props": {
+        "color": "#8fa8d8",
+        "radius": 69,
+        "intensity": 0.172,
+        "warmth": 0.3,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_corridor",
+      "x": 710,
+      "y": 130,
+      "props": {
+        "color": "#a8c4ff",
+        "radius": 105,
+        "intensity": 0.632,
+        "warmth": 0.4,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_amb",
+      "x": 400,
+      "y": 200,
+      "props": {
+        "color": "#5a6a92",
+        "radius": 218,
+        "intensity": 0.23,
+        "warmth": 0.2,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_lobby",
+      "x": 70,
+      "y": 180,
+      "w": 110,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "Doors unlocked. Lights half on. It smells like it always smells -- floor polish and cold coffee.",
+        "portrait": "neutral",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_coats",
+      "x": 110,
+      "y": 180,
+      "props": {
+        "title": "The coat hooks",
+        "pages": [
+          "Five coats, two bags, an umbrella. The umbrella is still damp at the tip.",
+          "It rained Wednesday night. Nine days ago.",
+          "Nobody walked out of a mountain in February and left their coat on the hook."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_coats",
+        "repeatText": "Still hanging. Still damp at the tip.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_signin",
+      "x": 300,
+      "y": 180,
+      "props": {
+        "title": "The sign-in ledger",
+        "pages": [
+          "Thursday's page. Thirty-one names in the IN column, the last at 05:58.",
+          "The OUT column is empty. Every line of it.",
+          "Nine days of Thursday, and nobody has turned the page."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_signin",
+        "repeatText": "Thirty-one in. Nothing out.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_clock",
+      "x": 452,
+      "y": 180,
+      "props": {
+        "title": "The wall clock",
+        "pages": [
+          "Stopped. The second hand is pressed against the six and shivering, like it's still trying.",
+          "06:14."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_lobby_clock",
+        "repeatText": "06:14. Still trying.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_turnstile",
+      "x": 561,
+      "y": 180,
+      "props": {
+        "title": "The turnstile",
+        "pages": [
+          "Free-spinning. The badge reader's dead -- no red light, no green.",
+          "Whatever cut the power to this didn't cut the lights. It's more particular than a power failure."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "",
+        "repeatText": "Spins freely.",
+        "evidence": false,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "container",
+      "id": "n_desk_drawer",
+      "x": 340,
+      "y": 180,
+      "props": {
+        "name": "Reception drawer",
+        "prompt": "Open",
+        "requiresFlag": "",
+        "lockedText": "It's locked.",
+        "openText": "A torch. I'll take that -- it gets darker the further in you go.",
+        "givesItem": "Maglite",
+        "itemDescription": "Heavy, black, half the battery gone. Better than nothing.",
+        "itemFlag": "has_torch",
+        "emptyText": "Pens, a stapler, somebody\u2019s birthday card.",
+        "setsFlag": ""
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_lobby",
+      "x": 200,
+      "y": 180,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_gate",
+      "x": 12,
+      "y": 180,
+      "props": {
+        "to": "station_gate",
+        "spawn": "from_lobby",
+        "prompt": "Back outside",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_office",
+      "x": 720,
+      "y": 180,
+      "props": {
+        "to": "office_wing",
+        "spawn": "from_lobby",
+        "prompt": "Office wing",
+        "requiresFlag": "knows_nobody_left",
+        "lockedText": "I should look around out here first. Something about this room isn't adding up yet.",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 384,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 384,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

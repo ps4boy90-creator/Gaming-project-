@@ -1,0 +1,269 @@
+{
+  "id": "security_room",
+  "name": "Blackridge -- Security",
+  "size": {
+    "w": 768,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "facility_hum",
+  "layers": [
+    {
+      "image": "backdrops/security_room/room.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/security_room/fore.png",
+      "parallax": 1.06,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 180,
+      "w": 768,
+      "h": 36,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#060a18",
+    "strength": 0.66
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_lab",
+      "x": 44,
+      "y": 180,
+      "props": {
+        "id": "from_lab",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_stairs",
+      "x": 700,
+      "y": 180,
+      "props": {
+        "id": "from_stairs",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_s1",
+      "x": 272,
+      "y": 30,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 100,
+        "intensity": 0.72,
+        "warmth": 0.4,
+        "flicker": "fluorescent",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_mon",
+      "x": 250,
+      "y": 110,
+      "props": {
+        "color": "#5fd0c8",
+        "radius": 132,
+        "intensity": 0.9,
+        "warmth": 0.7,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_s2",
+      "x": 640,
+      "y": 130,
+      "props": {
+        "color": "#a8c4ff",
+        "radius": 79,
+        "intensity": 0.42,
+        "warmth": 0.4,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_sec",
+      "x": 76,
+      "y": 180,
+      "w": 100,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "Every monitor in here is still live. Nine days of watching an empty building.",
+        "portrait": "stern",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "terminal",
+      "id": "t_recording",
+      "x": 250,
+      "y": 180,
+      "props": {
+        "title": "Camera 7 -- Sublevel 3 approach",
+        "pages": [
+          "The drive is full. It has been recording over itself for nine days. Only one clip is write-protected, timed 06:14:11.",
+          "Eleven seconds.\n\nFor four of them the corridor is empty and normal. Then the picture leans -- not shakes, leans -- as if the camera and the wall are being pulled toward the stairwell.",
+          "At second six people come into frame. Not running. Being taken off their feet, all of them going the same way, down.",
+          "At second nine one of them gets a hand to the rail and holds. For two seconds he holds.\n\nAt second eleven the clip ends and the corridor is empty again."
+        ],
+        "prompt": "Play",
+        "requiresFlag": "",
+        "lockedText": "The screen is dead.",
+        "setsFlag": "clue_recording",
+        "portrait": "worried"
+      }
+    },
+    {
+      "type": "terminal",
+      "id": "t_doorlog",
+      "x": 420,
+      "y": 180,
+      "props": {
+        "title": "Door controller log",
+        "pages": [
+          "Nine days of nothing. Then, scrolling back: 06:14:22 -- ALL ZONES, SIMULTANEOUS FAULT.",
+          "Every door in the building reporting at the same second. Not opened. Not forced. Fault.",
+          "And nothing after it. Not one badge, not one door, for nine days -- until 04:41 this morning, at the front entrance.\n\nThat's me."
+        ],
+        "prompt": "Read",
+        "requiresFlag": "",
+        "lockedText": "The screen is dead.",
+        "setsFlag": "clue_door_log",
+        "portrait": "stern"
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_powerlog",
+      "x": 520,
+      "y": 180,
+      "props": {
+        "title": "The power chart",
+        "pages": [
+          "A paper trace, still turning. Flat all night, then at 06:00 a slow climb as the shutdown ramp starts pulling.",
+          "At 06:14 the pen goes straight off the top of the paper and tears through it.",
+          "It never comes back down. Whatever the ring did, it is still doing it."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_power_log",
+        "repeatText": "The pen is still off the paper.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_trail",
+      "x": 640,
+      "y": 180,
+      "props": {
+        "title": "Things on the floor",
+        "pages": [
+          "A shoe in the doorway. A pair of glasses ten feet further on, one arm bent flat.",
+          "A badge. Another shoe, the pair of the first, another twenty feet down the corridor.",
+          "They are not scattered. They are in a line, spaced out, all pointing the same way -- toward the stairwell."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_trail",
+        "repeatText": "Still in a line. Still pointing down.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "container",
+      "id": "n_lockers",
+      "x": 690,
+      "y": 180,
+      "props": {
+        "name": "Security locker",
+        "prompt": "Open",
+        "requiresFlag": "has_keycard_b",
+        "lockedText": "Level B lock. I don\u2019t have that card yet.",
+        "openText": "One key on a tag. S/W. Stairwell.",
+        "givesItem": "Stairwell key",
+        "itemDescription": "A plain brass key, tagged S/W.",
+        "itemFlag": "has_stair_key",
+        "emptyText": "Spare batteries and a first aid tin.",
+        "setsFlag": ""
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_sec",
+      "x": 350,
+      "y": 180,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_lab2",
+      "x": 14,
+      "y": 180,
+      "props": {
+        "to": "laboratory",
+        "spawn": "from_security",
+        "prompt": "Laboratory",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_stairs",
+      "x": 726,
+      "y": 180,
+      "props": {
+        "to": "stairwell",
+        "spawn": "from_security",
+        "prompt": "Stairwell",
+        "requiresFlag": "knows_taken",
+        "lockedText": "Not until I know what that recording actually shows.",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 384,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 384,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

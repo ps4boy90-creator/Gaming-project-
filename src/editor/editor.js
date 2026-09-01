@@ -3,12 +3,21 @@ import { NATIVE_W, NATIVE_H } from '../core/screen.js';
 import { Lighting } from '../gfx/lighting.js';
 import { ENTITY_TYPES, makeEntity, entityBox, flagsUsed } from '../game/entities.js';
 import { SCENES } from '../scenes/manifest.js';
+import { Deductions } from '../game/deductions.js';
 import { Audio } from '../game/audio.js';
 import { EditorDoc, blankScene } from './doc.js';
 import { buildInspector, buildFields, el } from './inspector.js';
 
 const HANDLE = 7;          // screen-space size of a drag handle
 const KNOWN_IMAGES = [
+  'backdrops/station_gate/room.png',
+  'backdrops/station_lobby/room.png',
+  'backdrops/office_wing/room.png',
+  'backdrops/canteen/room.png',
+  'backdrops/laboratory/room.png',
+  'backdrops/security_room/room.png',
+  'backdrops/stairwell/room.png',
+  'backdrops/sublevel_3/room.png',
   'props/car_veridian/side.png',
   'props/car_veridian/front.png',
   'props/car_veridian/rear.png',
@@ -218,7 +227,9 @@ export class Editor {
   context() {
     return {
       scenes: Object.keys(SCENES),
-      flags: flagsUsed(this.scene),
+      // Offer every clue flag a deduction listens for, not just the ones this
+      // scene already uses -- that is how you wire a room into the chain.
+      flags: [...new Set([...flagsUsed(this.scene), ...Deductions.allClueFlags()])].sort(),
       images: KNOWN_IMAGES,
     };
   }
@@ -343,9 +354,14 @@ export class Editor {
       // A flag that is read but never written here is not necessarily wrong --
       // another scene may set it -- but a typo looks exactly like this.
       const orphan = use.writes === 0;
+      // Naming which realization a clue feeds turns the panel into a check on
+      // the mystery itself: a clue flag that feeds nothing is dead weight.
+      const feeds = Deductions.feeds(name);
+      const suffix = feeds.length ? `   -> ${feeds.join(', ')}`
+        : (name.startsWith('clue_') ? '   (feeds no deduction)' : '');
       host.append(el('div', {
         class: `flag${orphan ? ' orphan' : ''}`,
-        text: `${name}   ${use.writes} set · ${use.reads} read${orphan ? '   (never set in this scene)' : ''}`,
+        text: `${name}   ${use.writes} set · ${use.reads} read${orphan ? '   (never set here)' : ''}${suffix}`,
       }));
     }
   }

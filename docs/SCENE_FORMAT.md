@@ -85,6 +85,48 @@ generated from it, so that table and the editor can never disagree.
 | `light` | Colour, radius, intensity, warmth, flicker profile. |
 | `prop` | A decorative image, and/or something examinable. |
 | `save_point` | Writes progress. |
+| `clue` | A physical detail he *observes*. Files into the journal as evidence and sets a flag a deduction listens for. Says something shorter on a second look. |
+| `container` | A drawer, locker or cabinet. Optionally gated; may yield an item once, then reads as empty. |
+| `keypad` | A coded lock. The player types the digits. Sets a flag on the correct code -- gate a door on that. |
+
+### `clue` versus `prop.examine`
+
+Both are things you can look at, and the difference is the whole line between
+atmosphere and progress:
+
+- **`prop.examine`** is flavour. One line of monologue, nothing recorded,
+  nothing unlocked. Use it freely -- a room with nothing incidental to look at
+  feels like a set.
+- **`clue`** is evidence. It opens the reader, files itself in the journal, and
+  sets a flag that feeds a deduction. Every one of them moves the case forward.
+
+### Deductions: how clues become progress
+
+A door gated on a single flag makes the player hunt for one specific object.
+The chain in `src/game/deductions.js` gates on *understanding* instead: each
+deduction lists more clues than it needs (`needed` of `requires`), and fires a
+**realization** once enough are in -- Hale says it aloud, it is filed in the
+journal's Deductions tab, and its `setsFlag` opens the way forward.
+
+```js
+{
+  id: 'stopped_0614',
+  title: 'Everything stopped at 06:14',
+  requires: ['clue_lobby_clock', 'clue_wristwatch', 'clue_radio', 'clue_door_log'],
+  needed: 3,                       // any three of the four
+  line: "...",
+  setsFlag: 'knows_0614',          // and this is the keypad's gate
+  note: ['...'],                   // what the journal records
+}
+```
+
+Listing four and needing three means no single missable object can wedge the
+game, and two players can reach the same conclusion by different routes.
+
+`python3 tools/check_scenes.py` validates the whole graph: doors pointing at
+real scenes and real spawns, gates nothing can open, clues no deduction listens
+for, and -- the one that actually bites -- a deduction whose evidence is locked
+behind the door its own flag opens.
 
 ### Flags: how an investigation is wired
 

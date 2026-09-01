@@ -139,6 +139,60 @@ export const ENTITY_TYPES = {
     },
   },
 
+  clue: {
+    label: 'Clue',
+    color: '#e0d06a',
+    icon: 'C',
+    box: { w: 16, h: 18 },
+    interactive: true,
+    fields: {
+      title: { type: 'string', default: 'Something odd' },
+      pages: { type: 'pages', default: ['...'], help: 'What he notices, one page per block.' },
+      prompt: { type: 'string', default: 'Examine' },
+      setsFlag: { type: 'flag', default: '', help: 'The evidence flag a deduction listens for.' },
+      repeatText: { type: 'text', default: '', help: 'Said instead on a second look.' },
+      evidence: { type: 'bool', default: true, help: 'File it in the journal under Evidence.' },
+      portrait: { type: 'select', options: ['', 'neutral', 'stern', 'worried', 'resolute', 'smile'], default: '' },
+    },
+  },
+
+  container: {
+    label: 'Container',
+    color: '#9a7ad0',
+    icon: 'B',
+    box: { w: 20, h: 22 },
+    interactive: true,
+    fields: {
+      name: { type: 'string', default: 'Drawer' },
+      prompt: { type: 'string', default: 'Open' },
+      requiresFlag: { type: 'flag', default: '' },
+      lockedText: { type: 'text', default: "It's locked." },
+      openText: { type: 'text', default: '', help: 'Said on opening, before anything is taken.' },
+      givesItem: { type: 'string', default: '', help: 'Item name. Leave empty for an empty container.' },
+      itemDescription: { type: 'text', default: '' },
+      itemFlag: { type: 'flag', default: '' },
+      emptyText: { type: 'text', default: 'Nothing else in it.' },
+      setsFlag: { type: 'flag', default: '' },
+    },
+  },
+
+  keypad: {
+    label: 'Keypad',
+    color: '#6ad0a8',
+    icon: 'K',
+    box: { w: 12, h: 16 },
+    interactive: true,
+    fields: {
+      code: { type: 'string', default: '0000', help: 'Digits the player must enter.' },
+      prompt: { type: 'string', default: 'Keypad' },
+      requiresFlag: { type: 'flag', default: '', help: 'What he must know before he will even try.' },
+      noCodeText: { type: 'text', default: "Four digits. I don't have four digits." },
+      successText: { type: 'text', default: 'The bolt draws back.' },
+      wrongText: { type: 'text', default: 'Three short beeps. Not that.' },
+      setsFlag: { type: 'flag', default: '', help: 'Set on the correct code -- gate the door on this.' },
+    },
+  },
+
   save_point: {
     label: 'Save point',
     color: '#7ee0b0',

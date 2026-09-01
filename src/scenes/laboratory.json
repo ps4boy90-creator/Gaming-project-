@@ -1,0 +1,294 @@
+{
+  "id": "laboratory",
+  "name": "Blackridge -- Laboratory",
+  "size": {
+    "w": 1152,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "facility_hum",
+  "layers": [
+    {
+      "image": "backdrops/laboratory/room.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/laboratory/fore.png",
+      "parallax": 1.06,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 178,
+      "w": 1152,
+      "h": 38,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#06101c",
+    "strength": 0.6
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_canteen",
+      "x": 56,
+      "y": 178,
+      "props": {
+        "id": "from_canteen",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_security",
+      "x": 1080,
+      "y": 178,
+      "props": {
+        "id": "from_security",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_L1",
+      "x": 84,
+      "y": 30,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 113,
+        "intensity": 1.003,
+        "warmth": 0.4,
+        "flicker": "fluorescent",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_L2",
+      "x": 470,
+      "y": 30,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 108,
+        "intensity": 0.885,
+        "warmth": 0.4,
+        "flicker": "fluorescent",
+        "phase": 1.7,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_L3",
+      "x": 690,
+      "y": 30,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 82,
+        "intensity": 0.236,
+        "warmth": 0.4,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_L4",
+      "x": 880,
+      "y": 30,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 108,
+        "intensity": 0.944,
+        "warmth": 0.4,
+        "flicker": "fluorescent",
+        "phase": 0.4,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fridge",
+      "x": 870,
+      "y": 120,
+      "props": {
+        "color": "#7fd0c0",
+        "radius": 63,
+        "intensity": 0.649,
+        "warmth": 0.6,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_lab",
+      "x": 96,
+      "y": 178,
+      "w": 100,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "Something in here is still running. I can feel it through the floor.",
+        "portrait": "stern",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_centrifuge",
+      "x": 205,
+      "y": 178,
+      "props": {
+        "title": "The centrifuge",
+        "pages": [
+          "Still spinning. Nine days at eleven thousand rpm, on a sample nobody came back for.",
+          "The lid is unlatched. Every safety in this building says you do not walk away from an unlatched rotor.",
+          "He didn't walk away from it."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_centrifuge",
+        "repeatText": "Still spinning. Still unlatched.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "terminal",
+      "id": "t_schedule",
+      "x": 420,
+      "y": 178,
+      "props": {
+        "title": "Lab terminal -- Thursday schedule",
+        "pages": [
+          "04:00  VANCE, M.  ring pre-check, Sublevel 3\n05:30  full staff to stations\n06:00  APERTURE SHUTDOWN SEQUENCE -- BEGIN",
+          "06:00. And everything in this building stops at 06:14.\n\nFourteen minutes into shutting it down.",
+          "There is a handwritten line at the bottom of the printout, not in the schedule: 'ring will not take the ramp. do not proceed. -- MV'\n\nSomebody proceeded."
+        ],
+        "prompt": "Read",
+        "requiresFlag": "",
+        "lockedText": "The screen is dead.",
+        "setsFlag": "clue_schedule",
+        "portrait": "stern"
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_dosimeters",
+      "x": 748,
+      "y": 178,
+      "props": {
+        "title": "The dosimeter rack",
+        "pages": [
+          "Twenty-four badges on the board. Every single one has gone completely black.",
+          "Not high. Not warning. Black -- past the top of the scale, all of them, at once.",
+          "A leak fogs the badges nearest it. This was not a leak. This was the whole room at the same instant."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_dosimeters",
+        "repeatText": "All twenty-four. All black.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_scoring",
+      "x": 1010,
+      "y": 178,
+      "props": {
+        "title": "Marks on the wall",
+        "pages": [
+          "Scoring in the paint beside the stairwell door. Long, shallow, close together.",
+          "They all run the same way -- toward the stairs, and downward. Every one of them.",
+          "Something dragged along this wall going down, and whatever it was, it was holding on."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_scoring",
+        "repeatText": "All of them running down toward the stairs.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "prop",
+      "id": "p_fridge",
+      "x": 870,
+      "y": 178,
+      "props": {
+        "image": "",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Sample fridge. Still cold. The log on the door stops on Thursday.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_lab",
+      "x": 600,
+      "y": 178,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_canteen2",
+      "x": 18,
+      "y": 178,
+      "props": {
+        "to": "canteen",
+        "spawn": "from_lab",
+        "prompt": "Canteen",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_security",
+      "x": 1120,
+      "y": 178,
+      "props": {
+        "to": "security_room",
+        "spawn": "from_lab",
+        "prompt": "Security",
+        "requiresFlag": "knows_cause",
+        "lockedText": "I want to understand what they were doing before I go looking at what it did.",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 576,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 576,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

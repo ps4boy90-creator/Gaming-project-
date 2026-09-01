@@ -7,6 +7,7 @@ export class Journal {
   constructor() {
     this.notes = [];
     this.items = [];
+    this.deductions = [];
     this.unread = 0;
   }
 
@@ -35,17 +36,39 @@ export class Journal {
     return this.items.some((i) => i.key === key);
   }
 
+  hasNote(key) {
+    return this.notes.some((n) => n.key === key);
+  }
+
+  /**
+   * A realization. Kept apart from evidence because it is a different kind of
+   * thing: evidence is what he found, a deduction is what it means. The
+   * journal's Deductions tab doubles as the objective list.
+   */
+  addDeduction({ id, title, pages }) {
+    if (this.deductions.some((d) => d.key === id)) return false;
+    this.deductions.push({
+      key: id,
+      title: title || 'Realization',
+      pages: Array.isArray(pages) ? pages : [String(pages || '')],
+      found: Date.now(),
+    });
+    this.unread++;
+    return true;
+  }
+
   markRead() {
     this.unread = 0;
   }
 
   toJSON() {
-    return { notes: this.notes, items: this.items };
+    return { notes: this.notes, items: this.items, deductions: this.deductions };
   }
 
   load(data) {
     this.notes = (data && data.notes) || [];
     this.items = (data && data.items) || [];
+    this.deductions = (data && data.deductions) || [];
     this.unread = 0;
   }
 }

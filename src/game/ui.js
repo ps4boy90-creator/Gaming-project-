@@ -36,49 +36,89 @@ export function centered(ctx, text, y, width, opts = {}) {
   drawText(ctx, text, Math.round((width - measure(text)) / 2), y, opts);
 }
 
+export const JOURNAL_TABS = ['EVIDENCE', 'DEDUCTIONS', 'CARRYING'];
+
+/** The rows shown on a given tab, so input and drawing agree on the count. */
+export function journalRows(journal, tab) {
+  if (tab === 1) return journal.deductions;
+  if (tab === 2) return journal.items;
+  return journal.notes;
+}
+
 /**
- * The journal: everything found so far. Two columns -- notes on the left,
- * objects on the right -- with the selected note's pages filling the body.
+ * The case file. Three tabs, because the three things he accumulates are
+ * different in kind: evidence is what he found, deductions are what it means,
+ * and the deductions tab doubles as the objective list -- it is the only place
+ * that tells the player how far into the story they actually are.
  */
 export function drawJournal(ctx, journal, state, w, h) {
   ctx.fillStyle = 'rgba(6,7,11,0.94)';
   ctx.fillRect(0, 0, w, h);
 
-  drawText(ctx, 'JOURNAL', 12, 10, { color: ACCENT });
-  drawText(ctx, 'ESC to close   UP/DOWN to select', 12, h - 14, { color: INK_DIM });
+  // Tab strip
+  let tx = 10;
+  JOURNAL_TABS.forEach((label, i) => {
+    const active = i === state.tab;
+    const tw = measure(label) + 12;
+    if (active) {
+      ctx.fillStyle = 'rgba(201,164,76,0.16)';
+      ctx.fillRect(tx, 6, tw, lineHeight() + 6);
+      ctx.fillStyle = ACCENT;
+      ctx.fillRect(tx, 6 + lineHeight() + 5, tw, 1);
+    }
+    let count = journalRows(journal, i).length;
+    drawText(ctx, label, tx + 6, 10, { color: active ? ACCENT : INK_DIM });
+    if (count) {
+      drawText(ctx, String(count), tx + 6 + measure(label) + 3, 10, { color: active ? INK : '#5c6070' });
+    }
+    tx += tw + 4;
+  });
 
-  const listW = 118;
-  panel(ctx, 8, 22, listW, h - 42);
+  drawText(ctx, 'LEFT/RIGHT tab   UP/DOWN select   ESC close', 10, h - 12, { color: INK_DIM });
 
-  if (journal.notes.length === 0) {
-    drawText(ctx, 'Nothing yet.', 14, 30, { color: INK_DIM });
+  const rows = journalRows(journal, state.tab);
+  const top = 26;
+  const listH = h - top - 20;
+  const listW = 116;
+  panel(ctx, 8, top, listW, listH);
+
+  if (rows.length === 0) {
+    const empty = [
+      'Nothing found yet.',
+      "Nothing worked out yet.",
+      'Carrying nothing.',
+    ][state.tab];
+    drawText(ctx, empty, 13, top + 6, { color: INK_DIM });
   }
-  journal.notes.forEach((note, i) => {
-    const y = 28 + i * lineHeight();
-    if (y > h - 50) return;
-    const selected = i === state.index;
+
+  // Scroll the list so the selection stays visible in a long case file.
+  const perPage = Math.floor((listH - 10) / lineHeight());
+  const first = Math.max(0, Math.min(state.index - Math.floor(perPage / 2), rows.length - perPage));
+  const start = Math.max(0, first);
+
+  rows.slice(start, start + perPage).forEach((row, i) => {
+    const index = start + i;
+    const y = top + 6 + i * lineHeight();
+    const selected = index === state.index;
     if (selected) {
       ctx.fillStyle = 'rgba(201,164,76,0.18)';
       ctx.fillRect(10, y - 2, listW - 4, lineHeight());
     }
-    const title = note.title.length > 17 ? `${note.title.slice(0, 16)}.` : note.title;
-    drawText(ctx, title, 14, y, { color: selected ? ACCENT : INK });
+    const label = row.title || row.name || '';
+    const clipped = label.length > 17 ? `${label.slice(0, 16)}.` : label;
+    drawText(ctx, clipped, 13, y, { color: selected ? ACCENT : INK });
   });
 
   const bodyX = listW + 16;
   const bodyW = w - bodyX - 8;
-  panel(ctx, bodyX, 22, bodyW, h - 42);
+  panel(ctx, bodyX, top, bodyW, listH);
 
-  const note = journal.notes[state.index];
-  if (note) {
-    drawText(ctx, note.title, bodyX + 6, 28, { color: ACCENT });
-    const lines = wrap(note.pages.join('\n\n'), bodyW - 12);
-    drawParagraph(ctx, lines.slice(0, Math.floor((h - 60) / lineHeight())), bodyX + 6, 28 + lineHeight() + 2, { color: INK });
-  }
-
-  if (journal.items.length) {
-    const y = h - 34;
-    drawText(ctx, 'CARRYING:', 12, y, { color: INK_DIM });
-    drawText(ctx, journal.items.map((i) => i.name).join(', '), 12 + measure('CARRYING: '), y, { color: INK });
+  const row = rows[state.index];
+  if (row) {
+    drawText(ctx, row.title || row.name || '', bodyX + 6, top + 6, { color: ACCENT });
+    const text = row.pages ? row.pages.join('\n\n') : (row.description || '');
+    const lines = wrap(text, bodyW - 12);
+    const room = Math.floor((listH - lineHeight() - 12) / lineHeight());
+    drawParagraph(ctx, lines.slice(0, room), bodyX + 6, top + 6 + lineHeight() + 3, { color: INK });
   }
 }

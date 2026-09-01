@@ -9,6 +9,14 @@ export const SCENES = {
   cabin_bedroom: 'src/scenes/cabin_bedroom.json',
   cabin_landing: 'src/scenes/cabin_landing.json',
   cabin_drive: 'src/scenes/cabin_drive.json',
+  station_gate: 'src/scenes/station_gate.json',
+  station_lobby: 'src/scenes/station_lobby.json',
+  office_wing: 'src/scenes/office_wing.json',
+  canteen: 'src/scenes/canteen.json',
+  laboratory: 'src/scenes/laboratory.json',
+  security_room: 'src/scenes/security_room.json',
+  stairwell: 'src/scenes/stairwell.json',
+  sublevel_3: 'src/scenes/sublevel_3.json',
 };
 
 export const START_SCENE = 'cabin_bedroom';
@@ -38,5 +46,8 @@ export const CUTSCENES = {
       { text: null, duration: 0.6 },
       { fadeTo: 1, duration: 1.8 },
     ],
+    // The pan hands off to the gate rather than returning to the drive, so the
+    // drive up the mountain actually arrives somewhere.
+    then: { scene: 'station_gate', spawn: 'from_road' },
   },
 };

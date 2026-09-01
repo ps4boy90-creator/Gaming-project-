@@ -66,6 +66,31 @@ keypad(entity, api) {
 
 Add `help: '…'` to any field and it appears under the control in the editor.
 
+## Add a deduction
+
+`DEDUCTIONS` in `src/game/deductions.js`. Place clues in scenes whose flags
+match `requires`, and gate a door on `setsFlag`:
+
+```js
+{
+  id: 'the_ring_is_still_open',
+  title: 'It never closed',
+  requires: ['clue_power_log', 'clue_aperture', 'clue_field_reading'],
+  needed: 2,
+  line: "Nine days and the draw has not fallen by a watt.",
+  portrait: 'worried',
+  setsFlag: 'knows_still_open',
+  note: ['...'],                  // the journal entry
+}
+```
+
+Then run `python3 tools/check_scenes.py`. It will tell you if a clue is
+unplaced, if nothing sets a flag you gated on, or if you have accidentally put
+a deduction's evidence behind the door that deduction unlocks.
+
+The editor's flag panel names which deduction each flag feeds, so a clue wired
+to nothing is visible while you are authoring rather than during playtesting.
+
 ## Add a light flicker profile
 
 `FLICKER` in `src/gfx/lighting.js` maps a name to a function returning an

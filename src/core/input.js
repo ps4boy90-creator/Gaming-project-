@@ -14,6 +14,11 @@ export const DEFAULT_BINDINGS = {
   journal: ['Tab'],
   cancel: ['Escape'],
   advance: ['KeyE', 'Enter', 'Space'],
+  backspace: ['Backspace'],
+  // Digits are bound so the keypad can read them and so the browser does not
+  // treat them as page shortcuts while the overlay is up.
+  digits: ['Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4',
+    'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'],
 };
 
 export class Input {

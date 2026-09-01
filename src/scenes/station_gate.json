@@ -1,0 +1,238 @@
+{
+  "id": "station_gate",
+  "name": "Blackridge -- The Gate",
+  "size": {
+    "w": 1152,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "forest_night",
+  "layers": [
+    {
+      "image": "backdrops/station_gate/room.png",
+      "parallax": 1
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 176,
+      "w": 1152,
+      "h": 40,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#0a1030",
+    "strength": 0.52
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_road",
+      "x": 90,
+      "y": 176,
+      "props": {
+        "id": "from_road",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_lobby",
+      "x": 1090,
+      "y": 176,
+      "props": {
+        "id": "from_lobby",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_moon",
+      "x": 700,
+      "y": 40,
+      "props": {
+        "color": "#8fb0ff",
+        "radius": 220,
+        "intensity": 0.495,
+        "warmth": 0.3,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_booth",
+      "x": 412,
+      "y": 128,
+      "props": {
+        "color": "#ffb066",
+        "radius": 77,
+        "intensity": 0.935,
+        "warmth": 0.55,
+        "flicker": "fluorescent",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_pole1",
+      "x": 200,
+      "y": 120,
+      "props": {
+        "color": "#9fb4d8",
+        "radius": 92,
+        "intensity": 0.44,
+        "warmth": 0.35,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_pole2",
+      "x": 880,
+      "y": 120,
+      "props": {
+        "color": "#9fb4d8",
+        "radius": 92,
+        "intensity": 0.385,
+        "warmth": 0.35,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_arrive",
+      "x": 130,
+      "y": 176,
+      "w": 120,
+      "h": 90,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "Barrier's up. Booth light's on. Nobody in it.",
+        "portrait": "worried",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_barrier",
+      "x": 486,
+      "y": 176,
+      "props": {
+        "title": "The barrier",
+        "pages": [
+          "It's raised, and it's been raised a while -- there's a drift of pine needles piled against the base of the arm.",
+          "You don't leave a controlled gate standing open. Not here. Not for a night, let alone longer."
+        ],
+        "prompt": "Look",
+        "setsFlag": "clue_gate_open",
+        "repeatText": "Still up. Still nobody.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_booth",
+      "x": 410,
+      "y": 176,
+      "props": {
+        "title": "The guard booth",
+        "pages": [
+          "The door is open. A paperback face-down on the counter, spine cracked, holding its page.",
+          "His jacket is over the chair. The log book is open at Thursday."
+        ],
+        "prompt": "Look",
+        "setsFlag": "",
+        "repeatText": "Empty. His jacket's still on the chair.",
+        "evidence": false,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_cars",
+      "x": 800,
+      "y": 176,
+      "props": {
+        "title": "The car park",
+        "pages": [
+          "Every space along the fence is taken. Frost on all of them, thick and even -- none of these have run in days.",
+          "I count near enough thirty. There are thirty-one people on this roster.",
+          "Nobody drove home."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_cars",
+        "repeatText": "All of them still here. All of them cold.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "prop",
+      "id": "p_veridian",
+      "x": 250,
+      "y": 182,
+      "props": {
+        "image": "props/car_veridian/side.png",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "Mine's the only warm engine on this mountain.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_gate",
+      "x": 560,
+      "y": 176,
+      "props": {
+        "prompt": "Stop",
+        "line": "Just for a second. Then inside."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_lobby",
+      "x": 1120,
+      "y": 176,
+      "props": {
+        "to": "station_lobby",
+        "spawn": "from_gate",
+        "prompt": "Go inside",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "entered_station",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 576,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 576,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

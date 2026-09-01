@@ -41,6 +41,7 @@ It deploys to GitHub Pages as-is.
 | E or Enter | interact, turn pages |
 | Tab | journal |
 | Esc | close, skip a cutscene |
+| Digits | enter a keypad code |
 | F3 | debug overlay (collision boxes, fps, position) |
 
 ## What's here
@@ -49,26 +50,43 @@ It deploys to GitHub Pages as-is.
 index.html          the game
 editor.html         the scene editor
 art/refs/           the original reference art, untouched
-tools/              asset pipeline + end-to-end verification
+tools/              asset pipeline, scene validation, end-to-end verification
 assets/             everything the game loads, all derived by tools/
 src/core/           screen, loop, input, asset loading
 src/gfx/            backdrops, camera, sprites, lighting, post-processing, text
-src/game/           physics, player, entities, flags, dialogue, cutscenes, saves
+src/game/           physics, player, entities, flags, deductions, dialogue, cutscenes, saves
 src/scenes/         scene JSON + the manifest
 src/editor/         the editor
 docs/               scene format, art pipeline, how to extend
 ```
 
-### The three demonstration scenes
+### The game
 
-| Scene | Demonstrates |
-|---|---|
-| `cabin_bedroom` | painted backdrop, coloured lighting, notes, an item, examinable props, a save point, a flag-locked door |
-| `cabin_landing` | a scene wider than the screen: camera scrolling, parallax, a foreground layer, a failing light, a terminal that gates the way out |
-| `cabin_drive` | parallax sky, an image prop (the Veridian), a trigger that fires a cutscene |
+Eleven scenes, 160 entities, playable end to end: wake in the cabin, read the
+memo, take the keys, play the answering machine, drive up, and then search
+Blackridge Station — gate, lobby, offices, canteen, laboratory, security,
+stairwell, and the aperture chamber on Sublevel 3.
 
-Together they run: wake → read the memo → take the keys → the hall → play the
-answering machine → outside → drive up → the arrival cutscene over the facility.
+**What happened:** at 06:14 on Thursday, fourteen minutes into a scheduled
+shutdown of the Sublevel 3 aperture, containment failed and everyone in the
+building was pulled through. One person was behind a blast door and survived.
+Every clue in the building points at that, and the player has to assemble it.
+
+### Investigation: clues become realizations
+
+Reading or examining enough **related** evidence fires a **realization** —
+Hale says it aloud, it is filed in the journal's Deductions tab, and it unlocks
+the next part of the building. Each of the seven deductions lists more clues
+than it needs, so no single missable object can wedge the game.
+
+The chain: nobody left → everything stopped at 06:14 → it happened mid-shift →
+the shutdown test caused it → they were pulled through → someone was left
+behind → she went in after them.
+
+Two nice consequences fall out of this: the code for the sealed stairwell door
+is `0614`, which you can only know by working out when everything stopped; and
+the last realization is personal — the message that told him to come in early
+is the only reason he wasn't there at 06:14.
 
 ## Authoring a scene
 
@@ -112,10 +130,22 @@ vertical bob. Drop in a real sheet plus a matching JSON keeping the clip names
 The checks drive a real browser and assert what a player sees:
 
 ```bash
+python3 tools/check_scenes.py          # no browser needed
+
 python3 -m http.server 8000 &
 npm install playwright-core
-node tools/verify/game.cjs
-node tools/verify/editor.cjs
+node tools/verify/game.cjs             # engine: movement, lighting, doors, saves
+node tools/verify/investigation.cjs    # the whole mystery, cabin to aperture
+node tools/verify/editor.cjs           # the editor round-trips
 ```
+
+`check_scenes.py` validates the scene graph without a browser: doors pointing
+at scenes and spawns that exist, gates nothing can open, clues no deduction
+listens for, and deductions whose evidence is locked behind their own flag.
+
+`investigation.cjs` plays the game: it asserts each realization fires on its
+own evidence and *not* one clue short, that the keypad refuses `0000` and
+accepts `0614`, that containers empty exactly once, and that all seven
+realizations survive a reload.
 
 Screenshots are written to `tools/verify/shots/`.

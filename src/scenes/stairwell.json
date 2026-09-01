@@ -1,0 +1,350 @@
+{
+  "id": "stairwell",
+  "name": "Blackridge -- Stairwell",
+  "size": {
+    "w": 768,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "basement",
+  "layers": [
+    {
+      "image": "backdrops/stairwell/room.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/stairwell/fore.png",
+      "parallax": 1.06,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 150,
+      "w": 420,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 420,
+      "y": 156,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 436,
+      "y": 162,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 452,
+      "y": 168,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 468,
+      "y": 174,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 484,
+      "y": 180,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 500,
+      "y": 186,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 516,
+      "y": 192,
+      "w": 16,
+      "h": 12,
+      "type": "solid"
+    },
+    {
+      "x": 532,
+      "y": 198,
+      "w": 236,
+      "h": 18,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#05070f",
+    "strength": 0.74
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_security",
+      "x": 40,
+      "y": 150,
+      "props": {
+        "id": "from_security",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "player_start",
+      "id": "from_below",
+      "x": 700,
+      "y": 198,
+      "props": {
+        "id": "from_below",
+        "facing": "left"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_st1",
+      "x": 116,
+      "y": 26,
+      "props": {
+        "color": "#ffdcb0",
+        "radius": 80,
+        "intensity": 0.268,
+        "warmth": 0.45,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_st2",
+      "x": 426,
+      "y": 26,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 102,
+        "intensity": 0.854,
+        "warmth": 0.4,
+        "flicker": "fluorescent",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_store",
+      "x": 172,
+      "y": 110,
+      "props": {
+        "color": "#ffb066",
+        "radius": 70,
+        "intensity": 0.61,
+        "warmth": 0.55,
+        "flicker": "candle",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_keypad",
+      "x": 676,
+      "y": 160,
+      "props": {
+        "color": "#5fd0a0",
+        "radius": 48,
+        "intensity": 0.854,
+        "warmth": 0.7,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_deep",
+      "x": 640,
+      "y": 210,
+      "props": {
+        "color": "#3a4a80",
+        "radius": 146,
+        "intensity": 0.268,
+        "warmth": 0.3,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_stair",
+      "x": 70,
+      "y": 150,
+      "w": 100,
+      "h": 80,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "Colder down here. The hum is louder and it isn't machinery.",
+        "portrait": "worried",
+        "cutscene": "",
+        "shake": 0,
+        "sound": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_barricade",
+      "x": 170,
+      "y": 150,
+      "props": {
+        "title": "The store room door",
+        "pages": [
+          "Barricoded. Shelving units wedged against it in four courses -- from the inside.",
+          "Whoever did this wasn't keeping something out of the building. They were keeping the building out of this room.",
+          "It's been pushed open since. From the inside, again."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_barricade",
+        "repeatText": "Barricaded from within, then opened from within.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_tally",
+      "x": 148,
+      "y": 150,
+      "props": {
+        "title": "Marks on the paint",
+        "pages": [
+          "Scratched into the inside face of the door, at sitting height.",
+          "Nine strokes. Eight upright and one across, the ninth one shakier than the rest.",
+          "Nine days. Someone sat against this door and counted nine days."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_tally",
+        "repeatText": "Nine strokes. The last one shakes.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_rations",
+      "x": 196,
+      "y": 150,
+      "props": {
+        "title": "What she lived on",
+        "pages": [
+          "Four water containers, all empty. Ration wrappers folded flat and stacked, in a neat pile, because of course they are.",
+          "A hand lamp run all the way down to nothing.",
+          "She rationed it like she thought help was coming. Then she stopped rationing it."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_rations",
+        "repeatText": "Empty containers, folded wrappers, a dead lamp.",
+        "evidence": true,
+        "portrait": ""
+      }
+    },
+    {
+      "type": "note",
+      "id": "n_vancelog",
+      "x": 222,
+      "y": 150,
+      "props": {
+        "title": "M. Vance -- notebook",
+        "pages": [
+          "Day 1. Ring will not release the ramp. It took the floor above me at 06:14 and I was two levels down behind the blast door when the field came up. The door held. It held because it was shut, and it was shut because I shut it, and I shut it because I was angry with them.",
+          "Day 3. I have walked every floor. There is nobody. There is no damage. The building is completely intact and completely empty and I cannot make those two facts sit next to each other.",
+          "Day 6. The aperture is still open. I have stopped pretending it will close on its own. If the field took them through then they went through whole -- the dosimetry says a field, not a discharge. Whole is not the same as alive but it is not the same as dead either.",
+          "Day 9. I left a message on Hale's machine before any of this and told him to come in early. If he listened to me he is through there with them and this is my doing. If he did not listen to me then he is alive, and one day he is going to walk into this building and find my handwriting.\n\nEither way I am not going to sit here for a tenth day."
+        ],
+        "prompt": "Read",
+        "setsFlag": "read_vance_log",
+        "once": false
+      }
+    },
+    {
+      "type": "keypad",
+      "id": "k_blast",
+      "x": 676,
+      "y": 198,
+      "props": {
+        "code": "0614",
+        "prompt": "Keypad",
+        "requiresFlag": "knows_0614",
+        "noCodeText": "Four digits. I don't have four digits yet.",
+        "successText": "0614. The bolt draws back like it was waiting to be asked.",
+        "wrongText": "Three short beeps. Not that.",
+        "setsFlag": "stair_door_open"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_stair",
+      "x": 300,
+      "y": 150,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_sec2",
+      "x": 14,
+      "y": 150,
+      "props": {
+        "to": "security_room",
+        "spawn": "from_stairs",
+        "prompt": "Security",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_sublevel",
+      "x": 636,
+      "y": 198,
+      "props": {
+        "to": "sublevel_3",
+        "spawn": "from_stairs",
+        "prompt": "Sublevel 3",
+        "requiresFlag": "stair_door_open",
+        "lockedText": "Sealed. There's a keypad beside it.",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 384,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 384,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}

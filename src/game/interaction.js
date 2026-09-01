@@ -70,6 +70,66 @@ export const BEHAVIOURS = {
     api.dialogue.say(p.examine, { portrait: 'neutral' });
   },
 
+  /**
+   * The core investigative interaction: a physical detail he notices. Unlike a
+   * note, there is nothing written on it -- the text is what he makes of it.
+   * Looking again says something shorter, so re-checking a room does not
+   * replay the whole observation.
+   */
+  clue(entity, api) {
+    const p = entity.props;
+    const seen = api.journal.hasNote(entity.id);
+
+    if (seen) {
+      api.dialogue.say(p.repeatText || p.pages[0], { portrait: p.portrait || 'neutral' });
+      return;
+    }
+
+    api.audio.play('blip');
+    api.reader.show({ title: p.title, pages: p.pages, portrait: p.portrait }, () => {
+      if (p.evidence) {
+        api.journal.addNote({ id: entity.id, title: p.title, pages: p.pages, source: 'clue' });
+      }
+      // The flag lands on close, so a realization never fires over the top of
+      // the thing the player is still reading.
+      if (p.setsFlag) api.flags.set(p.setsFlag);
+    });
+  },
+
+  container(entity, api) {
+    const p = entity.props;
+    if (p.requiresFlag && !api.flags.has(p.requiresFlag)) {
+      api.audio.play('locked');
+      api.dialogue.say(p.lockedText || "It's locked.", { portrait: 'worried' });
+      return;
+    }
+
+    const itemKey = `${entity.id}_item`;
+    if (p.givesItem && !api.journal.hasItem(itemKey)) {
+      api.audio.play('pickup');
+      api.journal.addItem({ id: itemKey, name: p.givesItem, description: p.itemDescription });
+      if (p.itemFlag) api.flags.set(p.itemFlag);
+      if (p.setsFlag) api.flags.set(p.setsFlag);
+      api.dialogue.say(p.openText || `${p.givesItem}. I'll take that.`, { portrait: 'neutral' });
+      return;
+    }
+
+    api.audio.play('paper');
+    if (p.setsFlag) api.flags.set(p.setsFlag);
+    api.dialogue.say(p.emptyText || 'Nothing in it.', { portrait: 'neutral' });
+  },
+
+  keypad(entity, api) {
+    const p = entity.props;
+    if (p.requiresFlag && !api.flags.has(p.requiresFlag)) {
+      api.audio.play('locked');
+      api.dialogue.say(p.noCodeText || "I don't have a code for it.", { portrait: 'worried' });
+      return;
+    }
+    api.audio.play('terminal');
+    api.keypad.show(entity);
+  },
+
   save_point(entity, api) {
     api.audio.play('save');
     api.game.save();

@@ -15,9 +15,12 @@ import { Dialogue } from './dialogue.js';
 import { Reader } from './reader.js';
 import { Audio } from './audio.js';
 import { Cutscene } from './cutscene.js';
+import { Keypad } from './keypad.js';
+import { Realization } from './realization.js';
+import { Deductions } from './deductions.js';
 import { Save } from './save.js';
 import { Interaction, updateTriggers } from './interaction.js';
-import { drawJournal, INK, INK_DIM, ACCENT, panel } from './ui.js';
+import { drawJournal, journalRows, JOURNAL_TABS, INK, INK_DIM, ACCENT, panel } from './ui.js';
 import { CUTSCENES, START_SCENE, START_SPAWN } from '../scenes/manifest.js';
 
 const PORTRAIT_NAMES = ['neutral', 'stern', 'worried', 'resolute', 'smile'];
@@ -41,12 +44,16 @@ export class Game {
     this.reader = new Reader(this.portraits);
     this.cutscene = new Cutscene(this.assets, this.audio, this.postfx);
     this.cutscene.onShake = (n) => this.camera.shake(n);
+    this.keypad = new Keypad(this.audio);
+    this.realization = new Realization(this.audio);
+    this.deductions = new Deductions();
+    this.deductions.watch(this.flags);
 
     this.state = 'boot';
     this.scene = null;
     this.player = null;
     this.firedTriggers = new Set();
-    this.journalState = { index: 0 };
+    this.journalState = { tab: 0, index: 0 };
     this.progress = 0;
     this.error = null;
     this.showDebug = false;
@@ -83,6 +90,7 @@ export class Game {
       reader: this.reader,
       audio: this.audio,
       camera: this.camera,
+      keypad: this.keypad,
       game: this,
     };
   }
@@ -122,8 +130,10 @@ export class Game {
 
       const save = Save.read();
       if (save) {
-        this.flags.load(save.flags);
         this.journal.load(save.journal);
+        // Load the journal first: restoring flags re-arms the deduction watcher,
+        // and a realization already recorded must not be announced again.
+        this.flags.load(save.flags);
         await this.travel(save.scene || START_SCENE, save.spawn || START_SPAWN, { instant: true });
         if (save.x !== undefined) this.player.setPosition(save.x, save.y);
         this.camera.snapTo(this.player.x, this.player.y - 20);
@@ -192,6 +202,13 @@ export class Game {
     const returnAmbience = this.scene ? this.scene.ambience : 'none';
     this.state = 'cutscene';
     this.cutscene.play(def, () => {
+      // A cutscene may hand off to a scene rather than returning to the one it
+      // played over -- that is how the drive up the mountain arrives at the gate.
+      if (def.then && def.then.scene) {
+        this.travel(def.then.scene, def.then.spawn || 'start', { instant: true })
+          .then(() => { this.state = 'playing'; this.postfx.setFade('#000000', 0); });
+        return;
+      }
       this.state = 'playing';
       this.audio.setAmbience(returnAmbience);
       this.postfx.setFade('#000000', 0);
@@ -239,18 +256,40 @@ export class Game {
         this.cutscene.update(dt, this.input);
         break;
 
-      case 'journal':
+      case 'journal': {
         if (this.input.justPressed('cancel') || this.input.justPressed('journal')) {
           this.state = 'playing';
+          break;
         }
+        // Derived from the just-pressed set rather than from held state: a
+        // quick tap can have its keyup land in the same tick as its keydown.
+        const tabDelta = (this.input.justPressed('right') ? 1 : 0)
+          - (this.input.justPressed('left') ? 1 : 0);
+        if (tabDelta !== 0) {
+          this.journalState.tab = (this.journalState.tab + tabDelta + JOURNAL_TABS.length) % JOURNAL_TABS.length;
+          this.journalState.index = 0;
+          this.audio.play('blip');
+        }
+        const rows = journalRows(this.journal, this.journalState.tab).length;
         if (this.input.justPressed('up')) {
           this.journalState.index = Math.max(0, this.journalState.index - 1);
           this.audio.play('blip');
         }
         if (this.input.justPressed('down')) {
-          this.journalState.index = Math.min(Math.max(0, this.journal.notes.length - 1), this.journalState.index + 1);
+          this.journalState.index = Math.min(Math.max(0, rows - 1), this.journalState.index + 1);
           this.audio.play('blip');
         }
+        break;
+      }
+
+      case 'keypad':
+        this.keypad.update(dt, this.input, this.api);
+        if (!this.keypad.open) this.state = 'playing';
+        break;
+
+      case 'realization':
+        this.realization.update(dt, this.input);
+        if (!this.realization.open) this.state = 'playing';
         break;
 
       case 'reading':
@@ -263,6 +302,21 @@ export class Game {
         break;
       default:
         break;
+    }
+
+    // A realization waits for a clear screen. Its flag is set by a note or a
+    // clue closing, so without this the card would land on top of the page the
+    // player is still reading.
+    if (this.state === 'playing' && this.deductions.waiting && !this.reader.open) {
+      const next = this.deductions.take();
+      if (next) {
+        this.dialogue.clear();
+        this.journal.addDeduction({ id: next.id, title: next.title, pages: next.note });
+        this.realization.show(next, () => {
+          if (next.setsFlag) this.flags.set(next.setsFlag);
+        });
+        this.state = 'realization';
+      }
     }
 
     this.dialogue.update(dt, this.state === 'playing' ? this.input : null);
@@ -288,6 +342,7 @@ export class Game {
     if (this.input.justPressed('interact') && this.interaction.target) {
       this.interaction.fire(this.api);
       if (this.reader.open) this.state = 'reading';
+      else if (this.keypad.open) this.state = 'keypad';
     }
 
     if (this.input.justPressed('journal')) {
@@ -313,8 +368,13 @@ export class Game {
 
     if (this.state === 'journal') drawJournal(ctx, this.journal, this.journalState, NATIVE_W, NATIVE_H);
     if (this.reader.open) this.reader.draw(ctx, NATIVE_W, NATIVE_H);
-    // The reader and the journal each own the screen while open.
-    if (this.state !== 'journal' && !this.reader.open) this.dialogue.draw(ctx, NATIVE_W, NATIVE_H);
+    if (this.keypad.open) this.keypad.draw(ctx, NATIVE_W, NATIVE_H);
+    this.realization.draw(ctx, NATIVE_W, NATIVE_H, this.portraits);
+    // Each overlay owns the screen while it is open.
+    if (this.state !== 'journal' && !this.reader.open
+      && !this.keypad.open && !this.realization.open) {
+      this.dialogue.draw(ctx, NATIVE_W, NATIVE_H);
+    }
 
     this.postfx.render(ctx);
     if (this.showDebug) this.renderDebug();

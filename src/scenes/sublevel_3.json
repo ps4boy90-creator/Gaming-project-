@@ -1,0 +1,235 @@
+{
+  "id": "sublevel_3",
+  "name": "Blackridge -- Sublevel 3",
+  "size": {
+    "w": 1152,
+    "h": 216
+  },
+  "allowJump": false,
+  "ambience": "basement",
+  "layers": [
+    {
+      "image": "backdrops/sublevel_3/room.png",
+      "parallax": 1
+    },
+    {
+      "image": "backdrops/sublevel_3/fore.png",
+      "parallax": 1.06,
+      "overPlayer": true
+    }
+  ],
+  "collision": [
+    {
+      "x": 0,
+      "y": 186,
+      "w": 1152,
+      "h": 30,
+      "type": "solid"
+    }
+  ],
+  "ambient": {
+    "color": "#04060f",
+    "strength": 0.72
+  },
+  "entities": [
+    {
+      "type": "player_start",
+      "id": "from_stairs",
+      "x": 60,
+      "y": 186,
+      "props": {
+        "id": "from_stairs",
+        "facing": "right"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_ap1",
+      "x": 640,
+      "y": 120,
+      "props": {
+        "color": "#8fd8ff",
+        "radius": 260,
+        "intensity": 1.5,
+        "warmth": 0.85,
+        "flicker": "pulse",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_ap2",
+      "x": 640,
+      "y": 130,
+      "props": {
+        "color": "#ffffff",
+        "radius": 120,
+        "intensity": 1.0,
+        "warmth": 0.6,
+        "flicker": "candle",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_sub1",
+      "x": 90,
+      "y": 26,
+      "props": {
+        "color": "#dfeaff",
+        "radius": 75,
+        "intensity": 0.225,
+        "warmth": 0.4,
+        "flicker": "dying",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_bench",
+      "x": 930,
+      "y": 140,
+      "props": {
+        "color": "#ffd8a0",
+        "radius": 67,
+        "intensity": 0.375,
+        "warmth": 0.5,
+        "flicker": "dying",
+        "phase": 2.4,
+        "requiresFlag": ""
+      }
+    },
+    {
+      "type": "trigger",
+      "id": "t_sub",
+      "x": 100,
+      "y": 186,
+      "w": 110,
+      "h": 80,
+      "props": {
+        "once": true,
+        "requiresFlag": "",
+        "setsFlag": "",
+        "line": "There it is. Nine days open and it hasn't dimmed by a candle.",
+        "portrait": "worried",
+        "cutscene": "",
+        "shake": 1.5,
+        "sound": ""
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_aperture",
+      "x": 640,
+      "y": 186,
+      "props": {
+        "title": "The aperture",
+        "pages": [
+          "A standing ring of nothing, eight feet across, held inside the containment frame.",
+          "It isn't bright. Looking at it is like looking at the moment before you remember something.",
+          "The air in front of it moves inward. Slowly, constantly, everything drifts toward it -- dust, my breath, the hem of my coat.",
+          "Fourteen minutes into shutting it down, this pulled thirty-one people off their feet, and it is still pulling."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_aperture",
+        "repeatText": "Still open. Still pulling.",
+        "evidence": true,
+        "portrait": "worried"
+      }
+    },
+    {
+      "type": "clue",
+      "id": "c_badge",
+      "x": 560,
+      "y": 186,
+      "props": {
+        "title": "A badge on the floor",
+        "pages": [
+          "Set down flat at the very edge of the frame. Not dropped -- dropped things land badly, and this is square to the edge.",
+          "VANCE, M. -- DIRECTOR. Clearance A.",
+          "She put it down where anyone coming after her would have to see it. So that nobody could ever write that she was taken."
+        ],
+        "prompt": "Examine",
+        "setsFlag": "clue_her_badge",
+        "repeatText": "VANCE, M. Placed, not dropped.",
+        "evidence": true,
+        "portrait": "worried"
+      }
+    },
+    {
+      "type": "note",
+      "id": "n_final",
+      "x": 930,
+      "y": 186,
+      "props": {
+        "title": "Taped to the console",
+        "pages": [
+          "If you are reading this then the ring is still holding and somebody finally came, and I am sorry that it is you.",
+          "Nine days. The field is stable. The dosimetry says it moved them, it did not burn them -- whatever is on the other side of this, they went into it in one piece and fourteen minutes of a shutdown ramp is not enough to kill a person.",
+          "I am not going to sit at this desk for a tenth day writing down that I did nothing.",
+          "Hale -- if it is you, and it will be you, because you are the only one I told to stay away and you have never once done what you were told: do not follow me in. Turn the ramp off from the panel and go back up the stairs and tell somebody.\n\nYou were late. Be late this once more.\n\n-- M."
+        ],
+        "prompt": "Read",
+        "setsFlag": "read_vance_final",
+        "once": false
+      }
+    },
+    {
+      "type": "prop",
+      "id": "p_console",
+      "x": 1000,
+      "y": 186,
+      "props": {
+        "image": "",
+        "flip": false,
+        "overPlayer": false,
+        "requiresFlag": "",
+        "examine": "The shutdown panel. The ramp switch is still in the up position, exactly where somebody left it fourteen minutes into Thursday.",
+        "prompt": "Look"
+      }
+    },
+    {
+      "type": "save_point",
+      "id": "s_sub",
+      "x": 240,
+      "y": 186,
+      "props": {
+        "prompt": "Rest",
+        "line": "Progress recorded."
+      }
+    },
+    {
+      "type": "door",
+      "id": "d_back",
+      "x": 20,
+      "y": 186,
+      "props": {
+        "to": "stairwell",
+        "spawn": "from_below",
+        "prompt": "Back up",
+        "requiresFlag": "",
+        "lockedText": "",
+        "setsFlag": "",
+        "sound": "metal"
+      }
+    },
+    {
+      "type": "light",
+      "id": "l_fill",
+      "x": 576,
+      "y": 206,
+      "props": {
+        "color": "#4a5a80",
+        "radius": 576,
+        "intensity": 0.3,
+        "warmth": 0.18,
+        "flicker": "steady",
+        "phase": 0,
+        "requiresFlag": ""
+      }
+    }
+  ]
+}
