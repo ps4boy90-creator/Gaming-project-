@@ -8,7 +8,7 @@ export class Hud {
       overlay: $('overlay'), status: $('status'), enter: $('enter'),
       hud: $('hud'), card: $('card'), prompt: $('prompt'), toast: $('toast'),
       ticket: $('ticket'), touch: $('touch'), stick: $('stick'), knob: $('knob'),
-      pause: $('pause'), help: $('help'),
+      pause: $('pause'), help: $('help'), loot: $('loot'), breach: $('breach'),
     };
     this.toastTimer = 0;
     this.lastCard = '';
@@ -77,6 +77,20 @@ export class Hud {
       n.textContent = info.note;
       c.append(n);
     }
+  }
+
+  loot(count, gb) {
+    const el = this.el.loot;
+    el.hidden = false;
+    el.innerHTML = `<span class="loot-ic">◈</span> ${count} breached <span class="loot-sep">·</span> ${gb} GB`;
+  }
+
+  breach(info) {
+    const el = this.el.breach;
+    if (!info) { el.hidden = true; return; }
+    el.hidden = false;
+    const pct = Math.round(info.pct * 100);
+    el.innerHTML = `<div class="br-top"><span>${info.title}</span><span class="br-pct">${pct}%</span></div><div class="br-track"><i style="width:${pct}%"></i></div>`;
   }
 
   prompt(text) {

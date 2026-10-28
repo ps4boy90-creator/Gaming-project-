@@ -29,7 +29,7 @@ export class Player {
   emit(name, ...a) { this.handlers[name]?.(...a); }
 
   attach() {
-    const keyMap = { KeyE: 'interact', KeyF: 'torch', KeyL: 'lights', KeyM: 'mute', KeyH: 'help' };
+    const keyMap = { KeyE: 'interact', KeyR: 'breach', KeyF: 'torch', KeyL: 'lights', KeyM: 'mute', KeyH: 'help' };
     addEventListener('keydown', (e) => {
       if (!this.enabled) return;
       if (e.code === 'KeyC') { this.crouch = !this.crouch; return; }

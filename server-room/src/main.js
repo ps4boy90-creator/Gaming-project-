@@ -16,6 +16,7 @@ import { Player } from './player.js';
 import { Ambience } from './audio.js';
 import { Hud } from './hud.js';
 import { Tickets } from './tickets.js';
+import { Heist } from './heist.js';
 import { nextFrame } from './util.js';
 
 const params = new URLSearchParams(location.search);
@@ -161,6 +162,7 @@ async function boot() {
   player.attach();
   const audio = new Ambience();
   const tickets = new Tickets(hud, racks.fault);
+  const heist = new Heist(camera, scene, hud, audio);
 
   const cam = params.get('cam');
   if (cam) {
@@ -224,6 +226,7 @@ async function boot() {
     }
   };
   player.on('interact', interact);
+  player.on('breach', () => heist.tryBreach(target));
   player.on('torch', () => setTorch(!torchOn));
   player.on('lights', () => {
     setLights(!lightsOn);
@@ -242,6 +245,7 @@ async function boot() {
   document.getElementById('t-use')?.addEventListener('click', interact);
   document.getElementById('t-torch')?.addEventListener('click', () => setTorch(!torchOn));
   document.getElementById('t-lights')?.addEventListener('click', () => setLights(!lightsOn));
+  document.getElementById('t-hack')?.addEventListener('click', () => heist.tryBreach(target));
   document.getElementById('help-btn')?.addEventListener('click', () => hud.toggleHelp());
 
   const pickTarget = () => {
@@ -285,8 +289,14 @@ async function boot() {
     if (player.enabled || cam) {
       target = pickTarget();
       hud.card(describe(target));
+      heist.update(dt, time, target, player);
       const r = target?.rack;
-      hud.prompt(r ? (r.doorTarget > 0.5 ? `Close door · ${r.id}` : `Open door · ${r.id}`) : target?.kind === 'epo' ? 'Lift cover' : null);
+      const breachPrompt = heist.prompt(target);
+      hud.prompt(
+        breachPrompt ? breachPrompt
+        : r ? (r.doorTarget > 0.5 ? `Close door · ${r.id}` : `Open door · ${r.id}`)
+        : target?.kind === 'epo' ? 'Lift cover' : null,
+      );
       tickets.update(target, player);
     }
     audio.listen(camera.position.x, camera.position.y, camera.position.z, player.yaw);
@@ -319,7 +329,7 @@ async function boot() {
   };
 
   window.__app = {
-    scene, camera, renderer, racks, room, player, setLights, setTorch, composer, stats: racks.stats,
+    scene, camera, renderer, racks, room, player, heist, setLights, setTorch, composer, stats: racks.stats,
     // test hook: jump the camera and render one frame
     view(x, y, z, yaw, pitch = 0, frames = 2) {
       player.place(x, z, yaw, pitch);
@@ -340,6 +350,7 @@ async function boot() {
   const start = () => {
     player.enabled = true;
     hud.enter(touch);
+    heist.show();
     audio.start(room.interactables.filter((i) => i.kind === 'crac').map((i) => ({ x: i.box.min.x, z: (i.box.min.z + i.box.max.z) / 2 })));
     if (!touch) {
       try {
@@ -349,7 +360,7 @@ async function boot() {
     }
     hud.toast('Ticket INC-48213 assigned to you. Check the panel top left.', 5000);
   };
-  if (cam) { player.enabled = false; hud.enter(touch); }
+  if (cam) { player.enabled = false; hud.enter(touch); heist.show(); }
   else hud.ready(start);
 }
 

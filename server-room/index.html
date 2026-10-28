@@ -140,6 +140,24 @@
     background: var(--panel); color: var(--ink); font: 600 0.72rem/1 var(--mono); letter-spacing: 0.04em;
   }
   .tbtns button#t-use { background: var(--accent); color: #14110a; border-color: transparent; }
+  .tbtns button#t-hack { background: #19b36a; color: #04140c; border-color: transparent; }
+  /* heist HUD */
+  #loot {
+    position: absolute; right: calc(var(--safe-r) + 58px); top: calc(var(--safe-t) + 14px);
+    padding: 8px 12px; font: 600 0.8rem/1 var(--mono); color: #4fe39a; white-space: nowrap;
+  }
+  #loot .loot-sep { color: var(--muted); }
+  #loot .loot-ic { color: #4fe39a; }
+  #breach {
+    position: absolute; left: 50%; bottom: calc(var(--safe-b) + 68px); transform: translateX(-50%);
+    width: min(26rem, calc(100vw - 32px)); padding: 10px 14px; display: grid; gap: 8px;
+  }
+  .br-top { display: flex; justify-content: space-between; gap: 12px; font: 600 0.8rem/1.2 var(--mono); color: #8af0b6; }
+  .br-top span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .br-pct { color: #4fe39a; font-variant-numeric: tabular-nums; }
+  .br-track { height: 6px; border-radius: 3px; background: rgba(79, 227, 154, 0.16); overflow: hidden; }
+  .br-track i { display: block; height: 100%; background: #2ee38a; transition: width 0.1s linear; }
+  body.touch #breach { bottom: calc(var(--safe-b) + 96px); }
   body.touch #prompt { bottom: calc(var(--safe-b) + 96px); }
   body.touch #crosshair { width: 5px; height: 5px; }
   @media (max-width: 520px) {
@@ -165,6 +183,8 @@
   <div id="crosshair"></div>
   <section id="ticket" class="panel" aria-live="polite"></section>
   <div id="card" class="panel" hidden></div>
+  <div id="loot" class="panel" hidden></div>
+  <div id="breach" class="panel" aria-live="polite" hidden></div>
   <div id="prompt" class="panel" hidden></div>
   <div id="toast" class="panel" role="status" hidden></div>
   <div id="pause" class="panel" hidden>Click to look around · Esc frees the mouse</div>
@@ -173,6 +193,7 @@
     <div><b>Mouse</b>Look</div>
     <div><b>Shift</b>Walk faster</div>
     <div><b>E / Click</b>Open rack door</div>
+    <div><b>R</b>Breach server</div>
     <div><b>F</b>Torch</div>
     <div><b>L</b>Room lights</div>
     <div><b>C</b>Crouch</div>
@@ -184,6 +205,7 @@
     <div class="tbtns">
       <button id="t-torch" type="button">TORCH</button>
       <button id="t-lights" type="button">LIGHTS</button>
+      <button id="t-hack" type="button">HACK</button>
       <button id="t-use" type="button">USE</button>
     </div>
   </div>
@@ -193,18 +215,18 @@
   <div class="intro">
     <p class="eyebrow">Site 03 · Level 2 · Raised floor</p>
     <h1>Data Hall B</h1>
-    <p class="lede">A working server room you can walk through: 56 racks in four rows, a contained cold aisle, three CRAC units and an open ticket with your name on it.</p>
+    <p class="lede">A working server room you can walk through. You’re carrying a field laptop: open a rack, aim at a server, and plug in to breach it and exfiltrate its data — a fictional heist, no real hacking.</p>
     <dl class="keys">
       <div><dt>WASD</dt><dd>Walk</dd></div>
       <div><dt>Mouse</dt><dd>Look</dd></div>
       <div><dt>E</dt><dd>Rack door</dd></div>
-      <div><dt>Shift</dt><dd>Faster</dd></div>
+      <div><dt>R</dt><dd>Breach</dd></div>
       <div><dt>F</dt><dd>Torch</dd></div>
       <div><dt>L</dt><dd>Lights</dd></div>
       <div><dt>C</dt><dd>Crouch</dd></div>
       <div><dt>H</dt><dd>Help</dd></div>
     </dl>
-    <p class="touch-note">Left thumb walks, right thumb looks. Tap to open a rack door.</p>
+    <p class="touch-note">Left thumb walks, right thumb looks. Tap to open a rack door; HACK to breach the server you’re facing.</p>
     <div class="actions">
       <button id="enter" type="button" disabled>Loading…</button>
       <p id="status">Starting…</p>

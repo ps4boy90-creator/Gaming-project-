@@ -110,9 +110,57 @@ export class Ambience {
     thump.stop(t + 0.13);
   }
 
+  tone(freq = 600, dur = 0.08) {
+    const ctx = this.ctx;
+    if (!ctx || this.muted) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
+  // low data-transfer burble while a breach runs
+  hack(on) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (on && !this._hackGain) {
+      const g = this._hackGain = ctx.createGain();
+      g.gain.value = 0;
+      g.gain.setTargetAtTime(this.muted ? 0 : 0.05, ctx.currentTime, 0.1);
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = 70;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 11;
+      const d = ctx.createGain();
+      d.gain.value = 30;
+      lfo.connect(d).connect(o.frequency);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 900;
+      o.connect(f).connect(g).connect(this.master);
+      o.start(); lfo.start();
+      this._hackNodes = [o, lfo];
+    } else if (!on && this._hackGain) {
+      const g = this._hackGain;
+      g.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+      const nodes = this._hackNodes;
+      setTimeout(() => { for (const n of nodes) { try { n.stop(); } catch { /* already stopped */ } } }, 300);
+      this._hackGain = null;
+      this._hackNodes = null;
+    }
+  }
+
   toggleMute() {
     this.muted = !this.muted;
     if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.6, this.ctx.currentTime, 0.1);
+    if (this._hackGain) this._hackGain.gain.setTargetAtTime(this.muted ? 0 : 0.05, this.ctx.currentTime, 0.1);
     return this.muted;
   }
 }
