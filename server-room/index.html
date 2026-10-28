@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Data Hall B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap">
+<style>
+  /* Layout: full-bleed WebGL view; HUD pinned to the safe-area corners. One deliberate dark look. */
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --panel: rgba(10, 13, 16, 0.8);
+    --line: rgba(232, 238, 242, 0.12);
+    --ink: #e8ecef;
+    --muted: #93a0aa;
+    --accent: #e8b512;   /* fibre-runway yellow */
+    --ok: #47cf80;
+    --warn: #f2a33a;
+    --crit: #ff5d50;
+    --sans: 'IBM Plex Sans Condensed', 'Arial Narrow', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+  }
+  [hidden] { display: none !important; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); overflow: hidden; font-family: var(--sans); }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+
+  /* ---- start / loading screen ---- */
+  #overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: flex-end;
+    padding: max(24px, var(--safe-t)) max(16px, var(--safe-r)) max(28px, var(--safe-b)) max(16px, var(--safe-l));
+    background:
+      linear-gradient(180deg, rgba(11, 13, 16, 0.35) 0%, rgba(11, 13, 16, 0.55) 45%, rgba(11, 13, 16, 0.92) 100%);
+    overflow-y: auto;
+  }
+  .intro { max-width: 34rem; display: grid; gap: 14px; padding-left: clamp(0px, 4vw, 48px); padding-bottom: clamp(0px, 3vh, 32px); }
+  .eyebrow { margin: 0; font: 500 0.78rem/1.2 var(--mono); letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
+  h1 { margin: 0; font: 700 clamp(2.6rem, 9vw, 4.6rem)/0.95 var(--sans); letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { margin: 0; font: 400 1.06rem/1.5 var(--sans); color: #c9d1d7; max-width: 32rem; }
+  .keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 14px; margin: 4px 0 0; padding: 0; }
+  .keys div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .keys dt { font: 600 0.8rem/1 var(--mono); color: var(--ink); }
+  .keys dd { margin: 0; font: 400 0.78rem/1.2 var(--mono); color: var(--muted); }
+  .touch-note { display: none; margin: 0; font: 400 0.9rem/1.4 var(--sans); color: var(--muted); }
+  @media (pointer: coarse) { .keys { display: none; } .touch-note { display: block; } }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 6px; }
+  #enter {
+    appearance: none; border: 0; border-radius: 3px; cursor: pointer;
+    padding: 13px 22px; min-width: 12rem;
+    font: 700 1rem/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase;
+    color: #14110a; background: var(--accent);
+  }
+  #enter:disabled { cursor: progress; background: #3a3d40; color: var(--muted); }
+  #enter:focus-visible, #hud button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  #status { margin: 0; font: 400 0.82rem/1.3 var(--mono); color: var(--muted); }
+
+  /* ---- in-game HUD ---- */
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; font-family: var(--mono); }
+  #crosshair {
+    position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px;
+    border-radius: 50%; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #ticket {
+    position: absolute; top: calc(var(--safe-t) + 14px); left: calc(var(--safe-l) + 14px);
+    width: min(22rem, calc(100vw - 76px - var(--safe-l) - var(--safe-r))); padding: 12px 14px; display: grid; gap: 6px;
+  }
+  .tk-head { display: flex; align-items: center; gap: 10px; }
+  .tk-id { font: 600 0.75rem/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+  .tk-title { font: 600 1rem/1.25 var(--sans); }
+  #ticket ol { margin: 2px 0 0; padding-left: 1.2rem; display: grid; gap: 4px; font: 400 0.78rem/1.35 var(--mono); color: var(--muted); }
+  #ticket li.current { color: var(--ink); }
+  #ticket li.done { color: var(--ok); text-decoration: line-through; text-decoration-color: rgba(71, 207, 128, 0.5); }
+  .chip { font: 600 0.66rem/1 var(--mono); letter-spacing: 0.08em; padding: 4px 6px 3px; border-radius: 2px; border: 1px solid currentColor; }
+  .chip.ok { color: var(--ok); }
+  .chip.warn { color: var(--warn); }
+  .chip.crit { color: var(--crit); }
+  #card {
+    position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+    min-width: 15rem; max-width: min(22rem, calc(100vw - 32px)); padding: 10px 12px; display: grid; gap: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 3px; }
+  .card-head strong { font: 600 0.95rem/1.2 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+  .card-line { font: 400 0.76rem/1.35 var(--mono); color: var(--muted); }
+  .card-note { margin-top: 4px; font: 600 0.76rem/1.35 var(--mono); color: var(--crit); }
+  #prompt {
+    position: absolute; left: 50%; bottom: calc(var(--safe-b) + 26px); transform: translateX(-50%);
+    padding: 8px 12px; font: 500 0.85rem/1 var(--mono); white-space: nowrap;
+  }
+  kbd {
+    display: inline-block; min-width: 1.3em; padding: 3px 5px 2px; margin-right: 4px; border-radius: 2px;
+    font: 700 0.75rem/1 var(--mono); color: #14110a; background: var(--accent); text-align: center;
+  }
+  #toast {
+    position: absolute; left: 50%; top: calc(var(--safe-t) + 14px); transform: translateX(-50%);
+    max-width: min(30rem, calc(100vw - 32px)); padding: 10px 14px; font: 500 0.82rem/1.4 var(--mono);
+    border-left: 3px solid var(--accent);
+  }
+  @media (max-width: 760px) { #toast { top: auto; bottom: calc(var(--safe-b) + 140px); } }
+  #toast.show { animation: toastIn 0.25s ease-out; }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  #pause {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -140%);
+    padding: 8px 12px; font: 500 0.8rem/1 var(--mono); color: var(--ink);
+  }
+  #help {
+    position: absolute; right: calc(var(--safe-r) + 14px); top: calc(var(--safe-t) + 60px); padding: 12px 14px;
+    font: 400 0.78rem/1.6 var(--mono); color: var(--muted); max-width: calc(100vw - 28px);
+  }
+  #help b { color: var(--ink); font-weight: 600; display: inline-block; min-width: 5.5rem; }
+  #help-btn {
+    position: absolute; right: calc(var(--safe-r) + 14px); top: calc(var(--safe-t) + 14px); pointer-events: auto;
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); font: 600 0.95rem/1 var(--mono); cursor: pointer;
+  }
+
+  /* ---- touch controls ---- */
+  #touch { position: absolute; inset: 0; }
+  #stick {
+    position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.28); background: rgba(10, 13, 16, 0.25); opacity: 0; transition: opacity 0.12s;
+  }
+  #stick.on { opacity: 1; }
+  #knob { position: absolute; left: 34px; top: 34px; width: 44px; height: 44px; border-radius: 50%; background: rgba(232, 236, 239, 0.55); }
+  .tbtns {
+    position: absolute; right: calc(var(--safe-r) + 14px); bottom: calc(var(--safe-b) + 18px);
+    display: flex; gap: 10px; pointer-events: auto;
+  }
+  .tbtns button {
+    appearance: none; width: 62px; height: 62px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); font: 600 0.72rem/1 var(--mono); letter-spacing: 0.04em;
+  }
+  .tbtns button#t-use { background: var(--accent); color: #14110a; border-color: transparent; }
+  body.touch #prompt { bottom: calc(var(--safe-b) + 96px); }
+  body.touch #crosshair { width: 5px; height: 5px; }
+  @media (max-width: 520px) {
+    #ticket { padding: 10px 12px; }
+    #ticket ol { font-size: 0.72rem; }
+    .tk-title { font-size: 0.92rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { #toast.show { animation: none; } }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="view" tabindex="0" aria-label="First-person view of Data Hall B"></canvas>
+
+<div id="hud" hidden>
+  <div id="crosshair"></div>
+  <section id="ticket" class="panel" aria-live="polite"></section>
+  <div id="card" class="panel" hidden></div>
+  <div id="prompt" class="panel" hidden></div>
+  <div id="toast" class="panel" role="status" hidden></div>
+  <div id="pause" class="panel" hidden>Click to look around · Esc frees the mouse</div>
+  <div id="help" class="panel" hidden>
+    <div><b>W A S D</b>Walk</div>
+    <div><b>Mouse</b>Look</div>
+    <div><b>Shift</b>Walk faster</div>
+    <div><b>E / Click</b>Open rack door</div>
+    <div><b>F</b>Torch</div>
+    <div><b>L</b>Room lights</div>
+    <div><b>C</b>Crouch</div>
+    <div><b>M</b>Sound</div>
+  </div>
+  <button id="help-btn" type="button" aria-label="Show controls">?</button>
+  <div id="touch" hidden>
+    <div id="stick"><div id="knob"></div></div>
+    <div class="tbtns">
+      <button id="t-torch" type="button">TORCH</button>
+      <button id="t-lights" type="button">LIGHTS</button>
+      <button id="t-use" type="button">USE</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="intro">
+    <p class="eyebrow">Site 03 · Level 2 · Raised floor</p>
+    <h1>Data Hall B</h1>
+    <p class="lede">A working server room you can walk through: 56 racks in four rows, a contained cold aisle, three CRAC units and an open ticket with your name on it.</p>
+    <dl class="keys">
+      <div><dt>WASD</dt><dd>Walk</dd></div>
+      <div><dt>Mouse</dt><dd>Look</dd></div>
+      <div><dt>E</dt><dd>Rack door</dd></div>
+      <div><dt>Shift</dt><dd>Faster</dd></div>
+      <div><dt>F</dt><dd>Torch</dd></div>
+      <div><dt>L</dt><dd>Lights</dd></div>
+      <div><dt>C</dt><dd>Crouch</dd></div>
+      <div><dt>H</dt><dd>Help</dd></div>
+    </dl>
+    <p class="touch-note">Left thumb walks, right thumb looks. Tap to open a rack door.</p>
+    <div class="actions">
+      <button id="enter" type="button" disabled>Loading…</button>
+      <p id="status">Starting…</p>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
