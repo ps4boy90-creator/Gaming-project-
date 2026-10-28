@@ -14,8 +14,13 @@ and close out an incident ticket.
 
 ## Run it
 
-The page uses ES modules, so serve the folder over HTTP rather than opening the
-file directly:
+**Easiest:** open `dist/data-hall-b.html` in a browser. It is a single
+self-contained file (Three.js and all game code inlined), so it works straight
+from disk with no server. Rebuild it after editing `src/` with
+`npm install && npm run build`.
+
+**From source:** `index.html` loads `src/` as ES modules, so serve the folder
+over HTTP rather than opening the file directly:
 
 ```bash
 cd server-room
