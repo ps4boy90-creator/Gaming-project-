@@ -95,7 +95,9 @@ export class Heist {
     deckTop.position.y = 0.0075;
     deck.add(deckTop);
     // USB-C port on the right edge, front — cable origin
-    deck.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.005, 0.016), dark), { position: new THREE.Vector3(0.131, 0.0, 0.055) }));
+    const usb = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.005, 0.016), dark);
+    usb.position.set(0.131, 0.0, 0.055);
+    deck.add(usb);
     this._portDeck = deck;
     this._portLocal = new THREE.Vector3(0.14, 0.004, 0.055);
 
