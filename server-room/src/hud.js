@@ -93,15 +93,16 @@ export class Hud {
     el.innerHTML = `<div class="br-top"><span>${info.title}</span><span class="br-pct">${pct}%</span></div><div class="br-track"><i style="width:${pct}%"></i></div>`;
   }
 
-  prompt(text) {
+  prompt(text, keyLabel = 'E') {
     const p = this.el.prompt;
     if (!text) { p.hidden = true; return; }
     p.hidden = false;
-    if (p.dataset.t !== text) {
-      p.dataset.t = text;
+    const sig = `${keyLabel}|${text}`;
+    if (p.dataset.t !== sig) {
+      p.dataset.t = sig;
       p.innerHTML = '';
       const key = document.createElement('kbd');
-      key.textContent = document.body.classList.contains('touch') ? 'Tap' : 'E';
+      key.textContent = document.body.classList.contains('touch') ? 'Tap' : keyLabel;
       p.append(key, document.createTextNode(` ${text}`));
     }
   }

@@ -292,10 +292,11 @@ async function boot() {
       heist.update(dt, time, target, player);
       const r = target?.rack;
       const breachPrompt = heist.prompt(target);
-      hud.prompt(
-        breachPrompt ? breachPrompt
-        : r ? (r.doorTarget > 0.5 ? `Close door · ${r.id}` : `Open door · ${r.id}`)
+      if (breachPrompt) hud.prompt(breachPrompt, 'R');
+      else hud.prompt(
+        r ? (r.doorTarget > 0.5 ? `Close door · ${r.id}` : `Open door · ${r.id}`)
         : target?.kind === 'epo' ? 'Lift cover' : null,
+        'E',
       );
       tickets.update(target, player);
     }
