@@ -35,6 +35,7 @@ Three.js 0.170.0 loads from jsDelivr through the import map in `index.html`.
 | Walk / look | `W A S D` + mouse (click to capture) | left thumb / right thumb |
 | Walk faster | `Shift` | push the stick to the edge |
 | Open / close rack door | `E` or click | tap, or **Use** |
+| Breach the server you face | `R` | **Hack** |
 | Torch | `F` | **Torch** |
 | Room lights (emergency mode) | `L` | **Lights** |
 | Crouch | `C` | n/a |
@@ -52,6 +53,18 @@ The NOC wall screen shows a major alarm: **INC-48213, PSU redundancy lost on
 the door mesh), open the rack, check the rear from the hot aisle (PSU 2 has
 no cord and its LED is amber), then read the supply-air temperature on
 CRAC-02.
+
+## The heist
+
+You carry a field laptop (bottom-right of the screen). Open a rack, aim at a
+server, switch or storage array and press **R** (or **Hack** on touch) to plug
+in a USB cable and run a breach: the laptop streams fake terminal output and a
+progress bar, then exfiltrates a fictional dataset. A loot counter tracks how
+many systems you've breached and how much data you've pulled.
+
+It's pure arcade flavor — made-up datasets and sizes, no real network and no
+real technique. Each device can be breached once, only through an open rack
+door, and walking too far mid-breach drops the connection.
 
 ## What's in the room
 
