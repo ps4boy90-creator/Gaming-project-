@@ -118,7 +118,8 @@ async function boot() {
   scene.add(cubeCam);
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envRT = null;
-  for (let pass = 0; pass < 2; pass++) {
+  const envPasses = params.get('env') === '0' ? 0 : 2; // debug hook: skip the costly capture
+  for (let pass = 0; pass < envPasses; pass++) {
     cubeCam.update(renderer, scene);
     const next = pmrem.fromCubemap(cubeRT.texture);
     envRT?.dispose();
