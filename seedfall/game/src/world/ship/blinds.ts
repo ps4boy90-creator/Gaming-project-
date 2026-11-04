@@ -1,40 +1,50 @@
 import * as THREE from 'three';
 import { Materials } from './materials';
 
+/** One window's blinders. (x, z) is the window centre on the inner face; `yaw` turns a box whose
+ *  local x runs along the window and whose local z points into the room. */
 export interface BlindSpec {
-  axis: 'x' | 'z'; // wall runs along this axis
-  c: number; // inner face coordinate of the wall
-  dir: 1 | -1; // into the room along the wall normal
-  at: number;
+  x: number;
+  z: number;
+  yaw: number;
   w: number;
   y: number; // deck floor
   y0: number;
   y1: number;
 }
 
-/** Window "blinders": louvred slats that rotate open to let the sunlight in. */
+/** Convert an axis-aligned wall window into a blind spec. */
+export function wallBlind(axis: 'x' | 'z', c: number, dir: 1 | -1, at: number, w: number, y: number, y0: number, y1: number): BlindSpec {
+  if (axis === 'z') return { x: at, z: c, yaw: dir > 0 ? 0 : Math.PI, w, y, y0, y1 };
+  return { x: c, z: at, yaw: dir > 0 ? Math.PI / 2 : -Math.PI / 2, w, y, y0, y1 };
+}
+
+/** Window "blinders": louvred slats that swing open to let the sunlight in. */
 export class Blinds {
   group = new THREE.Group();
   open = 0;
   target = 0;
-  private slats: { mesh: THREE.Mesh; axis: 'x' | 'z'; dir: number }[] = [];
+  private slats: THREE.Mesh[] = [];
 
   constructor(parent: THREE.Object3D, mats: Materials, specs: BlindSpec[]) {
     const mat = mats.get('ribDark').mat;
     for (const s of specs) {
-      const n = Math.max(4, Math.round((s.y1 - s.y0) / 0.16));
+      const win = new THREE.Group();
+      win.rotation.y = s.yaw;
+      win.position.set(s.x, 0, s.z);
+      win.translateZ(0.1);
+      const n = Math.max(4, Math.round((s.y1 - s.y0) / 0.15));
       const sh = (s.y1 - s.y0) / n;
+      const g = new THREE.BoxGeometry(s.w, sh * 1.06, 0.018);
       for (let i = 0; i < n; i++) {
-        const g = s.axis === 'z' ? new THREE.BoxGeometry(s.w, sh * 1.06, 0.02) : new THREE.BoxGeometry(0.02, sh * 1.06, s.w);
         const m = new THREE.Mesh(g, mat);
-        const yy = s.y + s.y0 + (i + 0.5) * sh;
-        if (s.axis === 'z') m.position.set(s.at, yy, s.c + s.dir * 0.09);
-        else m.position.set(s.c + s.dir * 0.09, yy, s.at);
+        m.position.set(0, s.y + s.y0 + (i + 0.5) * sh, 0);
         m.castShadow = true;
         m.receiveShadow = true;
-        this.group.add(m);
-        this.slats.push({ mesh: m, axis: s.axis, dir: s.dir });
+        win.add(m);
+        this.slats.push(m);
       }
+      this.group.add(win);
     }
     parent.add(this.group);
   }
@@ -43,10 +53,7 @@ export class Blinds {
     if (this.open === this.target) return false;
     this.open += Math.sign(this.target - this.open) * Math.min(Math.abs(this.target - this.open), dt * 0.35);
     const a = this.open * (Math.PI / 2 - 0.12);
-    for (const s of this.slats) {
-      if (s.axis === 'z') s.mesh.rotation.x = a * s.dir;
-      else s.mesh.rotation.z = -a * s.dir;
-    }
+    for (const s of this.slats) s.rotation.x = a;
     return true;
   }
 }

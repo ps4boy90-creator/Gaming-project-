@@ -269,10 +269,13 @@ export class OrbitView {
   private atmoMat: THREE.ShaderMaterial;
   private moonMats: THREE.ShaderMaterial[] = [];
   private center = new THREE.Vector3();
+  /** Baked surface cubemap (rgb = sqrt albedo, a = land mask), for the bridge hologram. */
+  surfaceTex!: THREE.CubeTexture;
 
   constructor(renderer: THREE.WebGLRenderer, quality: 'low' | 'medium' | 'high') {
     const size = quality === 'low' ? 512 : quality === 'medium' ? 1024 : 1536;
     const surface = bakeCube(renderer, SURFACE_BAKE, size);
+    this.surfaceTex = surface;
     const clouds = bakeCube(renderer, CLOUD_BAKE, Math.min(1024, size));
     this.orbitNormal.crossVectors(this.planetDir.clone().negate(), new THREE.Vector3(1, 0, 0)).normalize();
     const phi = THREE.MathUtils.degToRad(60);

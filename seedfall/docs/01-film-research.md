@@ -182,6 +182,10 @@ Names, logos and markings stay our own.
 | "**Bold graphics** applied to all the sets" | Steve Burg | Painted frame numbers on every corridor bay, pressure-door warning bands, section-joint markings |
 | A "**Lego kit**" of modular, shared-language sets | Screen Global Production; Collider | Every room is built from the same kit of walls, ribs, chamfers and fittings |
 | Exterior: about **20,000 hull lights**; golden mylar energy sails | fxguide; Art of VFX | Darker gunmetal hull and golden sails (hull lights are a later pass) |
+| Bridge: "**1,500 working lights and displays**" | Physics Today review | Every console, overhead bank and the centre spine carry dense rows of lit buttons, toggles and CRTs |
+| Bridge chairs: seats from *The Martian*, **stripped back to the framework and re-upholstered** | Steve Burg; Jeremy Love | Exposed-frame flight chairs with harness straps and armrest controls for pilot, co-pilot, comms, systems and captain |
+| Bridge **main console** and a **central table**; the "**holo nav display**" the crew gather round, with holograms that "flash and form and reform" | Jeremy Love; script draft | Wraparound consoles under the glass; a holo-nav table projecting KX-7c in light with orbit, ship marker and floating readouts |
+| Crew talk "at the **forward window**"; the planet "rolls past" through the viewing window | Script draft | Faceted wraparound canopy of seven angled panes across the nose, each with blinders |
 
 Additional sources for this section:
 
@@ -192,6 +196,7 @@ Additional sources for this section:
 - The Art of VFX, interviews with Charley Henley (MPC) and Anthony Smith (Rising Sun Pictures). <https://www.artofvfx.com/alien-covenant-charley-henley-production-vfx-supervisor-mpc/>
 - fxguide, "Alien Covenant: By Land and Air". <https://www.fxguide.com/fxfeatured/alien-covenant-by-land-and-air>
 - Variety, "Design Crew Collaborates to Realize Scary Vision for 'Alien: Covenant'". <https://variety.com/2017/artisans/production/alien-covenant-design-1202443465>
+- Physics Today, "Review: Alien: Covenant is more than an origin story" (bridge with 1,500 working lights and displays). <https://pubs.aip.org/physicstoday/online/5099/Review-Alien-Covenant-is-more-than-an-origin-story>
 
 ## Sources
 

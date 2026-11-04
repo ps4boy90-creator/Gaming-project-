@@ -324,7 +324,7 @@ export class Kit {
     const profile = opts.profile ?? 'room';
     const b = this.b;
     const floorKey = opts.floor ?? (profile === 'corridor' || profile === 'hex' || profile === 'hangar' || profile === 'hall' ? 'deckPlate' : 'floor');
-    b.box(r.x0, r.y0 - 0.2, r.z0, r.x1, r.y0, r.z1, floorKey, 'solid');
+    if (floorKey !== 'none') b.box(r.x0, r.y0 - 0.2, r.z0, r.x1, r.y0, r.z1, floorKey, 'solid');
     if (opts.ceil !== null) b.box(r.x0, r.y0 + h, r.z0, r.x1, r.y0 + h + 0.25, r.z1, opts.ceil ?? 'ceil', 'solid');
     this.pendingShells.push({ room, h, profile, opts });
     const mode = opts.lights ?? 'auto';
@@ -721,6 +721,14 @@ export class Kit {
       action: 'seat',
       data: s,
     });
+    return s;
+  }
+
+  /** Seat at an arbitrary yaw (camera convention), with an explicit exit point. */
+  seatAt(x: number, y: number, z: number, yaw: number, label: string, exitX: number, exitZ: number): Seat {
+    const s: Seat = { id: this.uid('seat'), kind: 'sit', x, y, z, yaw, exitX, exitZ, label };
+    this.seats.push(s);
+    this.items.push({ id: s.id, min: [x - 0.3, y - 0.25, z - 0.3], max: [x + 0.3, y + 0.35, z + 0.3], prompt: `Sit · ${label}`, action: 'seat', data: s });
     return s;
   }
 

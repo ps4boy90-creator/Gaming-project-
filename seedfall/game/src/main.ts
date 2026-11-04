@@ -121,7 +121,6 @@ class Game {
     });
     this.mats.signs.commit();
     this.mats.screens.commit();
-    this.addHologram();
     this.addMist();
     this.addSnow();
     this.addCones();
@@ -132,6 +131,7 @@ class Game {
     this.orbit = new OrbitView(r, this.settings.quality);
     this.orbit.setPixelRatio(r.getPixelRatio());
     this.over.add(this.orbit.group);
+    this.addHologram();
 
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.setScalar(this.settings.quality === 'low' ? 1024 : 2048);
@@ -196,28 +196,79 @@ class Game {
     this.pipeline?.resize();
   }
 
+  /** The holo-nav display: the planet drawn in light above the bridge table. */
   private addHologram(): void {
     const g = new THREE.Group();
-    const wire = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.34, 3),
-      new THREE.MeshBasicMaterial({ color: 0x6fe0ff, wireframe: true, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }),
-    );
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 32, 16),
-      new THREE.MeshBasicMaterial({ color: 0x1d4a44, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
-    );
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uSurface: { value: this.orbit.surfaceTex }, uTime: { value: 0 }, uSpin: { value: 0 } },
+      vertexShader: `varying vec3 vN; varying vec3 vW; varying vec3 vL;
+        void main(){ vL = position; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform samplerCube uSurface; uniform float uTime; uniform float uSpin;
+        varying vec3 vN; varying vec3 vW; varying vec3 vL;
+        void main(){
+          vec3 n = normalize(vL);
+          float c = cos(uSpin), s = sin(uSpin);
+          vec3 p = vec3(c*n.x - s*n.z, n.y, s*n.x + c*n.z);
+          float land = step(0.25, textureCube(uSurface, p).a);
+          float edge = clamp(fwidth(land) * 2.5, 0.0, 1.0);
+          float lon = atan(p.z, p.x); float lat = asin(clamp(p.y, -1.0, 1.0));
+          float grid = max(smoothstep(0.96, 1.0, abs(sin(lon * 9.0))), smoothstep(0.96, 1.0, abs(sin(lat * 9.0))));
+          vec3 V = normalize(cameraPosition - vW);
+          float rim = pow(1.0 - abs(dot(normalize(vN), V)), 2.2);
+          float scan = 0.7 + 0.3 * sin(vW.y * 170.0 - uTime * 5.0);
+          float flick = 0.9 + 0.1 * sin(uTime * 37.0) * sin(uTime * 13.0);
+          vec3 col = vec3(0.32, 0.95, 1.0) * (land * 0.35 + edge * 1.6 + grid * 0.18 + rim * 0.8 + 0.04) * scan * flick;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(0.34, 64, 40), mat);
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.5, 0.004, 4, 64),
-      new THREE.MeshBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending }),
+      new THREE.TorusGeometry(0.5, 0.003, 4, 96),
+      new THREE.MeshBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
     ring.rotation.x = Math.PI / 2 - 0.5;
-    const ship = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd080 }));
+    const ship = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd080 }));
     ship.position.set(0.5, 0, 0);
     ring.add(ship);
-    g.add(core, wire, ring);
+    // light column rising from the table
+    const tex = this.mats.coneTex;
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.62, 0.5, 40, 1, true),
+      new THREE.MeshBasicMaterial({ map: tex, color: 0x5fe0ff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    beam.position.y = -0.24;
+    // floating readouts
+    const panel = (lines: string[]) => {
+      const cv = document.createElement('canvas');
+      cv.width = 256;
+      cv.height = 128;
+      const c = cv.getContext('2d')!;
+      c.strokeStyle = 'rgba(95,224,255,0.8)';
+      c.strokeRect(2, 2, 252, 124);
+      c.fillStyle = '#7fe8ff';
+      c.font = '600 18px "IBM Plex Mono", monospace';
+      lines.forEach((l, i) => c.fillText(l, 12, 30 + i * 26));
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.17), new THREE.MeshBasicMaterial({ map: t, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    };
+    const readouts = new THREE.Group();
+    [['KX-7c  ORBIT 410 KM', 'PERIOD  40 MIN', 'BETA    40.0 DEG'], ['SIGNAL  61.2N 14.8E', 'CARRIER UNKNOWN', 'STATUS  ACTIVE'], ['ATMOS   BREATHABLE', 'FAUNA   NONE', 'MOONS   2']].forEach((ls, i) => {
+      const p = panel(ls);
+      const a = (i / 3) * Math.PI * 2;
+      p.position.set(Math.cos(a) * 0.62, 0.12 + i * 0.05, Math.sin(a) * 0.62);
+      p.lookAt(0, p.position.y, 0);
+      p.rotateY(Math.PI);
+      readouts.add(p);
+    });
+    g.add(beam, planet, ring, readouts);
     g.position.copy(this.refs.holoPos);
+    g.userData.readouts = readouts;
     this.interior.add(g);
-    this.holo = wire;
+    this.holo = planet;
   }
 
   private addMist(): void {
@@ -293,8 +344,12 @@ class Game {
 
   /** Light shafts under the hangar lamps. */
   private addCones(): void {
+    const flipped = this.mats.coneTex.clone();
+    flipped.repeat.set(1, -1);
+    flipped.offset.set(0, 1);
+    flipped.needsUpdate = true;
     const mat = new THREE.MeshBasicMaterial({
-      map: this.mats.coneTex,
+      map: flipped,
       color: 0xffe2b8,
       transparent: true,
       opacity: 0.04,
@@ -614,8 +669,12 @@ class Game {
     this.updateBlinds(dt);
     this.updateSnow(dt);
     if (this.holo) {
-      this.holo.rotation.y += dt * 0.25;
-      (this.holo.parent!.children[2] as THREE.Mesh).rotation.z += dt * 0.6;
+      const u = (this.holo.material as THREE.ShaderMaterial).uniforms;
+      u.uTime.value = this.elapsed;
+      u.uSpin.value = this.elapsed * 0.12;
+      const grp = this.holo.parent!;
+      (grp.children[2] as THREE.Mesh).rotation.z += dt * 0.6;
+      (grp.userData.readouts as THREE.Group).rotation.y += dt * 0.08;
     }
     for (const m of this.interior.children) {
       if (m.name === 'mist') {

@@ -3,6 +3,7 @@ import { Kit, Opening } from './kit';
 import * as P from './props';
 import { buildKestrel, buildMule } from './craft';
 import { BlindSpec } from './blinds';
+import { buildBridge } from './bridge';
 import { colonist } from '../../systems/manifest';
 
 /*  CSV Meridian: walkable interior.
@@ -165,54 +166,8 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
   }
   k.screen('map', new THREE.Vector3(7.85, y + 1.5, -5.4), -Math.PI / 2, 1.9, 31, 'SURVEY PLAN · KX-7c', 0);
 
-  // Bridge: low ceiling, split level, analogue consoles, louvred blinders over the glass
-  k.room({ id: 'bridge', name: 'Bridge', deck: d, x0: 8, x1: 17, z0: -6, z1: 6, y0: y, h: 2.45, ambience: 'hab' }, { intensity: 3, lightColor: 0xffe2c0, lightMat: 'lightWarm' });
-  const bw: [string, number, number, number, number, number][] = [
-    ['z6', 11, 2.4, 0.75, 2.05, -1],
-    ['z6', 14.6, 2.4, 0.75, 2.05, -1],
-    ['z-6', 12.5, 2.4, 0.75, 2.05, 1],
-    ['x17', -3.7, 2.9, 0.7, 2.05, -1],
-    ['x17', 0, 2.9, 0.7, 2.05, -1],
-    ['x17', 3.7, 2.9, 0.7, 2.05, -1],
-  ];
-  k.wallZ(6, 8, 17, y, { t: 0.4, offset: 0.2, openings: bw.filter((b) => b[0] === 'z6').map((b) => win(b[1], b[2], b[3], b[4])) });
-  k.wallZ(-6, 8, 17, y, { t: 0.4, offset: -0.2, openings: bw.filter((b) => b[0] === 'z-6').map((b) => win(b[1], b[2], b[3], b[4])) });
-  k.wallX(17, -6, 6, y, { t: 0.4, offset: 0.2, openings: bw.filter((b) => b[0] === 'x17').map((b) => win(b[1], b[2], b[3], b[4])) });
-  for (const [wall, at, w, y0, y1, dir] of bw) {
-    const axis = wall.startsWith('z') ? 'z' : 'x';
-    const c = wall === 'z6' ? 6 : wall === 'z-6' ? -6 : 17;
-    refs.blinds.push({ axis, c, dir: dir as 1 | -1, at, w, y, y0, y1 });
-  }
-  // raised forward flight deck
-  const ry = 0.24;
-  k.b.box(13.4, y, -6, 17, y + ry, 6, 'deckPlate', 'solid');
-  k.b.box(13.36, y, -6, 13.44, y + ry + 0.01, 6, 'hazard', false);
-  for (const z0 of [-6, 1.1]) {
-    const z1 = z0 < 0 ? -1.1 : 6;
-    k.b.cyl(new THREE.Vector3(13.45, y + ry + 0.95, z0 + 0.2), new THREE.Vector3(13.45, y + ry + 0.95, z1 - 0.1), 0.025, 'steel', 8);
-    for (const zz of [z0 + 0.3, (z0 + z1) / 2, z1 - 0.2]) k.b.cyl(new THREE.Vector3(13.45, y, zz), new THREE.Vector3(13.45, y + ry + 0.95, zz), 0.02, 'steel', 6);
-    k.world.add(13.4, y, Math.min(z0, z1), 13.5, y + 1.2, Math.max(z0, z1));
-  }
-  const fy = y + ry;
-  P.consoleUnit(k, { x: 16.5, y: fy, z: -1.5, rot: 3 }, 2.2, ['telemetry', 'nav'], 41, { pilot: true });
-  P.consoleUnit(k, { x: 16.5, y: fy, z: 1.5, rot: 3 }, 2.2, ['orbit', 'status'], 43, { pilot: true });
-  P.chair(k, { x: 15.2, y: fy, z: -1.5, rot: 1 }, 'Pilot seat', 'fabricLight');
-  P.chair(k, { x: 15.2, y: fy, z: 1.5, rot: 1 }, 'Co-pilot seat', 'fabricLight');
-  // overhead console banks above the windows' upper edge, angled toward the pilots
-  for (const z of [-1.5, 1.5]) {
-    k.b.geo(new THREE.BoxGeometry(0.55, 0.08, 1.9), 'paintDark', new THREE.Vector3(16.35, y + 2.28, z), new THREE.Euler(0, 0, 0.5));
-    for (let i = 0; i < 9; i++) {
-      for (let j = 0; j < 2; j++) {
-        k.b.geo(new THREE.BoxGeometry(0.04, 0.02, 0.04), (i + j) % 4 === 0 ? 'statusAmber' : (i * j) % 5 === 1 ? 'statusGreen' : 'paintGrey', new THREE.Vector3(16.2 + j * 0.13, y + 2.2 + j * 0.07, z - 0.75 + i * 0.19), new THREE.Euler(0, 0, 0.5));
-      }
-    }
-  }
-  P.chair(k, { x: 12.4, y, z: 0, rot: 1 }, "Captain's chair", 'fabricAmber');
-  P.consoleUnit(k, { x: 11.2, y, z: 5.55, rot: 2 }, 2.6, ['status', 'telemetry'], 45);
-  P.consoleUnit(k, { x: 11.2, y, z: -5.55, rot: 0 }, 2.6, ['comms', 'orbit'], 47);
-  P.chair(k, { x: 11.2, y, z: 4.6, rot: 2 }, 'Systems station');
-  P.chair(k, { x: 11.2, y, z: -4.6, rot: 0 }, 'Comms station');
-  refs.holoPos.copy(P.holoTable(k, { x: 10.0, y, z: 0 }));
+  // Bridge: see bridge.ts (faceted canopy, split level, flight chairs, holo-nav table)
+  refs.holoPos.copy(buildBridge(k, y, d, refs.blinds));
 }
 
 // --------------------------------------------------------------------------- Deck 2

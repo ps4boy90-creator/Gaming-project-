@@ -112,6 +112,18 @@ check('sit on the viewing bench', (await S(() => window.__seedfall.mode())) === 
 await press('Space', 0.5);
 check('stand up again', (await S(() => window.__seedfall.mode())) === 'walk');
 
+// bridge: blinders open on entry; sit in the pilot seat on the raised flight deck
+await tp(9.0, 8, 0, -Math.PI / 2, 0);
+await step(4);
+check('bridge blinders open when you walk in', !!(await S(() => window.__seedfall.flags().blinds)));
+await tp(15.5, 8.24, 0.82, -Math.PI / 2, 0);
+await aim(16.47, 8.76, 0.82);
+const pp = await S(() => window.__seedfall.prompt());
+check('pilot seat prompt on the flight deck', /Pilot seat/.test(pp ?? ''), String(pp));
+await press('f', 0.9);
+check('sit in the pilot seat', (await S(() => window.__seedfall.mode())) === 'seated');
+await press('Space', 0.5);
+
 // telescope
 await tp(6.6, 8, 6.3, Math.PI, 0);
 await aim(6.6, 9.4, 7.9);

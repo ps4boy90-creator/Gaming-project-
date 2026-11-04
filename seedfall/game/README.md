@@ -37,7 +37,7 @@ Both scripts drive the built game in headless Chromium (Playwright). Start `npm 
 first.
 
 ```bash
-node tests/smoke.mjs            # functional playtest, 33 checks; exits non-zero on failure
+node tests/smoke.mjs            # functional playtest, 36 checks; exits non-zero on failure
 node tests/shots.mjs            # screenshots of key rooms into tests/shots/
 Q=medium node tests/shots.mjs   # same, at medium quality
 ```
