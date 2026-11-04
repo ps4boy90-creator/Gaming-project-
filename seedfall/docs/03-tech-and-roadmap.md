@@ -148,6 +148,10 @@ MetaHumans for the crew.
 
 Each milestone ends in something **playable**, with a clear "done when" test.
 
+**Progress:** ✅ M0 Setup · ✅ M1 "Home" · ⏭️ next: M2 "Between ships" (the Kestrel round trip).
+M1 passes a 29-check automated playtest (`game/tests/smoke.mjs`). The walk from your cabin to
+the hangar takes about 30 seconds, including the lift ride.
+
 | # | Milestone | Scope | Done when… |
 |---|---|---|---|
 | **M0** | **Setup** | Engine chosen, project scaffold, input mapping, debug overlay, test harness | A blank scene runs and the first-person camera moves |
@@ -210,11 +214,17 @@ Anything that spends credits (concept art, 3D, voices) will be confirmed with yo
 
 ---
 
-## 7. Decisions needed before building
+## 7. Decisions
 
-1. **Engine:** a browser prototype first (recommended), Unreal Engine 5 now, or Godot?
-2. **Names:** keep *SEEDFALL / Meridian / Verdance / VESTA / Kestrel*, or rename?
-3. **Tone:** slow-burn survival horror with scarce ammo (recommended), or more action-horror?
-4. **Scope:** single-player only (recommended), with co-op as a far-future idea?
-5. **Look:** realistic, or stylized-realistic? The browser path suits the stylized look with
-   heavy atmosphere.
+Made:
+
+1. **Engine:** browser first (three.js + TypeScript); move to Unreal Engine 5 later if wanted.
+2. **Title:** SEEDFALL.
+3. **Tone:** slow-burn survival horror.
+4. **Look:** realistic. In the browser that means PBR materials, real-time shadows, bloom,
+   optional ambient occlusion and a film finish.
+
+Still open:
+
+- Keep the other names (*Meridian / Verdance / VESTA / Kestrel*), or rename them?
+- Single-player only (recommended), with co-op as a far-future idea?

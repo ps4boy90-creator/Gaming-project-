@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SEEDFALL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+<!-- @@BODY_START@@ -->
+<div id="app">
+  <canvas id="view" aria-label="SEEDFALL game view"></canvas>
+
+  <section id="loading" class="screen">
+    <div class="loading-inner">
+      <div class="mark">SEEDFALL</div>
+      <div class="loading-line"><span class="vesta-tag">VESTA</span> <span id="loading-text">Restoring ship systems…</span></div>
+      <div class="bar"><div id="loading-bar"></div></div>
+    </div>
+  </section>
+
+  <section id="title" class="screen" hidden>
+    <div class="title-inner">
+      <p class="eyebrow">CSV MERIDIAN · HIGH ORBIT · KX-7c</p>
+      <h1 class="mark big">SEEDFALL</h1>
+      <p class="tagline">The planet below is beautiful, and completely silent.</p>
+      <nav class="menu" aria-label="Main menu">
+        <button id="btn-continue" class="menu-btn" hidden>Continue</button>
+        <button id="btn-new" class="menu-btn primary">Wake up</button>
+        <button id="btn-settings" class="menu-btn">Settings</button>
+        <button id="btn-controls" class="menu-btn">Controls</button>
+      </nav>
+      <p class="build">Milestone 1 · "Home" · walk the ship</p>
+    </div>
+  </section>
+
+  <section id="hud" hidden>
+    <div id="crosshair"></div>
+    <div id="prompt" hidden><kbd id="prompt-key">F</kbd><span id="prompt-text"></span></div>
+    <div id="toast" hidden><div id="toast-title"></div><div id="toast-sub"></div></div>
+    <div id="objective" hidden><span class="obj-label">Objective</span><span id="objective-text"></span></div>
+    <div id="subtitle" hidden><span id="sub-speaker"></span><span id="sub-text"></span></div>
+    <div id="notice" hidden></div>
+    <div id="scope" hidden>
+      <div class="scope-ring"></div>
+      <div class="scope-read"><div id="scope-title">SURFACE SURVEY</div><div id="scope-status"></div><div class="scope-bar"><div id="scope-bar"></div></div></div>
+    </div>
+  </section>
+
+  <div id="fade"></div>
+
+  <section id="pause" class="screen dim" hidden>
+    <div class="panel-card">
+      <p class="eyebrow" id="pause-clock">DAY 2,214</p>
+      <h2 class="panel-title">Paused</h2>
+      <nav class="menu" aria-label="Pause menu">
+        <button id="btn-resume" class="menu-btn primary">Resume</button>
+        <button id="btn-save" class="menu-btn">Save game</button>
+        <button id="btn-psettings" class="menu-btn">Settings</button>
+        <button id="btn-pcontrols" class="menu-btn">Controls</button>
+        <button id="btn-quit" class="menu-btn">Quit to title</button>
+      </nav>
+      <p class="hint" id="pause-hint">Saving also happens when you sleep in your bunk.</p>
+    </div>
+  </section>
+
+  <section id="reader" class="screen dim" hidden>
+    <div class="terminal" role="dialog" aria-modal="true" aria-labelledby="reader-title">
+      <header class="term-head">
+        <span class="vesta-tag">VESTA</span>
+        <h2 id="reader-title">Terminal</h2>
+        <button id="reader-close" class="term-close" aria-label="Close">Close <kbd>Esc</kbd></button>
+      </header>
+      <div id="reader-body" class="term-body"></div>
+    </div>
+  </section>
+
+  <section id="settings" class="screen dim" hidden>
+    <div class="panel-card">
+      <h2 class="panel-title">Settings</h2>
+      <form id="settings-form" class="settings">
+        <label for="set-quality">Graphics quality</label>
+        <select id="set-quality">
+          <option value="low">Low · laptops and phones</option>
+          <option value="medium">Medium</option>
+          <option value="high">High · ambient occlusion, sharper planet</option>
+        </select>
+        <label for="set-sens">Mouse sensitivity <output id="out-sens"></output></label>
+        <input id="set-sens" type="range" min="0.3" max="2.5" step="0.05">
+        <label for="set-fov">Field of view <output id="out-fov"></output></label>
+        <input id="set-fov" type="range" min="60" max="100" step="1">
+        <label for="set-vol">Volume <output id="out-vol"></output></label>
+        <input id="set-vol" type="range" min="0" max="1" step="0.05">
+        <label class="check"><input id="set-bob" type="checkbox"> Head bob</label>
+        <p class="hint">Quality changes apply right away, except planet detail, which applies the next time the game loads.</p>
+        <button type="submit" class="menu-btn primary">Done</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="controls" class="screen dim" hidden>
+    <div class="panel-card wide">
+      <h2 class="panel-title">Controls</h2>
+      <div class="controls-grid">
+        <div><kbd>W A S D</kbd> Move</div>
+        <div><kbd>Mouse</kbd> Look</div>
+        <div><kbd>Shift</kbd> Sprint</div>
+        <div><kbd>C</kbd> Crouch</div>
+        <div><kbd>Space</kbd> Jump · stand up</div>
+        <div><kbd>Q</kbd> <kbd>E</kbd> Lean</div>
+        <div><kbd>F</kbd> Use · sit · lie down</div>
+        <div><kbd>L</kbd> Flashlight</div>
+        <div><kbd>Esc</kbd> Pause</div>
+      </div>
+      <p class="hint">On a touchscreen: drag the left side to move, drag the right side to look, and tap the buttons.</p>
+      <button id="controls-close" class="menu-btn primary">Back</button>
+    </div>
+  </section>
+
+  <div id="touch" hidden>
+    <div id="stick-zone"><div id="stick-base"><div id="stick-knob"></div></div></div>
+    <div id="look-zone"></div>
+    <div id="touch-buttons">
+      <button data-act="use" class="tbtn">Use</button>
+      <button data-act="jump" class="tbtn">Stand</button>
+      <button data-act="crouch" class="tbtn" data-hold="1">Crouch</button>
+      <button data-act="sprint" class="tbtn" data-hold="1">Run</button>
+      <button data-act="light" class="tbtn">Light</button>
+      <button data-act="pause" class="tbtn">Menu</button>
+    </div>
+  </div>
+</div>
+<!-- @@BODY_END@@ -->
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

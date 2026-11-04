@@ -7,8 +7,13 @@ A first-person sci-fi survival-horror game inspired by the mood and structure of
 > scanner to find out who is singing on the radio. Between trips you live aboard the big ship:
 > you research what you brought back and hang out anywhere. The planet is trying to get inside.
 
-**Status:** 📋 Planning. Nothing is built yet. Review the plan and answer the open decisions
-in [the roadmap](docs/03-tech-and-roadmap.md#7-decisions-needed-before-building).
+**Status:** 🛠️ **Milestone 1 "Home" is playable**: walk the *Meridian*, sit or lie down
+anywhere, survey the planet with the telescope, and sleep to save. Play it in the browser:
+<https://claude.ai/artifact/SnAr9oNf6YqWn4gtpLZVKz> (private until you share it). The source,
+tests and run instructions are in [`game/`](game/README.md).
+
+**Decisions made:** browser engine first (three.js), working title SEEDFALL, slow-burn survival
+horror, realistic look.
 
 ## Plan documents
 
