@@ -33,12 +33,14 @@ await page.waitForFunction(() => !document.getElementById('title')?.hidden, null
 check('title screen appears', true);
 await page.click('#btn-new');
 await page.waitForFunction(() => window.__seedfall.state() === 'play', null, { timeout: 60000 });
-check('new game starts lying in the bunk', (await S(() => window.__seedfall.mode())) === 'lying');
-check('bunk shows the sleep prompt', /Sleep/.test((await S(() => window.__seedfall.prompt())) ?? ''), await S(() => window.__seedfall.prompt()));
+check('new game starts lying in your hypersleep pod', (await S(() => window.__seedfall.mode())) === 'lying' && (await S(() => window.__seedfall.info().room)) === 'sleepbay');
+check('pod shows the stand-up prompt', /Stand up/.test((await S(() => window.__seedfall.prompt())) ?? ''), await S(() => window.__seedfall.prompt()));
 
 await press('Space', 0.8);
 check('Space gets you up', (await S(() => window.__seedfall.mode())) === 'walk');
 check('getup objective completes', !!(await S(() => window.__seedfall.flags()['obj:getup'])));
+const outPod = await S(() => window.__seedfall.info());
+check('you climb out into the sleep bay aisle', outPod.room === 'sleepbay', `room ${outPod.room} at ${outPod.pos.map((v) => v.toFixed(1)).join(', ')}`);
 
 // walking + collision
 const p0 = await S(() => window.__seedfall.info().pos);
@@ -124,6 +126,7 @@ check('leave the telescope', (await S(() => window.__seedfall.state())) === 'pla
 await S(() => window.__seedfall.sitBunk());
 await step(0.9);
 const before = await S(() => window.__seedfall.clock());
+check('bunk shows the sleep prompt', /Sleep/.test((await S(() => window.__seedfall.prompt())) ?? ''), await S(() => window.__seedfall.prompt()));
 await press('f', 0.2);
 for (let i = 0; i < 10; i++) { await step(0.3); await wait(600); }
 const after = await S(() => window.__seedfall.clock());

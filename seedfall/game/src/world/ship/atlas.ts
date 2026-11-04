@@ -172,15 +172,18 @@ export function drawScreen(a: Atlas, kind: ScreenKind, seed = 1, label = ''): At
   const c = a.ctx;
   let s = seed * 7919 + 1;
   const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  const cyan = '#8fe3d2';
-  const dim = 'rgba(143,227,210,0.35)';
-  const amber = '#f0a83c';
-  const white = '#e4efe9';
+  // 1980s-style phosphor palette: green primary, amber alerts, warm white text
+  const cyan = '#7cf28e';
+  const dim = 'rgba(124,242,142,0.32)';
+  const amber = '#ffb547';
+  const white = '#d9f7d2';
   c.save();
   c.translate(r.x, r.y);
   c.scale(0.75, 0.75);
-  c.fillStyle = '#040b0b';
+  c.fillStyle = '#020502';
   c.fillRect(0, 0, W, H);
+  c.shadowBlur = 7;
+  c.shadowColor = 'rgba(124,242,142,0.8)';
   // header
   c.fillStyle = 'rgba(143,227,210,0.08)';
   c.fillRect(0, 0, W, 30);
@@ -314,7 +317,7 @@ export function drawScreen(a: Atlas, kind: ScreenKind, seed = 1, label = ''): At
         c.font = `500 11px ${MONO_FONT}`;
         c.fillText(String(721 + i).padStart(4, '0'), x + 5, y + 17);
       }
-      lines(['70 STABLE · 2 LOST · 3.1°C'], 18, 250, white, 17);
+      lines(['142 STABLE · 2 LOST · 3.1°C'], 18, 250, white, 17);
       break;
     case 'hangar':
       lines(['FUEL     100%', 'CRADLE   LOCKED', 'HULL     OK', 'DOORS    SEALED', 'CREW     0/4'], 18, 60, white, 18);
@@ -368,8 +371,9 @@ export function drawScreen(a: Atlas, kind: ScreenKind, seed = 1, label = ''): At
       lines(['CYCLE 90 S', 'UV · MIST · PURGE', '', 'PROTOCOL 7 IN EFFECT'], 18, 70, amber, 22);
       break;
   }
-  // scanlines + vignette
-  c.fillStyle = 'rgba(0,0,0,0.18)';
+  // scanlines + vignette (CRT)
+  c.shadowBlur = 0;
+  c.fillStyle = 'rgba(0,0,0,0.28)';
   for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
   const vg = c.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.7);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
@@ -389,4 +393,62 @@ export function atlasQuad(w: number, h: number, rect: AtlasRect): THREE.BufferGe
     uv.setXY(i, u0 + uv.getX(i) * (u1 - u0), v0 + uv.getY(i) * (v1 - v0));
   }
   return g;
+}
+
+
+/** Bold painted wall graphics (frame numbers, directions, warnings) on a transparent cell. */
+export function drawGraphic(
+  a: Atlas,
+  text: string,
+  o: { w?: number; h?: number; fg?: string; band?: string; sub?: string; chevrons?: boolean } = {},
+): AtlasRect {
+  const w = o.w ?? 640;
+  const h = o.h ?? 96;
+  const r = a.alloc(w, h);
+  const c = a.ctx;
+  c.save();
+  c.translate(r.x, r.y);
+  c.clearRect(0, 0, w, h);
+  if (o.band) {
+    c.fillStyle = o.band;
+    c.fillRect(0, h * 0.08, w, h * 0.84);
+  }
+  if (o.chevrons) {
+    c.fillStyle = o.band ? 'rgba(10,10,10,0.9)' : o.fg ?? '#eee';
+    for (let i = 0; i < 3; i++) {
+      for (const x0 of [8 + i * 22, w - 30 - i * 22]) {
+        c.beginPath();
+        c.moveTo(x0, h * 0.2);
+        c.lineTo(x0 + 12, h * 0.5);
+        c.lineTo(x0, h * 0.8);
+        c.lineTo(x0 + 7, h * 0.8);
+        c.lineTo(x0 + 19, h * 0.5);
+        c.lineTo(x0 + 7, h * 0.2);
+        c.fill();
+      }
+    }
+  }
+  c.fillStyle = o.fg ?? '#ececea';
+  const pad = o.chevrons ? 90 : 10;
+  const size = fitText(c, text, w - pad * 2 - (o.sub ? w * 0.2 : 0), h * 0.82, '700', SIGN_FONT);
+  c.font = `700 ${size}px ${SIGN_FONT}`;
+  c.textBaseline = 'middle';
+  c.fillText(text, pad, h / 2 + 3);
+  if (o.sub) {
+    const tw = c.measureText(text).width;
+    c.font = `600 ${Math.round(h * 0.24)}px ${MONO_FONT}`;
+    c.fillText(o.sub, pad + tw + 12, h * 0.3);
+  }
+  // a little paint wear
+  c.globalCompositeOperation = 'destination-out';
+  let sd = (text.length * 7919 + w) | 0;
+  const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 120; i++) {
+    c.globalAlpha = 0.25 + rnd() * 0.5;
+    c.beginPath();
+    c.arc(rnd() * w, rnd() * h, 0.6 + rnd() * 2.2, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
+  return r;
 }

@@ -130,7 +130,7 @@ export function locker(k: Kit, p: Place, w = 0.6, label = '', key = 'paintGrey')
 }
 
 /** Operator console: user stands on local +z side facing -z. */
-export function consoleUnit(k: Kit, p: Place, w: number, kinds: ScreenKind[], seed = 1): void {
+export function consoleUnit(k: Kit, p: Place, w: number, kinds: ScreenKind[], seed = 1, opts: { pilot?: boolean } = {}): void {
   const b = k.b;
   b.pbox(p, -w / 2, 0, -0.45, w / 2, 0.82, 0.2, 'paintDark', false, 0.02);
   b.pbox(p, -w / 2, 0.82, -0.45, w / 2, 0.86, 0.32, 'metal', false, 0.01);
@@ -142,9 +142,34 @@ export function consoleUnit(k: Kit, p: Place, w: number, kinds: ScreenKind[], se
     const x = -w / 2 + (w * (i + 0.5)) / n;
     k.screen(kind, L(p, x, 1.27, -0.3), faceYaw(p), sw, seed + i, '', 0.18);
   });
-  // a strip of hardware buttons
-  for (let x = -w / 2 + 0.1; x < w / 2 - 0.1; x += 0.07) {
-    b.pbox(p, x, 0.86, 0.12, x + 0.04, 0.875, 0.16, Math.sin(x * 37 + seed) > 0.6 ? 'statusAmber' : 'paintGrey', false);
+  // analogue hardware: rows of toggles, knobs and lit push-buttons
+  let sd = seed * 7 + 3;
+  const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  for (const z of [-0.12, -0.02, 0.08, 0.18]) {
+    for (let x = -w / 2 + 0.08; x < w / 2 - 0.06; x += 0.055) {
+      const r = rnd();
+      if (r < 0.12) continue;
+      if (r < 0.45) {
+        b.pbox(p, x - 0.012, 0.86, z - 0.012, x + 0.012, 0.866, z + 0.012, 'paintDark', false);
+        b.geo(new THREE.BoxGeometry(0.008, 0.045, 0.008), 'chrome', L(p, x, 0.885, z), new THREE.Euler(rnd() > 0.5 ? 0.45 : -0.45, faceYaw(p), 0, 'YXZ'));
+      } else if (r < 0.65) {
+        b.geo(new THREE.CylinderGeometry(0.019, 0.022, 0.025, 10), 'paintDark', L(p, x, 0.873, z));
+        b.pbox(p, x - 0.002, 0.885, z - 0.016, x + 0.002, 0.888, z, 'paint', false);
+      } else {
+        const key = r < 0.75 ? 'statusAmber' : r < 0.82 ? 'statusGreen' : r < 0.86 ? 'statusRed' : 'paintGrey';
+        b.pbox(p, x - 0.016, 0.86, z - 0.016, x + 0.016, 0.875, z + 0.016, key, false);
+      }
+    }
+  }
+  if (opts.pilot) {
+    for (const sx of [-w / 2 + 0.25, w / 2 - 0.25]) {
+      b.geo(new THREE.CylinderGeometry(0.05, 0.06, 0.04, 12), 'paintDark', L(p, sx, 0.88, 0.25));
+      b.cyl(L(p, sx, 0.88, 0.25), L(p, sx, 1.08, 0.3), 0.014, 'metal', 8);
+      b.geo(new THREE.SphereGeometry(0.03, 10, 8), 'rubber', L(p, sx, 1.1, 0.31));
+    }
+    // throttle quadrant
+    b.pbox(p, -0.12, 0.86, 0.12, 0.12, 0.92, 0.3, 'paintDark', false, 0.01);
+    for (const tx of [-0.07, 0, 0.07]) b.cyl(L(p, tx, 0.92, 0.2), L(p, tx, 1.02, 0.17), 0.008, 'chrome', 6);
   }
 }
 
@@ -391,4 +416,80 @@ export function holoTable(k: Kit, p: Place): THREE.Vector3 {
   col(k, p, -0.9, 0, -0.9, 0.9, 0.95, 0.9);
   k.pitem(p, -0.95, 0.7, -0.95, 0.95, 1.8, 0.95, 'Orbital map', 'orbitalMap');
   return L(p, 0, 1.45, 0);
+}
+
+
+export type PodState = 'open' | 'sleeping' | 'burned' | 'revival';
+
+/** Crew hypersleep pod: white shell, padded bed, head console, black-bordered canopy.
+ *  Long axis along local z, head at -z. Returns the lie-down seat for an open pod. */
+export function crewPod(k: Kit, p: Place, state: PodState, name: string, info: string): ReturnType<Kit['seat']> | null {
+  const b = k.b;
+  b.pbox(p, -0.5, 0, -1.12, 0.5, 0.06, 1.12, 'paintDark', false, 0.02);
+  b.pbox(p, -0.3, 0.06, -0.8, 0.3, 0.42, 0.8, 'ribDark', false, 0.02);
+  b.pbox(p, -0.48, 0.42, -1.15, 0.48, 0.8, 1.15, state === 'burned' ? 'soot' : 'podShell', false, 0.12);
+  b.pbox(p, -0.36, 0.7, -1.0, 0.36, 0.8, 1.05, 'fabricLight', false, 0.05);
+  b.pbox(p, -0.2, 0.8, -1.0, 0.2, 0.86, -0.76, 'fabricLight', false, 0.03);
+  b.pbox(p, -0.46, 0.48, -1.16, 0.46, 0.52, 1.16, state === 'burned' ? 'podFail' : state === 'revival' ? 'statusAmber' : 'podGlow', false);
+  // head console with readout
+  b.pbox(p, -0.42, 0.8, -1.24, 0.42, 1.32, -1.08, state === 'burned' ? 'soot' : 'podShell', false, 0.04);
+  k.screen('vitals', L(p, 0, 1.08, -1.065), faceYaw(p), 0.38, 52, '', 0.25);
+  const hinge = { y: 0.82, z: -1.0 };
+  if (state === 'open') {
+    const a = -1.2;
+    const cy = 0.14 * Math.cos(a) - 1.05 * Math.sin(a);
+    const cz = 0.14 * Math.sin(a) + 1.05 * Math.cos(a);
+    const rot = new THREE.Euler(a, faceYaw(p), 0, 'YXZ');
+    b.geo(new THREE.BoxGeometry(0.84, 0.3, 2.1), 'glassInner', L(p, 0, hinge.y + cy, hinge.z + cz), rot);
+    // black-bordered rim of the raised canopy (four bars along its lower edge)
+    const yl = [0, Math.cos(a), Math.sin(a)];
+    const zl = [0, -Math.sin(a), Math.cos(a)];
+    const at = (ox: number, oy: number, oz: number) => L(p, ox, hinge.y + cy + oy * yl[1] + oz * zl[1], hinge.z + cz + oy * yl[2] + oz * zl[2]);
+    for (const sx of [-0.43, 0.43]) b.geo(new THREE.BoxGeometry(0.05, 0.06, 2.12), 'blackGlass', at(sx, -0.14, 0), rot);
+    for (const sz of [-1.05, 1.05]) b.geo(new THREE.BoxGeometry(0.9, 0.06, 0.05), 'blackGlass', at(0, -0.14, sz), rot);
+  } else {
+    b.pbox(p, -0.45, 0.8, -1.02, 0.45, 0.84, 1.12, 'blackGlass', false, 0.02);
+    b.pbox(p, -0.42, 0.84, -1.0, 0.42, 1.12, 1.1, state === 'burned' ? 'soot' : state === 'revival' ? 'glassInner' : 'frost', false, 0.14);
+    if (state !== 'burned') {
+      b.pbox(p, -0.17, 0.82, -0.62, 0.17, 0.98, 0.86, 'sleeper', false, 0.08);
+      b.geo(new THREE.SphereGeometry(0.13, 12, 10), 'sleeper', L(p, 0, 0.92, -0.8));
+    }
+  }
+  col(k, p, -0.5, 0, -1.24, 0.5, state === 'open' ? 0.8 : 1.12, 1.15);
+  k.pitem(p, -0.5, 0.5, -1.25, 0.5, 1.4, 1.15, `Pod · ${name}`, 'pod', info, 2.4);
+  if (state === 'open') return k.seat(p, 0, 0.78, -0.5, `Your pod`, 'lie', false, 1.3, [0, -1]);
+  return null;
+}
+
+/** Terraforming earthmover, clamped and strapped to the deck. Nose along local +z. */
+export function earthmover(k: Kit, p: Place, tag: string): void {
+  const b = k.b;
+  b.pbox(p, -1.3, 0.9, -4.0, 1.3, 1.75, 4.0, 'ribDark', false, 0.05);
+  for (const z of [-3.0, 0, 3.0]) {
+    for (const sx of [-1, 1]) {
+      b.geo(new THREE.CylinderGeometry(0.98, 0.98, 0.72, 28), 'rubber', L(p, sx * 1.62, 0.98, z), new THREE.Euler(0, faceYaw(p), Math.PI / 2, 'YXZ'));
+      b.geo(new THREE.CylinderGeometry(0.45, 0.45, 0.74, 16), 'paintDark', L(p, sx * 1.62, 0.98, z), new THREE.Euler(0, faceYaw(p), Math.PI / 2, 'YXZ'));
+      b.pbox(p, sx > 0 ? 1.2 : -2.0, 1.9, z - 1.05, sx > 0 ? 2.0 : -1.2, 2.02, z + 1.05, 'warning', false, 0.03);
+    }
+  }
+  b.pbox(p, -1.75, 1.75, 2.2, 0.15, 3.45, 4.3, 'warning', false, 0.12);
+  b.pbox(p, -1.6, 2.5, 4.28, 0.0, 3.25, 4.32, 'blackGlass', false);
+  b.pbox(p, -1.78, 2.5, 2.5, -1.74, 3.25, 4.0, 'blackGlass', false);
+  b.pbox(p, 0.35, 1.75, 2.0, 1.75, 2.85, 4.45, 'warning', false, 0.08);
+  for (let i = 0; i < 5; i++) b.pbox(p, 0.5, 2.0 + i * 0.13, 4.45, 1.6, 2.06 + i * 0.13, 4.47, 'paintDark', false);
+  b.pbox(p, -1.9, 1.85, -4.6, 1.9, 3.7, 1.7, 'warning', false, 0.1);
+  b.pbox(p, -1.7, 3.55, -4.4, 1.7, 3.71, 1.5, 'paintDark', false);
+  b.cyl(L(p, 1.2, 2.8, 3.2), L(p, 1.2, 4.0, 3.2), 0.1, 'paintDark', 10);
+  k.graphic(tag, L(p, 1.91, 2.75, -1.5), faceYaw(p, 1, 0), 1.4, 0.7, { w: 256, h: 128, fg: '#151515' });
+  k.graphic(tag, L(p, -1.91, 2.75, -1.5), faceYaw(p, -1, 0), 1.4, 0.7, { w: 256, h: 128, fg: '#151515' });
+  // tie-down straps to deck anchors
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+    const a0 = L(p, sx * 1.3, 1.3, sz * 3.9);
+    const a1 = L(p, sx * 2.9, 0.04, sz * 5.3);
+    b.cyl(a0, a1, 0.035, 'warning', 6);
+    b.pbox(p, sx * 2.9 - 0.25, 0, sz * 5.3 - 0.25, sx * 2.9 + 0.25, 0.06, sz * 5.3 + 0.25, 'ribDark', false, 0.02);
+    b.pbox(p, sx * 1.62 - 0.5, 0, sz * 3.0 - 0.15, sx * 1.62 + 0.5, 0.12, sz * 3.0 + 0.15, 'hazard', false);
+  }
+  col(k, p, -2.0, 0, -4.6, 2.0, 3.7, 4.5);
+  k.pitem(p, -2.0, 0.5, -4.6, 2.0, 3.5, 4.5, `Terraforming vehicle · ${tag}`, 'flavor', `${tag}. A forty-tonne earthmover, strapped to the deck for seven years. It will dig Haven's first foundations, if we ever get there.`, 3.2);
 }

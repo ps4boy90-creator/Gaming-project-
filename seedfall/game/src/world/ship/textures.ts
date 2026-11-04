@@ -50,6 +50,8 @@ interface Layers {
   albedo: Float32Array; // rgb 0..1 (sRGB)
   rough: Float32Array;
   alpha?: Float32Array;
+  /** Optional per-texel metalness, baked into the blue channel of the roughness map. */
+  metal?: Float32Array;
 }
 
 function layers(w: number, h: number): Layers {
@@ -85,6 +87,8 @@ export interface PBRSet {
   normalMap: THREE.Texture;
   roughnessMap: THREE.Texture;
   alphaMap?: THREE.Texture;
+  /** True when the roughness map's blue channel holds metalness. */
+  metal?: boolean;
 }
 
 /** Bake layers into map/normal/roughness textures. Row 0 of the arrays is v = 0 (bottom). */
@@ -126,7 +130,7 @@ function bake(L: Layers, normalStrength: number): PBRSet {
       const r = Math.max(0, Math.min(1, L.rough[i])) * 255;
       ir.data[o] = r;
       ir.data[o + 1] = r; // three reads roughness from G
-      ir.data[o + 2] = r;
+      ir.data[o + 2] = L.metal ? Math.max(0, Math.min(1, L.metal[i])) * 255 : r; // three reads metalness from B
       ir.data[o + 3] = 255;
     }
   }
@@ -719,4 +723,121 @@ export function grating(seed = 61): PBRSet {
     }
   }
   return bake(L, 5);
+}
+
+
+/** Covenant-style corridor wall: dark gunmetal equipment band below, champagne-gold metallic
+ *  panels (some ribbed) above, 2 m × 4 m tile with v = 0 at the deck. Metalness is per texel. */
+export function metalPanels(seed = 71): PBRSet {
+  const w = 512;
+  const h = 1024;
+  const L = layers(w, h);
+  L.metal = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const v = y / h;
+    const ym = v * 4;
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const xm = u * 2;
+      const i = y * w + x;
+      const n = fbm(u, v, 8, 3, seed);
+      const grain = vnoise(u * 6, v * 900, 6, seed + 3);
+      let r = 0.1;
+      let g = 0.1;
+      let b = 0.1;
+      let hgt = 0;
+      let rough = 0.5;
+      let metal = 0.5;
+      if (ym < 0.12) {
+        r = g = b = 0.07 + n * 0.03;
+        hgt = -0.2;
+        metal = 0.6;
+      } else if (ym < 0.95) {
+        const px = xm % 1.0;
+        const py = ym - 0.12;
+        const seamV = Math.max(seam(px, 0.006), seam(px - 1, 0.006));
+        const seamH = Math.max(seam(ym - 0.12, 0.006), seam(ym - 0.95, 0.006));
+        const vent = px > 0.12 && px < 0.5 && py > 0.3 && py < 0.56 && (py * 44) % 1 < 0.45 ? 1 : 0;
+        let bolt = 0;
+        for (const [bx, by] of [[0.04, 0.05], [0.96, 0.05], [0.04, 0.78], [0.96, 0.78]]) bolt = Math.max(bolt, 1 - smooth(0.004, 0.009, Math.hypot(px - bx, py - by)));
+        const base = 0.13 + hash2(Math.floor(xm), 3, seed) * 0.03 + n * 0.03;
+        r = base;
+        g = base * 1.02;
+        b = base * 1.05;
+        hgt = -Math.max(seamV, seamH) - vent * 0.7 + bolt * 0.5;
+        if (vent) r = g = b = 0.02;
+        rough = 0.42 + n * 0.12;
+        metal = 0.55;
+      } else if (ym < 1.15 || (ym >= 2.25 && ym < 2.35)) {
+        r = 0.09;
+        g = 0.09;
+        b = 0.1;
+        hgt = -0.15;
+        rough = 0.4;
+        metal = 0.7;
+      } else if (ym < 2.25) {
+        // champagne-gold panels, two rows of 0.55 m, 1.0 m wide
+        const row = ym < 1.7 ? 0 : 1;
+        const y0 = row === 0 ? 1.15 : 1.7;
+        const px = xm % 1.0;
+        const py = (ym - y0) / 0.55;
+        const col = Math.floor(xm);
+        const pid = hash2(col, row, seed + 9);
+        const seamAll = Math.max(seam(px, 0.005), seam(px - 1, 0.005), seam(py * 0.55, 0.005), seam((py - 1) * 0.55, 0.005));
+        const bevel = Math.max(1 - smooth(0.0, 0.02, px), 1 - smooth(0.0, 0.02, 1 - px), 1 - smooth(0.0, 0.035, py), 1 - smooth(0.0, 0.035, 1 - py));
+        const ribbed = pid > 0.55 ? Math.max(0, Math.sin(py * Math.PI * 2 * 9)) * 0.5 * (py > 0.12 && py < 0.88 ? 1 : 0) : 0;
+        let rivet = 0;
+        for (let k = 0; k < 8; k++) {
+          const rx = 0.06 + k * 0.125;
+          rivet = Math.max(rivet, 1 - smooth(0.003, 0.007, Math.hypot(px - rx, (py - 0.06) * 0.55)), 1 - smooth(0.003, 0.007, Math.hypot(px - rx, (py - 0.94) * 0.55)));
+        }
+        const label = pid < 0.12 && px > 0.62 && px < 0.9 && py > 0.62 && py < 0.8 ? 1 : 0;
+        const tint = (pid - 0.5) * 0.05;
+        r = 0.6 + tint + grain * 0.06 + n * 0.04;
+        g = 0.53 + tint + grain * 0.05 + n * 0.035;
+        b = 0.4 + tint * 0.8 + grain * 0.04 + n * 0.03;
+        if (label) {
+          r = 0.82;
+          g = 0.8;
+          b = 0.72;
+        }
+        const dark = seamAll * 0.75;
+        r *= 1 - dark;
+        g *= 1 - dark;
+        b *= 1 - dark;
+        hgt = -seamAll + bevel * 0.25 + ribbed + rivet * 0.4 + (grain - 0.5) * 0.04;
+        rough = 0.28 + n * 0.12 + grain * 0.08 + seamAll * 0.3 - ribbed * 0.05;
+        metal = label ? 0.1 : 0.9;
+      } else {
+        const sV = Math.max(seam(xm % 1.0, 0.006), seam((xm % 1.0) - 1, 0.006));
+        r = g = b = 0.12 + n * 0.03;
+        hgt = -sV;
+        rough = 0.45;
+        metal = 0.6;
+      }
+      L.height[i] = hgt;
+      L.albedo[i * 3] = r;
+      L.albedo[i * 3 + 1] = g;
+      L.albedo[i * 3 + 2] = b;
+      L.rough[i] = rough;
+      L.metal[i] = metal;
+    }
+  }
+  const set = bake(L, 10);
+  set.metal = true;
+  return set;
+}
+
+/** Vertical gradient for light cones (bright at the top, gone at the bottom). */
+export function coneGradient(): THREE.Texture {
+  const [c, x] = canvas(4, 256);
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, 'rgba(255,255,255,0)');
+  g.addColorStop(0.6, 'rgba(255,255,255,0.25)');
+  g.addColorStop(1, 'rgba(255,255,255,1)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }

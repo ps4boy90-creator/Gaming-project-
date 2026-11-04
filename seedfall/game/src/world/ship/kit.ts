@@ -4,7 +4,7 @@ import { Materials, DECK_COLORS } from './materials';
 import { CollisionWorld } from '../collision';
 import { Door } from './doors';
 import { LightPool } from './lights';
-import { atlasQuad, drawDoorSign, drawScreen, drawStencil, drawPoster, ScreenKind } from './atlas';
+import { atlasQuad, drawDoorSign, drawScreen, drawStencil, drawPoster, drawGraphic, ScreenKind } from './atlas';
 
 export type Ambience = 'hab' | 'vault' | 'hangar' | 'spine' | 'lift' | 'machine' | 'garden';
 
@@ -72,7 +72,7 @@ export interface WallOpts {
 
 export const yawFacing = (dx: number, dz: number) => Math.atan2(-dx, -dz);
 
-export type Profile = 'room' | 'corridor' | 'hall' | 'hangar' | 'none';
+export type Profile = 'room' | 'corridor' | 'hex' | 'hall' | 'hangar' | 'none';
 
 /** Mesh yaw that makes a +z-facing object face into the room from a side's wall. */
 function yawFor(s: { axis: 'x' | 'z'; dir: number }): number {
@@ -91,6 +91,25 @@ export class Kit {
   /** Every door/window/gap cut so far, so dressing can avoid them. */
   openings: { axis: 'x' | 'z'; c: number; a0: number; a1: number; y: number; y1: number }[] = [];
   private pendingShells: { room: Room; h: number; profile: Profile; opts: { lightMat?: string; rib?: number } }[] = [];
+  /** Light shafts to add as additive cones (hangar). */
+  cones: { x: number; y: number; z: number; h: number }[] = [];
+  private graphicCache = new Map<string, ReturnType<typeof drawGraphic>>();
+
+  /** Painted wall graphic in the decal atlas (cached by text + style). */
+  graphicRect(text: string, o: Parameters<typeof drawGraphic>[2] = {}): ReturnType<typeof drawGraphic> {
+    const key = `${text}|${JSON.stringify(o)}`;
+    let r = this.graphicCache.get(key);
+    if (!r) {
+      r = drawGraphic(this.mats.graphics, text, o);
+      this.graphicCache.set(key, r);
+    }
+    return r;
+  }
+
+  /** Painted graphic placed on a wall face. */
+  graphic(text: string, pos: THREE.Vector3, yaw: number, w: number, h: number, o: Parameters<typeof drawGraphic>[2] = {}): void {
+    this.b.geo(atlasQuad(w, h, this.graphicRect(text, o)), 'decal', pos, new THREE.Euler(0, yaw, 0));
+  }
   private screenCache = new Map<string, ReturnType<typeof drawScreen>>();
 
   constructor(
@@ -141,7 +160,9 @@ export class Kit {
       emit(oa, ob, op.y1, h, mat);
       if (op.y0 > 0) emit(oa, ob, 0, op.y0, mat);
       cursor = ob;
-      this.openings.push({ axis, c: c + off, a0: oa, a1: ob, y, y1: op.y1 });
+      const pad0 = op.kind === 'door' ? 1.15 : 0.12;
+      const pad1 = op.kind === 'door' ? 0.55 : 0.12;
+      this.openings.push({ axis, c: c + off, a0: oa - pad0, a1: ob + pad1, y, y1: op.y1 });
       this.opening(axis, c + off, y, t, op);
     }
     emit(cursor, a1, 0, h, mat);
@@ -186,6 +207,14 @@ export class Kit {
         this.corner(axis, c, y, ob, op.y1, -1, -1, s, n0, n1, frameKey);
       }
       box(oa, ob, 0, 0.014, -fd - 0.12, fd + 0.12, 'hazard');
+      if (heavy) {
+        const rect = this.graphicRect('PRESSURE DOOR · KEEP CLEAR', { band: '#e2a21b', fg: '#141414', chevrons: true });
+        for (const sd of [1, -1]) {
+          const n = sd * (fd + 0.012);
+          const p = axis === 'z' ? new THREE.Vector3(op.at, y + op.y1 + ft + 0.1, c + n) : new THREE.Vector3(c + n, y + op.y1 + ft + 0.1, op.at);
+          this.b.geo(atlasQuad(Math.min(op.w + 0.6, 2.4), 0.16, rect), 'decal', p, new THREE.Euler(0, axis === 'z' ? (sd > 0 ? 0 : Math.PI) : sd > 0 ? Math.PI / 2 : -Math.PI / 2, 0));
+        }
+      }
       // control panels beside the door, both faces
       for (const side of [1, -1]) {
         const n0 = side > 0 ? fd - 0.02 : -fd - 0.03;
@@ -214,9 +243,9 @@ export class Kit {
         const sides: (1 | -1)[] = op.sign.both ? [1, -1] : [op.sign.side];
         const rect = drawDoorSign(this.mats.signs, op.sign.code, op.sign.name, DECK_COLORS[op.sign.deck] ?? '#888', op.sign.sub);
         for (const sd of sides) {
-          const n = sd * (fd + 0.012);
-          const vy = y + op.y1 + ft + 0.12;
-          const p = axis === 'z' ? new THREE.Vector3(op.at, vy, c + n) : new THREE.Vector3(c + n, vy, op.at);
+          const n = sd * (t / 2 + 0.012);
+          const along = oa - ft - 0.56;
+          const p = axis === 'z' ? new THREE.Vector3(along, y + 1.62, c + n) : new THREE.Vector3(c + n, y + 1.62, along);
           this.quad(rect, 0.84, 0.21, p, axis === 'z' ? (sd > 0 ? 0 : Math.PI) : sd > 0 ? Math.PI / 2 : -Math.PI / 2);
         }
       }
@@ -286,14 +315,15 @@ export class Kit {
       beams?: boolean;
       profile?: Profile;
       rib?: number;
+      cones?: boolean;
     } = {},
   ): Room {
-    const h = r.h ?? 3;
+    const h = r.h ?? 2.6;
     const room: Room = { id: r.id, name: r.name, deck: r.deck, x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y0: r.y0, y1: r.y0 + h, ambience: r.ambience };
     this.rooms.push(room);
     const profile = opts.profile ?? 'room';
     const b = this.b;
-    const floorKey = opts.floor ?? (profile === 'corridor' || profile === 'hangar' || profile === 'hall' ? 'deckPlate' : 'floor');
+    const floorKey = opts.floor ?? (profile === 'corridor' || profile === 'hex' || profile === 'hangar' || profile === 'hall' ? 'deckPlate' : 'floor');
     b.box(r.x0, r.y0 - 0.2, r.z0, r.x1, r.y0, r.z1, floorKey, 'solid');
     if (opts.ceil !== null) b.box(r.x0, r.y0 + h, r.z0, r.x1, r.y0 + h + 0.25, r.z1, opts.ceil ?? 'ceil', 'solid');
     this.pendingShells.push({ room, h, profile, opts });
@@ -306,7 +336,7 @@ export class Kit {
   /** Build the structural shells once every wall (and so every opening) exists. */
   finishShells(): void {
     for (const s of this.pendingShells) {
-      if (s.profile === 'room' || s.profile === 'corridor' || s.profile === 'hall') this.shipShell(s.room, s.h, s.profile, s.opts);
+      if (s.profile === 'room' || s.profile === 'corridor' || s.profile === 'hex' || s.profile === 'hall') this.shipShell(s.room, s.h, s.profile, s.opts);
       else if (s.profile === 'hangar') this.hangarShell(s.room, s.h);
     }
     this.pendingShells = [];
@@ -341,7 +371,7 @@ export class Kit {
   private shipShell(r: Room, h: number, profile: Profile, opts: { lightMat?: string; rib?: number }): void {
     const b = this.b;
     const yTop = r.y0 + h;
-    const ch = 0.42;
+    const ch = profile === 'hex' ? 0.55 : h >= 3.5 ? 0.42 : 0.3;
     const sides = this.sides(r);
     const stripKey = opts.lightMat && opts.lightMat !== 'light' ? opts.lightMat : 'lightStrip';
     for (const s of sides) {
@@ -351,6 +381,28 @@ export class Kit {
       if (s.long || profile === 'room') this.slope(s, yTop, ch, mid, Math.max(0.4, len - 0.9), 0.03, 0.03, 0.09, stripKey);
     }
     const longSides = sides.filter((s) => s.long);
+    const lowCh = profile === 'hex' ? 0.36 : 0;
+    if (lowCh > 0) {
+      // hexagonal tube: angled skirts along the floor on both long walls
+      for (const s of longSides) {
+        const len = s.a1 - s.a0;
+        const mid = (s.a0 + s.a1) / 2;
+        const k = Math.SQRT1_2;
+        const pos = s.axis === 'z' ? new THREE.Vector3(mid, r.y0 + lowCh / 2, s.c + s.dir * (lowCh / 2)) : new THREE.Vector3(s.c + s.dir * (lowCh / 2), r.y0 + lowCh / 2, mid);
+        if (s.axis === 'z') b.geo(new THREE.BoxGeometry(len, 0.05, lowCh * Math.SQRT2 + 0.02), 'panel', pos, new THREE.Euler((s.dir * Math.PI) / 4, 0, 0));
+        else b.geo(new THREE.BoxGeometry(lowCh * Math.SQRT2 + 0.02, 0.05, len), 'panel', pos, new THREE.Euler(0, 0, (-s.dir * Math.PI) / 4));
+        void k;
+        const c0 = s.c;
+        const c1 = s.c + s.dir * (lowCh + 0.04);
+        if (s.axis === 'z') this.world.add(s.a0, r.y0, Math.min(c0, c1), s.a1, r.y0 + 0.5, Math.max(c0, c1));
+        else this.world.add(Math.min(c0, c1), r.y0, s.a0, Math.max(c0, c1), r.y0 + 0.5, s.a1);
+        // glowing strip where skirt meets floor
+        const l0 = s.c + s.dir * (lowCh + 0.01);
+        const l1 = s.c + s.dir * (lowCh + 0.05);
+        if (s.axis === 'z') b.box(s.a0, r.y0, Math.min(l0, l1), s.a1, r.y0 + 0.02, Math.max(l0, l1), 'ledStrip', false);
+        else b.box(Math.min(l0, l1), r.y0, s.a0, Math.max(l0, l1), r.y0 + 0.02, s.a1, 'ledStrip', false);
+      }
+    }
     const shortLen = longSides[0].axis === 'z' ? r.z1 - r.z0 : r.x1 - r.x0;
     const ls = longSides[0];
     const start = ls.a0;
@@ -370,7 +422,7 @@ export class Kit {
         if (profile === 'room') continue;
         if (this.blocked(s.axis, s.c, r.y0, p - 0.45, p + 0.45)) continue;
         const f0 = s.c;
-        const f1 = s.c + s.dir * 0.24;
+        const f1 = s.c + s.dir * (0.24 + lowCh);
         if (s.axis === 'z') b.box(p - 0.13, r.y0, Math.min(f0, f1), p + 0.13, yTop - ch + 0.02, Math.max(f0, f1), 'rib', 'solid', 0.02);
         else b.box(Math.min(f0, f1), r.y0, p - 0.13, Math.max(f0, f1), yTop - ch + 0.02, p + 0.13, 'rib', 'solid', 0.02);
       }
@@ -394,11 +446,11 @@ export class Kit {
         }
       }
     }
-    if (profile === 'corridor') this.corridorFit(r, h, longSides, ribs, ch);
+    if (profile === 'corridor' || profile === 'hex') this.corridorFit(r, h, longSides, ribs, ch, lowCh);
   }
 
   /** Corridor fit-out: grating, floor LEDs, handrails, ceiling pipes and cable tray, wall equipment. */
-  private corridorFit(r: Room, h: number, longSides: ReturnType<Kit['sides']>, ribs: number[], ch: number): void {
+  private corridorFit(r: Room, h: number, longSides: ReturnType<Kit['sides']>, ribs: number[], ch: number, lowCh = 0): void {
     const b = this.b;
     const yTop = r.y0 + h;
     const ls = longSides[0];
@@ -420,6 +472,22 @@ export class Kit {
     if (ls.axis === 'z') b.box(ls.a0, yTop - 0.27, tn - 0.16, ls.a1, yTop - 0.21, tn + 0.16, 'ribDark', false);
     else b.box(tn - 0.16, yTop - 0.27, ls.a0, tn + 0.16, yTop - 0.21, ls.a1, 'ribDark', false);
     for (const k of [-0.08, 0, 0.08]) b.cyl(A(ls.a0, tn + k, yTop - 0.18), A(ls.a1, tn + k, yTop - 0.18), 0.025, 'rubber', 6);
+    // overhead clutter between ribs: downlights, junction boxes, duct runs
+    const bnds = [ls.a0, ...ribs, ls.a1];
+    for (let i = 0; i < bnds.length - 1; i++) {
+      const m = (bnds[i] + bnds[i + 1]) / 2;
+      b.geo(new THREE.CylinderGeometry(0.11, 0.13, 0.05, 16), 'ribDark', A(m, cMid, yTop - 0.025));
+      b.geo(new THREE.CylinderGeometry(0.085, 0.085, 0.01, 16), 'lightWarm', A(m, cMid, yTop - 0.05));
+      if (i % 2 === 0) {
+        const p0 = A(m - 0.5, cMid + 0.35, yTop - 0.16);
+        const p1 = A(m + 0.5, cMid + 0.75, yTop);
+        b.box(Math.min(p0.x, p1.x), p0.y, Math.min(p0.z, p1.z), Math.max(p0.x, p1.x), p1.y, Math.max(p0.z, p1.z), 'ribDark', false, 0.02);
+      } else {
+        const p0 = A(m - 0.35, cMid - 0.7, yTop - 0.12);
+        const p1 = A(m + 0.35, cMid - 0.3, yTop);
+        b.box(Math.min(p0.x, p1.x), p0.y, Math.min(p0.z, p1.z), Math.max(p0.x, p1.x), p1.y, Math.max(p0.z, p1.z), 'paintDark', false, 0.02);
+      }
+    }
     for (const p of ribs) {
       for (const s of [sA, sB]) {
         const n0 = pipeN(s, 0);
@@ -432,8 +500,10 @@ export class Kit {
     const bounds = [ls.a0, ...ribs, ls.a1];
     const kinds = ['o2', 'ext', 'intercom', 'valve', 'panel'] as const;
     let ki = Math.abs(Math.round(r.x0 + r.z0 + r.y0)) % kinds.length;
+    let frame = 0;
+    const deckTag = r.deck === 'command' ? '1' : r.deck === 'crew' ? '2' : r.deck === 'science' ? '3' : 'S';
     longSides.forEach((s, si) => {
-      const face = s.c + s.dir * 0.1;
+      const face = s.c + s.dir * (0.1 + (lowCh > 0 ? lowCh * 0.6 : 0));
       for (let i = 0; i < bounds.length - 1; i++) {
         const b0 = bounds[i] + (i === 0 ? 0.15 : 0.2);
         const b1 = bounds[i + 1] - (i === bounds.length - 2 ? 0.15 : 0.2);
@@ -448,8 +518,14 @@ export class Kit {
         const rn = face + s.dir * 0.09;
         b.cyl(A(b0 + 0.1, rn, r.y0 + 1.0), A(b1 - 0.1, rn, r.y0 + 1.0), 0.024, 'steel', 10);
         for (const a of [b0 + 0.2, b1 - 0.2]) b.cyl(A(a, face, r.y0 + 1.0), A(a, rn, r.y0 + 1.0), 0.016, 'steel', 6);
-        // equipment in alternating bays
+        // equipment in alternating bays, bold frame numbers in the others
         if ((i + si) % 2 === 0) this.equipment(kinds[ki++ % kinds.length], s, (b0 + b1) / 2, face, r.y0);
+        else {
+          frame++;
+          const rect = this.graphicRect(`${deckTag}·${String(i + 1).padStart(2, '0')}`, { w: 256, h: 128, sub: si ? 'PORT' : 'STBD', fg: '#e9e6dc' });
+          const gp = A((b0 + b1) / 2, s.c + s.dir * 0.112, r.y0 + 1.72);
+          this.b.geo(atlasQuad(0.62, 0.31, rect), 'decal', gp, new THREE.Euler(0, s.axis === 'z' ? (s.dir > 0 ? 0 : Math.PI) : s.dir > 0 ? Math.PI / 2 : -Math.PI / 2, 0));
+        }
       }
     });
   }
@@ -559,7 +635,7 @@ export class Kit {
     }
   }
 
-  private fixtures(r: Room, h: number, opts: { lightMat?: string; spacing?: number }): void {
+  private fixtures(r: Room, h: number, opts: { lightMat?: string; spacing?: number; cones?: boolean }): void {
     const sx = r.x1 - r.x0;
     const sz = r.z1 - r.z0;
     const spacing = opts.spacing ?? 3.2;
@@ -573,6 +649,7 @@ export class Kit {
         const z = r.z0 + (sz * (k + 0.5)) / nz;
         this.b.box(x - 0.75, yTop - 0.3, z - 0.3, x + 0.75, yTop, z + 0.3, 'ribDark', false);
         this.b.box(x - 0.65, yTop - 0.32, z - 0.22, x + 0.65, yTop - 0.3, z + 0.22, mat, false);
+        if (opts.cones) this.cones.push({ x, y: yTop - 0.33, z, h: h - 0.4 });
       }
     }
   }
@@ -613,7 +690,7 @@ export class Kit {
   // ------------------------------------------------------------------ seats & items
 
   /** Seat in local placement coordinates; occupant faces local +z. */
-  seat(p: Place, lx: number, ly: number, lz: number, label: string, kind: 'sit' | 'lie' = 'sit', sleep = false, exit = 0.75): Seat {
+  seat(p: Place, lx: number, ly: number, lz: number, label: string, kind: 'sit' | 'lie' = 'sit', sleep = false, exit = 0.75, exitDir?: [number, number]): Seat {
     const [x, z] = rotXZ(lx, lz, p.rot);
     const [fx, fz] = rotXZ(0, 1, p.rot);
     const s: Seat = {
@@ -628,9 +705,9 @@ export class Kit {
       label,
       sleep,
     };
-    if (kind === 'lie') {
-      // exit to the side of the bed
-      const [sx, sz] = rotXZ(1, 0, p.rot);
+    if (kind === 'lie' || exitDir) {
+      // exit to the side of the bed, or along an explicit local direction
+      const [sx, sz] = rotXZ(exitDir ? exitDir[0] : 1, exitDir ? exitDir[1] : 0, p.rot);
       s.exitX = p.x + x + sx * exit;
       s.exitZ = p.z + z + sz * exit;
     }

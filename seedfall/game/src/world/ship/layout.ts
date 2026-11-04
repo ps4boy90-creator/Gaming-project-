@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Kit, Opening } from './kit';
 import * as P from './props';
 import { buildKestrel, buildMule } from './craft';
+import { BlindSpec } from './blinds';
 import { colonist } from '../../systems/manifest';
 
 /*  CSV Meridian: walkable interior.
@@ -21,26 +22,36 @@ const door = (at: number, w: number, code: string, name: string, deck: string, s
   at,
   w,
   y0: 0,
-  y1: 2.2,
+  y1: 2.05,
   kind: 'door',
   sign: { code, name, deck, side, sub },
 });
-const win = (at: number, w: number, y0 = 0.9, y1 = 2.35): Opening => ({ at, w, y0, y1, kind: 'window' });
+const win = (at: number, w: number, y0 = 0.85, y1 = 2.1): Opening => ({ at, w, y0, y1, kind: 'window' });
 
 export interface ShipRefs {
   holoPos: THREE.Vector3;
   bedSeatId: string;
+  podSeatId: string;
   startPos: THREE.Vector3;
+  blinds: BlindSpec[];
+  snowBox: THREE.Box3;
 }
 
 export function buildLayout(k: Kit): ShipRefs {
-  const refs: ShipRefs = { holoPos: new THREE.Vector3(), bedSeatId: '', startPos: new THREE.Vector3() };
+  const refs: ShipRefs = {
+    holoPos: new THREE.Vector3(),
+    bedSeatId: '',
+    podSeatId: '',
+    startPos: new THREE.Vector3(),
+    blinds: [],
+    snowBox: new THREE.Box3(new THREE.Vector3(-62, 0, -14), new THREE.Vector3(-24, 4.4, -2)),
+  };
   liftAndLobby(k, 'command', DECK_Y.command);
   liftAndLobby(k, 'crew', DECK_Y.crew);
   liftAndLobby(k, 'science', DECK_Y.science);
   deckCommand(k, refs);
   deckCrew(k, refs);
-  deckScience(k);
+  deckScience(k, refs);
   spineAndVault(k);
   hangar(k);
   k.finishShells();
@@ -57,18 +68,18 @@ function liftAndLobby(k: Kit, deck: string, y: number): void {
   k.wallX(-18, -3, 3, y, {
     mat: 'wallDark',
     accent: deck,
-    openings: deck === 'science' ? [{ at: 0, w: 2.2, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '3-00', name: 'Spine · Cryo · Hangar', deck: 'spine', side: 1 } }] : [],
+    openings: deck === 'science' ? [{ at: 0, w: 2.2, y0: 0, y1: 2.0, kind: 'door', heavy: true, sign: { code: '3-00', name: 'Spine · Cryo · Hangar', deck: 'spine', side: 1 } }] : [],
   });
   k.wallZ(3, -18, -14, y, { mat: 'wallDark', accent: deck });
   k.wallZ(-3, -18, -14, y, {
     mat: 'wallDark',
     accent: deck,
-    openings: [{ at: -16, w: 1.5, y0: 0, y1: 2.2, kind: 'door', id: `lift-${deck}`, sign: { code: `${num}-LIFT`, name: 'Lift', deck, side: 1 } }],
+    openings: [{ at: -16, w: 1.5, y0: 0, y1: 2.05, kind: 'door', id: `lift-${deck}`, sign: { code: `${num}-LIFT`, name: 'Lift', deck, side: 1 } }],
   });
   // deck banner on the lobby wall
   k.stencil(`DECK ${num} · ${names[deck].toUpperCase()}`, deck, new THREE.Vector3(-15.9, y + 1.85, 2.88), Math.PI, 0.36, num);
   // lift car
-  k.room({ id: `lift-${deck}`, name: 'Lift', deck, x0: LIFT.x0, x1: LIFT.x1, z0: LIFT.z0, z1: LIFT.z1, y0: y, ambience: 'lift' }, { floor: 'deckPlate', lights: 'grid', spacing: 3, intensity: 3, lightMat: 'lightWarm', profile: 'none' });
+  k.room({ id: `lift-${deck}`, name: 'Lift', deck, x0: LIFT.x0, x1: LIFT.x1, z0: LIFT.z0, z1: LIFT.z1, y0: y, h: 2.5, ambience: 'lift' }, { floor: 'deckPlate', lights: 'grid', spacing: 3, intensity: 3, lightMat: 'lightWarm', profile: 'none' });
   k.wallX(LIFT.x0, LIFT.z0, LIFT.z1, y, { mat: 'steel', skirting: false });
   k.wallX(LIFT.x1, LIFT.z0, LIFT.z1, y, { mat: 'steel', skirting: false });
   k.wallZ(LIFT.z0, LIFT.x0, LIFT.x1, y, { mat: 'steel', skirting: false });
@@ -103,7 +114,7 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
   k.wallZ(HULL, -14, -6, y, { t: 0.4, offset: 0.2, openings: [win(-10, 2.2)] });
   k.wallZ(-HULL, -14, 8, y, { t: 0.4, offset: -0.2, openings: [win(-9, 2.2), win(2, 3.2)] });
   // bridge aft bulkhead (also the forward walls of the dome and briefing room)
-  k.wallX(8, -HULL, HULL, y, { accent: d, openings: [{ ...door(0, 2.0, '1-01', 'Bridge', d, -1), heavy: true, y1: 2.1 }] });
+  k.wallX(8, -HULL, HULL, y, { accent: d, openings: [{ ...door(0, 2.0, '1-01', 'Bridge', d, -1), heavy: true, y1: 2.0 }] });
 
   // Comms & Nav
   k.room({ id: 'comms', name: 'Comms & Nav', deck: d, x0: -14, x1: -6, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { intensity: 5 });
@@ -152,20 +163,55 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
     P.chair(k, { x, y, z: -6.6, rot: 0 }, 'Briefing chair');
     P.chair(k, { x, y, z: -4.2, rot: 2 }, 'Briefing chair');
   }
-  k.screen('map', new THREE.Vector3(7.85, y + 1.6, -5.4), -Math.PI / 2, 2.2, 31, 'SURVEY PLAN · KX-7c', 0);
+  k.screen('map', new THREE.Vector3(7.85, y + 1.5, -5.4), -Math.PI / 2, 1.9, 31, 'SURVEY PLAN · KX-7c', 0);
 
-  // Bridge
-  k.room({ id: 'bridge', name: 'Bridge', deck: d, x0: 8, x1: 17, z0: -6, z1: 6, y0: y, ambience: 'hab' }, { intensity: 4, lightColor: 0xdfe8ff, spacing: 3.5 });
-  k.wallZ(6, 8, 17, y, { t: 0.4, offset: 0.2, openings: [win(11, 2.6, 0.75, 2.45), win(14.5, 2.6, 0.75, 2.45)] });
-  k.wallZ(-6, 8, 17, y, { t: 0.4, offset: -0.2, openings: [win(12.5, 2.6, 0.75, 2.45)] });
-  k.wallX(17, -6, 6, y, { t: 0.4, offset: 0.2, openings: [win(-3.7, 3.0, 0.7, 2.45), win(0, 3.0, 0.7, 2.45), win(3.7, 3.0, 0.7, 2.45)] });
-  P.consoleUnit(k, { x: 16.5, y, z: -1.5, rot: 3 }, 2.2, ['telemetry', 'nav'], 41);
-  P.consoleUnit(k, { x: 16.5, y, z: 1.5, rot: 3 }, 2.2, ['orbit', 'status'], 43);
-  P.chair(k, { x: 15.2, y, z: -1.5, rot: 1 }, 'Pilot seat', 'fabricLight');
-  P.chair(k, { x: 15.2, y, z: 1.5, rot: 1 }, 'Co-pilot seat', 'fabricLight');
-  P.chair(k, { x: 12.6, y, z: 0, rot: 1 }, "Captain's chair", 'fabricAmber');
+  // Bridge: low ceiling, split level, analogue consoles, louvred blinders over the glass
+  k.room({ id: 'bridge', name: 'Bridge', deck: d, x0: 8, x1: 17, z0: -6, z1: 6, y0: y, h: 2.45, ambience: 'hab' }, { intensity: 3, lightColor: 0xffe2c0, lightMat: 'lightWarm' });
+  const bw: [string, number, number, number, number, number][] = [
+    ['z6', 11, 2.4, 0.75, 2.05, -1],
+    ['z6', 14.6, 2.4, 0.75, 2.05, -1],
+    ['z-6', 12.5, 2.4, 0.75, 2.05, 1],
+    ['x17', -3.7, 2.9, 0.7, 2.05, -1],
+    ['x17', 0, 2.9, 0.7, 2.05, -1],
+    ['x17', 3.7, 2.9, 0.7, 2.05, -1],
+  ];
+  k.wallZ(6, 8, 17, y, { t: 0.4, offset: 0.2, openings: bw.filter((b) => b[0] === 'z6').map((b) => win(b[1], b[2], b[3], b[4])) });
+  k.wallZ(-6, 8, 17, y, { t: 0.4, offset: -0.2, openings: bw.filter((b) => b[0] === 'z-6').map((b) => win(b[1], b[2], b[3], b[4])) });
+  k.wallX(17, -6, 6, y, { t: 0.4, offset: 0.2, openings: bw.filter((b) => b[0] === 'x17').map((b) => win(b[1], b[2], b[3], b[4])) });
+  for (const [wall, at, w, y0, y1, dir] of bw) {
+    const axis = wall.startsWith('z') ? 'z' : 'x';
+    const c = wall === 'z6' ? 6 : wall === 'z-6' ? -6 : 17;
+    refs.blinds.push({ axis, c, dir: dir as 1 | -1, at, w, y, y0, y1 });
+  }
+  // raised forward flight deck
+  const ry = 0.24;
+  k.b.box(13.4, y, -6, 17, y + ry, 6, 'deckPlate', 'solid');
+  k.b.box(13.36, y, -6, 13.44, y + ry + 0.01, 6, 'hazard', false);
+  for (const z0 of [-6, 1.1]) {
+    const z1 = z0 < 0 ? -1.1 : 6;
+    k.b.cyl(new THREE.Vector3(13.45, y + ry + 0.95, z0 + 0.2), new THREE.Vector3(13.45, y + ry + 0.95, z1 - 0.1), 0.025, 'steel', 8);
+    for (const zz of [z0 + 0.3, (z0 + z1) / 2, z1 - 0.2]) k.b.cyl(new THREE.Vector3(13.45, y, zz), new THREE.Vector3(13.45, y + ry + 0.95, zz), 0.02, 'steel', 6);
+    k.world.add(13.4, y, Math.min(z0, z1), 13.5, y + 1.2, Math.max(z0, z1));
+  }
+  const fy = y + ry;
+  P.consoleUnit(k, { x: 16.5, y: fy, z: -1.5, rot: 3 }, 2.2, ['telemetry', 'nav'], 41, { pilot: true });
+  P.consoleUnit(k, { x: 16.5, y: fy, z: 1.5, rot: 3 }, 2.2, ['orbit', 'status'], 43, { pilot: true });
+  P.chair(k, { x: 15.2, y: fy, z: -1.5, rot: 1 }, 'Pilot seat', 'fabricLight');
+  P.chair(k, { x: 15.2, y: fy, z: 1.5, rot: 1 }, 'Co-pilot seat', 'fabricLight');
+  // overhead console banks above the windows' upper edge, angled toward the pilots
+  for (const z of [-1.5, 1.5]) {
+    k.b.geo(new THREE.BoxGeometry(0.55, 0.08, 1.9), 'paintDark', new THREE.Vector3(16.35, y + 2.28, z), new THREE.Euler(0, 0, 0.5));
+    for (let i = 0; i < 9; i++) {
+      for (let j = 0; j < 2; j++) {
+        k.b.geo(new THREE.BoxGeometry(0.04, 0.02, 0.04), (i + j) % 4 === 0 ? 'statusAmber' : (i * j) % 5 === 1 ? 'statusGreen' : 'paintGrey', new THREE.Vector3(16.2 + j * 0.13, y + 2.2 + j * 0.07, z - 0.75 + i * 0.19), new THREE.Euler(0, 0, 0.5));
+      }
+    }
+  }
+  P.chair(k, { x: 12.4, y, z: 0, rot: 1 }, "Captain's chair", 'fabricAmber');
   P.consoleUnit(k, { x: 11.2, y, z: 5.55, rot: 2 }, 2.6, ['status', 'telemetry'], 45);
   P.consoleUnit(k, { x: 11.2, y, z: -5.55, rot: 0 }, 2.6, ['comms', 'orbit'], 47);
+  P.chair(k, { x: 11.2, y, z: 4.6, rot: 2 }, 'Systems station');
+  P.chair(k, { x: 11.2, y, z: -4.6, rot: 0 }, 'Comms station');
   refs.holoPos.copy(P.holoTable(k, { x: 10.0, y, z: 0 }));
 }
 
@@ -193,13 +239,13 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
   for (const x of [-10, -6, 2, 8]) k.wallX(x, -HULL, -CZ, y, {});
   k.wallX(-14, CZ, HULL, y, {});
   k.wallX(-14, -HULL, -CZ, y, {});
-  k.wallX(14, -HULL, HULL, y, { t: 0.4, offset: 0.2, openings: [win(0, 1.4, 1.0, 2.2)] });
+  k.wallX(14, -HULL, HULL, y, { t: 0.4, offset: 0.2, openings: [win(0, 1.4, 1.0, 2.05)] });
   k.wallZ(HULL, -14, 14, y, {
     t: 0.4,
     offset: 0.2,
-    openings: [win(-9.8, 1.8, 1.0, 2.3), win(-6.0, 2.3, 0.55, 2.45), win(-3.0, 2.3, 0.55, 2.45), win(0.0, 2.3, 0.55, 2.45), win(6, 2.4), win(10.6, 2.4)],
+    openings: [win(-9.8, 1.8, 0.95, 2.1), win(-6.0, 2.3, 0.5, 2.12), win(-3.0, 2.3, 0.5, 2.12), win(0.0, 2.3, 0.5, 2.12), win(6, 2.4), win(10.6, 2.4)],
   });
-  k.wallZ(-HULL, -14, 14, y, { t: 0.4, offset: -0.2, openings: [win(-2, 1.6, 1.1, 2.2), win(5, 2.4), win(11, 4.2, 0.75, 2.45)] });
+  k.wallZ(-HULL, -14, 14, y, { t: 0.4, offset: -0.2, openings: [win(-2, 1.6, 1.1, 2.1), win(5, 2.4), win(11, 4.2, 0.75, 2.1)] });
   k.poster('Protocol 7', ['Decontaminate.', 'Every time.', 'HCT SAFETY'], 'aft', new THREE.Vector3(1.0, y + 1.5, -CZ + 0.12), 0);
   k.poster('Haven awaits', ['2,400 colonists', 'One new world', 'HAVEN COLONIAL TRUST'], 'crew', new THREE.Vector3(8.5, y + 1.5, CZ - 0.12), Math.PI);
 
@@ -214,6 +260,17 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
   k.b.box(-11.62, y, 6.95, -11.48, y + 1.86, 9.0, 'rib', 'solid', 0.02);
   k.b.box(-11.48, y + 0.55, 7.6, -11.2, y + 0.6, 8.9, 'steel', false);
   k.b.box(-11.48, y + 1.1, 7.6, -11.2, y + 1.15, 8.9, 'steel', false);
+  // shelf of paper books and a framed photo (crew quarters were built for couples)
+  k.b.box(-8.12, y + 1.42, 3.7, -7.9, y + 1.45, 5.2, 'steel', false);
+  const bookKeys = ['accent-crew', 'fabricAmber', 'paintDark', 'accent-command', 'paint', 'accent-science', 'fabricAmber', 'paintGrey'];
+  for (let i = 0; i < 16; i++) {
+    const z = 3.75 + i * 0.075;
+    const hgt = 0.18 + ((i * 37) % 7) * 0.012;
+    k.b.box(-8.11, y + 1.45, z, -7.93, y + 1.45 + hgt, z + 0.06, bookKeys[i % bookKeys.length], false);
+  }
+  k.b.box(-8.62, y + 0.76, 4.95, -8.55, y + 0.98, 5.22, 'gold', false);
+  k.b.box(-8.63, y + 0.78, 4.97, -8.62, y + 0.96, 5.2, 'fabricLight', false);
+  k.item({ id: 'photo', min: [-8.75, y + 0.74, 4.9], max: [-8.5, y + 1.02, 5.3], prompt: 'Photo', action: 'flavor', data: 'photo' });
   P.desk(k, { x: -8.46, y, z: 4.4, rot: 3 }, 'mail', 5, 1.5);
   P.chair(k, { x: -9.3, y, z: 4.4, rot: 1 }, 'Desk chair');
   k.item({ id: 'mail', min: [-8.95, y + 0.75, 3.9], max: [-8.15, y + 1.45, 4.9], prompt: 'Read messages', action: 'mail' });
@@ -250,7 +307,7 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
     P.bench(k, { x: 7.0, y, z: z - 0.75, rot: 0 }, 3.6, 'Mess bench');
     P.bench(k, { x: 7.0, y, z: z + 0.75, rot: 2 }, 3.6, 'Mess bench');
   }
-  P.plant(k, { x: 2.6, y, z: 8.4 }, 1.0);
+  gardenSlope(k, 2.1, 2.3, 8.6, y);
 
   // Crew quarters (locked, empty)
   k.room({ id: 'q-okonkwo', name: 'Crew quarters', deck: d, x0: -14, x1: -10, z0: -HULL, z1: -CZ, y0: y, ambience: 'hab' }, { lights: 'none' });
@@ -287,12 +344,12 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
 
 // --------------------------------------------------------------------------- Deck 3
 
-function deckScience(k: Kit): void {
+function deckScience(k: Kit, refs: ShipRefs): void {
   const y = DECK_Y.science;
   const d = 'science';
   k.room({ id: 's-corridor', name: 'Deck 3 · Corridor', deck: d, x0: -14, x1: 14, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { profile: 'corridor', intensity: 6 });
-  k.wallZ(CZ, -14, 14, y, { accent: d, openings: [door(-10, 1.6, '3-01', 'Laboratory', d, -1), door(-3, 1.4, '3-02', 'Lab · east', d, -1), { ...door(3, 1.4, '3-03', 'Specimen vault', d, -1), heavy: true, y1: 2.1 }, door(10, 1.4, '3-04', 'Life support', d, -1)] });
-  k.wallZ(-CZ, -14, 14, y, { accent: d, openings: [door(-8, 1.6, '3-05', 'Workshop & armory', d, 1), door(6, 1.6, '3-06', 'Stores', d, 1)] });
+  k.wallZ(CZ, -14, 14, y, { accent: d, openings: [door(-10, 1.6, '3-01', 'Laboratory', d, -1), door(-3, 1.4, '3-02', 'Lab · east', d, -1), { ...door(3, 1.4, '3-03', 'Specimen vault', d, -1), heavy: true, y1: 2.0 }, door(10, 1.4, '3-04', 'Life support', d, -1)] });
+  k.wallZ(-CZ, -14, 14, y, { accent: d, openings: [door(-8, 1.6, '3-05', 'Workshop & armory', d, 1), door(6, 1.6, '3-06', 'Crew sleep bay', d, 1, 'Hypersleep')] });
   for (const x of [0, 6]) k.wallX(x, CZ, HULL, y, { t: x === 0 || x === 6 ? 0.3 : 0.2 });
   k.wallX(-2, -HULL, -CZ, y, {});
   k.wallX(-14, CZ, HULL, y, {});
@@ -334,16 +391,30 @@ function deckScience(k: Kit): void {
   for (const x of [-12.5, -11.7]) P.locker(k, { x, y, z: -2.1, rot: 2 }, 0.75);
   k.item({ id: 'bench', min: [-8.2, y + 0.8, -5.6], max: [-5.8, y + 1.2, -4.4], prompt: 'Workbench', action: 'flavor', data: 'workbench' });
 
-  // Stores
-  k.room({ id: 'stores', name: 'Stores', deck: d, x0: -2, x1: 14, z0: -HULL, z1: -CZ, y0: y, ambience: 'machine' }, { intensity: 4 });
-  for (const z of [-4.2, -6.8]) {
-    P.shelves(k, { x: 4.0, y, z, rot: 0 }, 6.0, 4, 0.55);
-    P.shelves(k, { x: 4.0, y, z: z - 1.1, rot: 2 }, 6.0, 4, 0.55);
-  }
-  P.crate(k, 10.5, y, -6, 1.2, 1.0, 1.2);
-  P.crate(k, 10.5, y + 1.0, -6, 1.0, 0.8, 1.0, 'paint');
-  P.crate(k, 12.2, y, -7.5, 1.2, 1.2, 1.2);
-  P.crate(k, 12.0, y, -3.6, 1.4, 0.9, 1.0, 'accent-spine');
+  // Crew sleep bay: fourteen pods, set in pairs
+  k.room({ id: 'sleepbay', name: 'Crew sleep bay', deck: d, x0: -2, x1: 14, z0: -HULL, z1: -CZ, y0: y, ambience: 'vault' }, { intensity: 3.5, lightColor: 0xcfe4ff, lightMat: 'lightCold' });
+  const pairs: [P.PodState, string, string, P.PodState, string, string][] = [
+    ['open', 'Specialist (you)', 'Your pod. Still warm. The revival log reads: early wake, flare protocol.', 'sleeping', 'Sam Arden', 'POD C-02 · Sam Arden, botanist · your partner.\nStatus: stable. Revival: not scheduled until Haven.'],
+    ['burned', 'Capt. Elias Hale', 'POD C-03 · Capt. Elias Hale.\nStatus: deceased · flare event, day 2,213. The pod has been sealed.', 'open', 'Adaeze Okonkwo', 'POD C-04 · Adaeze Okonkwo, first officer, now acting captain.\nStatus: revived.'],
+    ['open', 'Hollis Brandt', 'POD C-05 · Hollis Brandt, pilot.\nStatus: revived.', 'sleeping', 'Ines Brandt', 'POD C-06 · Ines Brandt, hydrologist.\nStatus: stable.'],
+    ['revival', 'Dr. Mirela Varga', 'POD C-07 · Dr. Mirela Varga, physician.\nStatus: revival cycle 61%. Do not open manually.', 'sleeping', 'Tomas Varga', 'POD C-08 · Tomas Varga, structural engineer.\nStatus: stable.'],
+    ['open', 'Kofi Mensah', 'POD C-09 · Kofi Mensah, chief engineer.\nStatus: revived.', 'sleeping', 'Abena Mensah', 'POD C-10 · Abena Mensah, agronomist.\nStatus: stable.'],
+    ['open', 'Yuki Tanabe', 'POD C-11 · Yuki Tanabe, security.\nStatus: revived.', 'sleeping', 'Rafael Ortiz', 'POD C-12 · Rafael Ortiz, terraforming lead.\nStatus: stable.'],
+    ['sleeping', 'June Park', 'POD C-13 · June Park, systems engineer.\nStatus: stable.', 'sleeping', 'Liu Park', 'POD C-14 · Liu Park, medic.\nStatus: stable.'],
+  ];
+  pairs.forEach(([s1, n1, i1, s2, n2, i2], i) => {
+    const x = -0.6 + i * 2.25;
+    const seat = P.crewPod(k, { x: x - 0.52, y, z: -7.3, rot: 2 }, s1, n1, i1);
+    P.crewPod(k, { x: x + 0.52, y, z: -7.3, rot: 2 }, s2, n2, i2);
+    if (i === 0 && seat) refs.podSeatId = seat.id;
+    // shared service column between pairs
+    if (i < pairs.length - 1) {
+      k.b.box(x + 1.05, y, -8.95, x + 1.2, y + 2.6, -8.4, 'ribDark', 'solid', 0.02);
+      k.b.box(x + 1.07, y + 1.5, -8.42, x + 1.18, y + 1.56, -8.38, 'statusGreen', false);
+    }
+  });
+  k.graphic('CREW HYPERSLEEP · 14 BERTHS', new THREE.Vector3(6, y + 1.9, -1.63), Math.PI, 2.6, 0.39, { fg: '#e8e3d6' });
+  k.screen('cryo', new THREE.Vector3(13.88, y + 1.5, -5.2), -Math.PI / 2, 1.1, 102, 'CREW · 7 PAIRS', 0);
 }
 
 // --------------------------------------------------------------------------- Spine & vault
@@ -351,26 +422,28 @@ function deckScience(k: Kit): void {
 function spineAndVault(k: Kit): void {
   const y = 0;
   const d = 'spine';
-  k.room({ id: 'spine', name: 'Main spine', deck: d, x0: -70, x1: -18, z0: -2, z1: 2, y0: y, ambience: 'spine' }, { profile: 'corridor', intensity: 5, lightColor: 0xf0f4ff, rib: 3.0 });
+  k.room({ id: 'spine', name: 'Main spine', deck: d, x0: -70, x1: -18, z0: -2, z1: 2, y0: y, h: 2.8, ambience: 'spine' }, { profile: 'hex', intensity: 4, lightColor: 0xffe4c4, rib: 3.0 });
   const starboard: Opening[] = [];
-  for (let x = -66; x <= -22; x += 6) starboard.push(win(x, 1.8, 1.0, 2.3));
+  for (let x = -66; x <= -22; x += 6) starboard.push(win(x, 1.6, 1.0, 2.1));
   k.wallZ(2, -70, -18, y, { mat: 'wallDark', accent: d, openings: starboard });
   k.wallZ(-2, -70, -18, y, {
     mat: 'wallDark',
     accent: d,
     h: 4.5,
     openings: [
-      { at: -30, w: 2.2, y0: 0, y1: 2.25, kind: 'gap' },
-      { at: -56, w: 2.2, y0: 0, y1: 2.25, kind: 'gap' },
-      { at: -36.5, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
-      { at: -43, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
-      { at: -49.5, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
+      { at: -30, w: 2.2, y0: 0, y1: 2.15, kind: 'gap' },
+      { at: -56, w: 2.2, y0: 0, y1: 2.15, kind: 'gap' },
+      { at: -36.5, w: 3.4, y0: 0.9, y1: 2.15, kind: 'inner' },
+      { at: -43, w: 3.4, y0: 0.9, y1: 2.15, kind: 'inner' },
+      { at: -49.5, w: 3.4, y0: 0.9, y1: 2.15, kind: 'inner' },
     ],
   });
-  k.stencil('CRYO VAULT 3 · PODS 0721–0792', 'spine', new THREE.Vector3(-30, y + 2.4, -1.88), 0, 0.2, 7);
-  k.stencil('CRYO VAULT 3', 'spine', new THREE.Vector3(-56, y + 2.4, -1.88), 0, 0.2, 8);
+  k.graphic('CRYO VAULT 3 · PODS 0721–0864', new THREE.Vector3(-33.1, y + 1.95, -1.885), 0, 2.4, 0.36, { fg: '#e8e3d6' });
+  k.graphic('NURSERY · KEEP DOORS CLEAR', new THREE.Vector3(-59.0, y + 1.95, -1.885), 0, 2.4, 0.36, { band: '#e2a21b', fg: '#141414', chevrons: true });
   k.stencil('HANGAR · KESTREL · MULE  ▸', 'spine', new THREE.Vector3(-62, y + 1.7, 1.88), Math.PI, 0.3, 9);
   k.stencil('◂  HABITAT · LIFT', 'spine', new THREE.Vector3(-22.6, y + 1.7, -1.88), 0, 0.3, 10);
+  hexRing(k, -18.25, y, -1);
+  hexRing(k, -69.75, y, 1);
 
   // Cryo Vault 3
   k.room({ id: 'vault', name: 'Cryo Vault 3', deck: d, x0: -62, x1: -24, z0: -14, z1: -2, y0: y, h: 4.5, ambience: 'vault' }, { profile: 'hall', intensity: 3.5, lightColor: 0x9fd8ff, lightMat: 'lightCold' });
@@ -383,18 +456,35 @@ function spineAndVault(k: Kit): void {
     openings: [{ at: -8, w: 2.4, y0: 0, y1: 2.5, kind: 'door', heavy: true, locked: true, label: 'Seed Bank · "the Orchard" · authorised access only', sign: { code: 'SB-01', name: 'Seed Bank', deck: 'aft', side: 1, sub: 'The Orchard' } }],
   });
   let n = 721;
+  // upper tier racks and an overhead gantry for moving the pods
+  for (const rz of [-5.3, -7.55, -11.7]) {
+    k.b.box(-60.3, y + 1.18, rz - 1.12, -25.7, y + 1.3, rz + 1.12, 'rib', 'solid');
+    for (let x = -60.0; x <= -25.9; x += 2.64) {
+      if (Math.abs(x + 43) < 1.4) continue;
+      k.b.box(x - 0.07, y, rz - 1.1, x + 0.07, y + 1.18, rz - 0.96, 'ribDark', 'solid');
+      k.b.box(x - 0.07, y, rz + 0.96, x + 0.07, y + 1.18, rz + 1.1, 'ribDark', 'solid');
+    }
+  }
+  for (const gz of [-3.3, -9.65, -13.3]) k.b.box(-61.8, y + 3.95, gz - 0.12, -24.2, y + 4.2, gz + 0.12, 'rib', false);
+  k.b.box(-41.6, y + 3.6, -13.4, -40.6, y + 3.95, -3.2, 'warning', false, 0.04);
+  k.b.box(-41.4, y + 3.0, -8.0, -40.8, y + 3.6, -7.1, 'ribDark', false, 0.03);
+  k.b.cyl(new THREE.Vector3(-41.1, y + 3.0, -7.55), new THREE.Vector3(-41.1, y + 2.4, -7.55), 0.03, 'steel', 6);
+  k.b.box(-41.3, y + 2.25, -7.9, -40.9, y + 2.4, -7.2, 'warning', false, 0.02);
+  k.b.box(-41.15, y + 3.58, -13.2, -41.05, y + 3.62, -13.1, 'statusAmber', false);
   const failedPods = new Set([734, 768]);
   const rows: { z: number; rot: number }[] = [
     { z: -5.3, rot: 0 },
     { z: -7.55, rot: 2 },
     { z: -11.7, rot: 0 },
   ];
-  for (const row of rows) {
-    for (let x = -59.5; x <= -26.5; x += 1.32) {
-      if (Math.abs(x + 43) < 1.0) continue; // cross aisle
-      const id = n++;
-      const failed = failedPods.has(id);
-      P.cryoPod(k, { x, y, z: row.z, rot: row.rot }, id, failed, colonist(id, failed));
+  for (const tier of [0, 1.3]) {
+    for (const row of rows) {
+      for (let x = -59.5; x <= -26.5; x += 1.32) {
+        if (Math.abs(x + 43) < 1.0) continue; // cross aisle
+        const id = n++;
+        const failed = failedPods.has(id);
+        P.cryoPod(k, { x, y: y + tier, z: row.z, rot: row.rot }, id, failed, colonist(id, failed));
+      }
     }
   }
   k.screen('cryo', new THREE.Vector3(-24.12, y + 1.7, -8), -Math.PI / 2, 1.3, 101, '', 0);
@@ -404,10 +494,10 @@ function spineAndVault(k: Kit): void {
 
   // Suit room
   k.room({ id: 'suitroom', name: 'Suit room', deck: 'aft', x0: -78, x1: -70, z0: -4, z1: 4, y0: y, ambience: 'hab' }, { intensity: 6 });
-  k.wallX(-70, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.8, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '0-10', name: 'Suit room', deck: 'aft', side: 1 } }] });
+  k.wallX(-70, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.8, y0: 0, y1: 2.0, kind: 'door', heavy: true, sign: { code: '0-10', name: 'Suit room', deck: 'aft', side: 1 } }] });
   k.wallZ(4, -78, -70, y, { mat: 'wallDark', accent: 'aft' });
   k.wallZ(-4, -78, -70, y, { mat: 'wallDark', accent: 'aft' });
-  k.wallX(-78, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.5, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '0-11', name: 'Decon airlock', deck: 'aft', side: 1, both: true } }] });
+  k.wallX(-78, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.5, y0: 0, y1: 2.0, kind: 'door', heavy: true, sign: { code: '0-11', name: 'Decon airlock', deck: 'aft', side: 1, both: true } }] });
   const crew = ['Specialist', 'Tanabe', 'Brandt', 'Varga', 'Mensah', 'Okonkwo'];
   crew.slice(0, 3).forEach((name, i) => P.suitLocker(k, { x: -76.5 + i * 1.05, y, z: 3.35, rot: 2 }, name));
   crew.slice(3).forEach((name, i) => P.suitLocker(k, { x: -76.5 + i * 1.05, y, z: -3.35, rot: 0 }, name));
@@ -432,7 +522,7 @@ function spineAndVault(k: Kit): void {
 function hangar(k: Kit): void {
   const y = 0;
   const d = 'aft';
-  k.room({ id: 'hangar', name: 'Hangar bay', deck: d, x0: -112, x1: -82, z0: -15, z1: 15, y0: y, h: 12, ambience: 'hangar' }, { spacing: 7, intensity: 120, lightColor: 0xfff0dc, lights: 'grid', profile: 'hangar' });
+  k.room({ id: 'hangar', name: 'Hangar bay', deck: d, x0: -112, x1: -82, z0: -15, z1: 15, y0: y, h: 12, ambience: 'hangar' }, { spacing: 7, intensity: 85, lightColor: 0xffe8c8, lights: 'grid', profile: 'hangar', cones: true });
   k.wallX(-82, -15, 15, y, { mat: 'wallDark', h: 12, accent: d, openings: [{ at: 0, w: 1.6, y0: 0, y1: 2.2, kind: 'door', heavy: true, sign: { code: '0-12', name: 'Hangar', deck: d, side: -1 } }] });
   k.wallX(-112, -15, 15, y, { mat: 'wallDark', h: 12 });
   k.wallZ(15, -112, -82, y, { mat: 'wallDark', h: 12, accent: d, openings: [win(-91, 4.0, 1.0, 3.6), win(-103, 4.0, 1.0, 3.6)] });
@@ -462,6 +552,49 @@ function hangar(k: Kit): void {
   P.crate(k, -109, y, -12.5, 2.0, 1.6, 2.0);
   P.crate(k, -106.6, y, -12.8, 1.4, 1.0, 1.4, 'paint');
   P.shelves(k, { x: -111.2, y, z: 9, rot: 1 }, 4, 4, 0.7);
-  P.locker(k, { x: -89, y, z: -14.4, rot: 0 }, 1.0, 'Tool locker');
-  P.locker(k, { x: -90.1, y, z: -14.4, rot: 0 }, 1.0);
+  P.earthmover(k, { x: -90.5, y, z: -12.4, rot: 1 }, 'TF-07');
+}
+
+/** Hexagonal pressure ring where the ship's sections join. `dir` faces into the spine. */
+function hexRing(k: Kit, x: number, y: number, dir: number): void {
+  const cy = y + 1.25;
+  const R = 1.95;
+  for (let i = 0; i < 6; i++) {
+    const a0 = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    const a1 = ((i + 1) / 6) * Math.PI * 2 + Math.PI / 6;
+    const p0 = new THREE.Vector3(x, cy + Math.sin(a0) * R, Math.cos(a0) * R);
+    const p1 = new THREE.Vector3(x, cy + Math.sin(a1) * R, Math.cos(a1) * R);
+    const mid = p0.clone().add(p1).multiplyScalar(0.5);
+    const len = p0.distanceTo(p1);
+    const ang = Math.atan2(p1.y - p0.y, p1.z - p0.z);
+    k.b.geo(new THREE.BoxGeometry(0.34, 0.26, len + 0.2), i % 2 ? 'rib' : 'ribDark', mid.setX(x + dir * 0.18), new THREE.Euler(-ang, 0, 0));
+  }
+  k.graphic('SECTION JOINT · PRESSURE RING', new THREE.Vector3(x + dir * 0.36, y + 2.62, 0), dir > 0 ? Math.PI / 2 : -Math.PI / 2, 1.6, 0.24, { band: '#e2a21b', fg: '#141414', chevrons: true });
+}
+
+/** The wardroom's vertical garden: a planted slope rising from the deck to the ceiling. */
+function gardenSlope(k: Kit, xFace: number, z0: number, z1: number, y: number): void {
+  const depth = 1.25;
+  const top = 2.2;
+  const len = Math.hypot(depth, top);
+  const ang = Math.atan2(top, depth);
+  const mid = new THREE.Vector3(xFace + depth / 2, y + top / 2, (z0 + z1) / 2);
+  k.b.geo(new THREE.BoxGeometry(len, 0.08, z1 - z0), 'soil', mid, new THREE.Euler(0, 0, Math.PI - ang));
+  k.b.box(xFace, y, z0 - 0.08, xFace + depth + 0.05, y + 0.12, z0, 'ribDark', false);
+  k.b.box(xFace, y, z1, xFace + depth + 0.05, y + 0.12, z1 + 0.08, 'ribDark', false);
+  let sd = 7;
+  const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 160; i++) {
+    const t = rnd();
+    const z = z0 + 0.15 + rnd() * (z1 - z0 - 0.3);
+    const px = xFace + depth * (1 - t) + 0.05;
+    const py = y + top * t + 0.05;
+    const size = 0.07 + rnd() * 0.12;
+    if (rnd() > 0.4) k.b.geo(new THREE.IcosahedronGeometry(size, 0), rnd() > 0.5 ? 'plant' : 'plantDark', new THREE.Vector3(px + 0.04, py, z), new THREE.Euler(rnd(), rnd(), rnd()));
+    else k.b.geo(new THREE.ConeGeometry(size * 0.6, size * 3, 5), 'plant', new THREE.Vector3(px + 0.06, py + size, z), new THREE.Euler((rnd() - 0.5) * 0.5, rnd() * 3, -0.5));
+  }
+  k.b.box(xFace + 0.05, y + 2.32, z0, xFace + 0.25, y + 2.38, z1, 'ribDark', false);
+  k.b.box(xFace + 0.08, y + 2.3, z0 + 0.1, xFace + 0.22, y + 2.32, z1 - 0.1, 'growLight', false);
+  k.world.add(xFace, y, z0, xFace + depth, y + 1.2, z1);
+  k.item({ id: k.uid('garden'), min: [xFace, y + 0.4, z0], max: [xFace + depth, y + 2.0, z1], prompt: 'The vertical garden', action: 'flavor', data: 'garden' });
 }

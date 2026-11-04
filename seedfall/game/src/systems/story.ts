@@ -9,7 +9,7 @@ export const VESTA_ROOMS: Record<string, string> = {
   gym: 'Gymnasium and showers. Muscle atrophy after long cryo is normal. Walk it off.',
   arbor: 'The arboretum. Forty thousand seed lines for Haven. These are the few we let grow.',
   'c-corridor': 'Deck One, command.',
-  bridge: 'The bridge. Orbital insertion is complete. We are four hundred and ten kilometres above KX-7c.',
+  bridge: 'The bridge. Opening the blinders. Orbital insertion is complete; we are four hundred and ten kilometres above KX-7c.',
   dome: 'Observation dome. The telescope is calibrated for surface survey.',
   comms: 'Comms and navigation. The signal is still playing. It has not stopped for thirty-one hours.',
   ready: "The captain's ready room. She has not slept in it.",
@@ -19,9 +19,9 @@ export const VESTA_ROOMS: Record<string, string> = {
   specimen: 'Specimen containment. Currently empty. Protocol Seven requires it to stay that way until decontamination is verified.',
   lifesupport: 'Life support. Everything you are breathing passes through this room twice an hour.',
   workshop: "Workshop and armory. Firearms are released on the captain's authority only.",
-  stores: 'Stores. Inventory is complete, except for one missing roll of tape I am choosing not to think about.',
   spine: 'Main spine. Cryo Vault Three is to port. The hangar is aft.',
-  vault: 'Cryo Vault Three. Seventy-two sleepers in this section. Two did not survive the flare.',
+  vault: 'Cryo Vault 3, the nursery. A hundred and forty-four sleepers in this section. Two did not survive the flare. The snow is condensation from the cooling plant. It is harmless, and I find it beautiful.',
+  sleepbay: 'Crew sleep bay. Fourteen pods, in pairs, as the charter intended. Captain Hale\'s pod has been sealed. I am sorry.',
   suitroom: 'Suit room. Your suit has been pressure-tested. Please do not take the helmet off on the surface.',
   decon: 'Decontamination airlock. The cycle takes ninety seconds. Please do not skip it.',
   hangar: 'Hangar bay. The Kestrel is fuelled and cradled. The Mule is in standby.',
@@ -42,7 +42,7 @@ export const MAIL: Mail[] = [
     subject: 'Revival notice',
     date: 'Day 2,214 · 00:40',
     body: [
-      'Specialist, you were revived early. This is a summary of what you missed.',
+      'Specialist, you were revived early, in the crew sleep bay on Deck 3. This is a summary of what you missed.',
       'Day 2,213, 03:12: a stellar flare struck the Meridian while the collector sails were deployed. Port collectors three and four were destroyed. Twelve cryo pods failed. Captain Elias Hale did not survive; his pod caught fire.',
       'Day 2,213, 11:50: during sail repairs, Comms detected a voice broadcasting from KX-7c, an uncharted world 0.2 light-years from our route. It is humming. It has not stopped.',
       'Acting Captain Adaeze Okonkwo ordered a diversion. We achieved orbit at 22:05. You were revived because a survey requires a xenobiologist.',
@@ -115,7 +115,7 @@ export interface Objective {
 }
 
 export const OBJECTIVES: Objective[] = [
-  { id: 'getup', text: 'Get up. Press Space or F.' },
+  { id: 'getup', text: 'Climb out of your pod. Press Space.' },
   { id: 'mail', text: 'Read your messages at the cabin terminal.' },
   { id: 'telescope', text: 'Survey KX-7c with the telescope in the observation dome (Deck 1).' },
   { id: 'orbitalMap', text: 'Check the orbital map on the bridge (Deck 1, forward).' },
@@ -125,6 +125,8 @@ export const OBJECTIVES: Objective[] = [
 export const FREE_ROAM = 'Free time. Explore the Meridian. Sleep in your bunk to save.';
 
 export const FLAVOR: Record<string, string> = {
+  photo: 'You and Sam, the night before launch. Sam is still asleep two pods over, and will stay that way until Haven.',
+  garden: 'The vertical garden. Herbs, lettuce, a stubborn chilli plant. It slopes up the wall so the crew can eat with something green in view.',
   trophy: 'An empty specimen shelf. You built it for Haven. Something tells you it will not stay empty.',
   captainlog: "Captain's log. Locked to Okonkwo's biometrics.\nThe last entry is timestamped four minutes ago.",
   hood: 'Fume hood. Filters at 100%. Nothing to analyse yet.',

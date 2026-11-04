@@ -27,13 +27,15 @@ export class Materials {
   defs = new Map<string, MatDef>();
   signs = new Atlas(2048);
   screens = new Atlas(2048);
+  graphics = new Atlas(2048);
+  coneTex = T.coneGradient();
   lightEmissive: THREE.MeshStandardMaterial[] = [];
   glowTex = T.radialGlow();
   mistTex = T.mist();
 
   constructor(onProgress: (label: string) => void = () => {}) {
-    onProgress('wall padding');
-    const wall = T.paddedWall(21);
+    onProgress('metal wall panels');
+    const wall = T.metalPanels(71);
     const tech = T.techPanels(31);
     onProgress('deck plating');
     const floor = T.floorTiles(2);
@@ -57,32 +59,43 @@ export class Materials {
 
     const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
     const fromSet = (s: T.PBRSet, extra: THREE.MeshStandardMaterialParameters = {}) =>
-      std({ map: s.map, normalMap: s.normalMap, roughnessMap: s.roughnessMap, roughness: 1, ...extra });
+      std({
+        map: s.map,
+        normalMap: s.normalMap,
+        roughnessMap: s.roughnessMap,
+        roughness: 1,
+        ...(s.metal ? { metalnessMap: s.roughnessMap, metalness: 1 } : {}),
+        ...extra,
+      });
 
     const add = (key: string, mat: THREE.Material, tileU = 1, tileV = tileU, opts: Partial<MatDef> = {}) => {
       mat.name = key;
       this.defs.set(key, { mat, tileU, tileV, cast: true, receive: true, pass: 'interior', ...opts });
     };
 
-    add('wall', fromSet(wall, { envMapIntensity: 0.6 }), 2, 4);
-    add('wallDark', fromSet(tech, { envMapIntensity: 0.6 }), 2, 4);
+    add('wall', fromSet(wall, { envMapIntensity: 2.2 }), 2, 4);
+    add('wallDark', fromSet(tech, { color: new THREE.Color(0.55, 0.56, 0.6), metalness: 0.45, envMapIntensity: 1.2 }), 2, 4);
     add('floor', fromSet(floor, { envMapIntensity: 0.5 }), 2, 2);
     add('ceil', fromSet(ceil, { envMapIntensity: 0.4, metalness: 0.3 }), 2, 2);
     add('deckPlate', fromSet(plate, { metalness: 0.65, envMapIntensity: 0.9 }), 1, 1);
     add('grating', fromSet(grate, { metalness: 0.6, envMapIntensity: 0.8 }), 1, 1);
-    add('panel', fromSet(tech, { color: new THREE.Color(0.85, 0.87, 0.9), envMapIntensity: 0.6 }), 2, 4);
+    add('panel', fromSet(tech, { color: new THREE.Color(0.42, 0.43, 0.47), metalness: 0.55, envMapIntensity: 1.2 }), 2, 4);
     add('metal', fromSet(metal, { metalness: 0.75, envMapIntensity: 0.9 }), 1, 1);
     add('steel', fromSet(steel, { metalness: 0.9, envMapIntensity: 1.0 }), 1, 1);
     add('paint', fromSet(paintSet, { envMapIntensity: 0.6 }), 1, 1);
     add('paintGrey', fromSet(paintSet, { color: new THREE.Color(0.42, 0.44, 0.46) }), 1, 1);
     add('paintDark', fromSet(paintSet, { color: new THREE.Color(0.16, 0.17, 0.18) }), 1, 1);
-    add('hullExt', fromSet(hull, { envMapIntensity: 0.7, fog: false }), 4, 4);
+    add('hullExt', fromSet(hull, { color: new THREE.Color(0.55, 0.55, 0.56), metalness: 0.35, envMapIntensity: 0.9, fog: false }), 4, 4);
+    add('landerHull', fromSet(hull, { envMapIntensity: 0.8 }), 4, 4);
     add('hullDark', fromSet(hull, { color: new THREE.Color(0.3, 0.31, 0.32), fog: false }), 4, 4);
     add('fabric', fromSet(fab), 0.5, 0.5);
     add('fabricLight', fromSet(fabLight), 0.5, 0.5);
     add('fabricAmber', fromSet(fabAmber), 0.5, 0.5);
     add('rubber', std({ color: 0x151719, roughness: 0.85 }), 1, 1);
-    add('rib', fromSet(paintSet, { color: new THREE.Color(0.5, 0.52, 0.55), metalness: 0.35, envMapIntensity: 0.8 }), 1, 1);
+    add('rib', fromSet(metal, { color: new THREE.Color(2.4, 2.35, 2.3), metalness: 0.8, envMapIntensity: 1.6 }), 1, 1);
+    add('gold', fromSet(metal, { color: new THREE.Color(6.5, 5.4, 3.6), metalness: 0.95, envMapIntensity: 2.2 }), 1, 1);
+    add('podShell', fromSet(paintSet, { color: new THREE.Color(1.08, 1.08, 1.06), roughness: 0.55, envMapIntensity: 1.1 }), 1, 1);
+    add('soot', std({ color: 0x0a0807, roughness: 0.95 }), 1, 1);
     add('ribDark', fromSet(metal, { color: new THREE.Color(1.6, 1.65, 1.75), metalness: 0.6, envMapIntensity: 0.9 }), 1, 1);
     add('warning', fromSet(paintSet, { color: new THREE.Color(1.15, 0.78, 0.12) }), 1, 1);
     add('emergency', fromSet(paintSet, { color: new THREE.Color(0.95, 0.12, 0.08) }), 1, 1);
@@ -100,7 +113,7 @@ export class Materials {
     const light = emissive(0xfff4e8, 4.5);
     const lightCold = emissive(0xbfe6ff, 3.0);
     const lightWarm = emissive(0xffc98a, 3.0);
-    const strip = emissive(0xe8f2ff, 3.4);
+    const strip = emissive(0xffe6c4, 3.4);
     strip.name = 'lightStrip';
     const led = emissive(0x4fb8ff, 1.6);
     this.lightEmissive.push(light, lightWarm, strip);
@@ -121,6 +134,19 @@ export class Materials {
       'screen',
       std({ color: 0x000000, emissive: 0xffffff, emissiveMap: this.screens.texture, emissiveIntensity: 1.25, roughness: 0.12, metalness: 0 }),
       0, 0, { cast: false },
+    );
+    add(
+      'decal',
+      std({
+        map: this.graphics.texture,
+        roughness: 0.55,
+        transparent: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -3,
+      }),
+      0, 0, { cast: false, receive: true },
     );
     add(
       'sign',
@@ -205,7 +231,7 @@ export class Materials {
       m.emissiveIntensity = base * (1 - night * 0.72);
     }
     const strip = this.lightEmissive[2];
-    strip.emissive.setRGB(0.91, 0.95 - night * 0.25, 1 - night * 0.5);
+    strip.emissive.setRGB(1, 0.9 - night * 0.2, 0.77 - night * 0.4);
     const light = this.lightEmissive[0];
     light.emissive.setRGB(1, 0.957 - night * 0.2, 0.91 - night * 0.42);
   }

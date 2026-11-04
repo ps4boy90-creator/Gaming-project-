@@ -157,6 +157,42 @@ the first and invent the second.
 
 ---
 
+## 9. Design research: how the *Covenant* actually looks (applied to the *Meridian*)
+
+This is a second research pass, made to bring the *Meridian* closer to the film's ship design
+language. It covers what the people who built the *Covenant* say, and how each point was used.
+Names, logos and markings stay our own.
+
+| What the sources say | Source | How the *Meridian* uses it |
+|---|---|---|
+| Seagers pulled references from **oil rigs** ("like spaceships… full of technology") and the industrial world | Set Decorators Society | Pipe runs, cable trays, valves, power panels, junction boxes and grating in every corridor |
+| **Low ceilings**: "If you can't touch the ceiling, you won't see it"; bridge ceilings about 2 m | Collider set visit | Ceilings dropped to 2.6 m (bridge 2.45 m) with angled corner panels |
+| Corridors **cloaked in darkness**, with **detail on all four surfaces** | Set Decorators Society | Darker lighting in pools, downlights and ceiling boxes between ribs, floor LEDs, wall equipment |
+| Built of MDF and painted in a **specialist silver and gold paint** for a sleek metallic look | Screen Global Production | New champagne-gold metal wall panels (some ribbed) with real per-texel metalness, over dark gunmetal |
+| "**Not a grungy ship**": brand new, maiden voyage, little wear | Set Decorators Society | Clean surfaces; wear kept to scuffs at floor level |
+| **Analogue** controls (thrusters, joysticks, knobs, toggles, switches), reminiscent of the *Nostromo* | Set Decorators Society | Consoles covered in toggles, knobs and lit buttons; pilot joysticks and throttle quadrants |
+| Screen graphics drew on **1980s tech aesthetics** | Production accounts (secondary) | Console screens redrawn as green and amber phosphor CRTs with glow and scanlines |
+| Bridge: **asymmetrical, split-level** floor plan | Steve Burg concept captions | Raised forward flight deck with a hazard-edged step and rails |
+| "**Blinders** on the bridge windows open. Distant sunlight spills over the captain's chair" | 2015 script draft | Louvred blinders that swing open the first time you step onto the bridge |
+| Crew sleep bay: pods "**set in pairs. Two by two**"; pods with **black-bordered windows** and upholstered interiors | Script draft; Jeremy Love | New Crew Sleep Bay on Deck 3: 14 pods in 7 pairs; you now wake up in yours |
+| The Nursery: "**like a gigantic snow globe**… gentle snow… frost"; **modular segments**, **gantry** for moving pods, **large doors** | Script draft; Steve Burg captions | Cryo Vault 3 now has two tiers of pods on racks, an overhead gantry, and falling snow |
+| Wardroom: "one wall is a dramatic **vertical garden** that slopes up from the floor" | Script draft | Planted slope on the galley's aft wall under grow lights |
+| Terraforming bay: "gigantic, shadowy chamber… **enormous vehicles**… clamped and tethered… like silent dinosaurs"; **downward spotlights** | Script draft; Art of VFX (Rising Sun) | Hangar: a strapped-down yellow earthmover, dim lighting with light shafts under the lamps |
+| The ship is "like a cargo train, **three sections with hexagonal junctions**" | Set Decorators Society | Spine rebuilt as a hexagonal tube, with hexagonal pressure rings where it joins the habitat and the aft section |
+| "**Bold graphics** applied to all the sets" | Steve Burg | Painted frame numbers on every corridor bay, pressure-door warning bands, section-joint markings |
+| A "**Lego kit**" of modular, shared-language sets | Screen Global Production; Collider | Every room is built from the same kit of walls, ribs, chamfers and fittings |
+| Exterior: about **20,000 hull lights**; golden mylar energy sails | fxguide; Art of VFX | Darker gunmetal hull and golden sails (hull lights are a later pass) |
+
+Additional sources for this section:
+
+- Set Decorators Society of America, "ALIEN: COVENANT" (Victor J. Zolfo, Chris Seagers). <https://www.setdecorators.org/?art=film_decor_features&SHOW=SetDecor_Film_ALIEN_COVENANT>
+- Collider, "Alien: Covenant: 70+ Things to Know" (set visit). <https://collider.com/alien-covenant-spoilers-things-to-know>
+- Jeremy Love, ArtStation, "ALIEN COVENANT" (consoles, cryo pod windows, terraforming truck). <https://jeremylove.artstation.com/projects/9gmNQ>
+- Steve Burg, ArtStation, "Alien Covenant – Early Ship Development". <https://steveburg.artstation.com/projects/42b6l>
+- The Art of VFX, interviews with Charley Henley (MPC) and Anthony Smith (Rising Sun Pictures). <https://www.artofvfx.com/alien-covenant-charley-henley-production-vfx-supervisor-mpc/>
+- fxguide, "Alien Covenant: By Land and Air". <https://www.fxguide.com/fxfeatured/alien-covenant-by-land-and-air>
+- Variety, "Design Crew Collaborates to Realize Scary Vision for 'Alien: Covenant'". <https://variety.com/2017/artisans/production/alien-covenant-design-1202443465>
+
 ## Sources
 
 - Wikipedia, *Alien: Covenant*: plot, production, filming, reception. <https://en.wikipedia.org/wiki/Alien:_Covenant>

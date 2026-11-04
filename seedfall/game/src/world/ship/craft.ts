@@ -42,7 +42,7 @@ export function buildKestrel(k: Kit, p: Place): void {
   const remap = new THREE.Matrix4().set(0, 0, 1, -2.0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1);
   // that matrix maps (X,Y,Z) → (Z-2, Y, X): det = -1, so flip winding by mirroring Z first
   const mirror = new THREE.Matrix4().makeScale(1, 1, -1).setPosition(0, 0, 4.0);
-  put(body, 'hullExt', V(0, 0, 0), new THREE.Euler(), remap.multiply(mirror));
+  put(body, 'landerHull', V(0, 0, 0), new THREE.Euler(), remap.multiply(mirror));
   // cockpit glazing
   put(new THREE.BoxGeometry(3.6, 0.08, 3.05), 'blackGlass', V(0, 4.05, 8.85), new THREE.Euler(0.448, 0, 0));
   for (const s of [-1, 1]) {
@@ -59,7 +59,7 @@ export function buildKestrel(k: Kit, p: Place): void {
     w.closePath();
     const wing = new THREE.ExtrudeGeometry(w, { depth: 0.32, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2 });
     const perm = new THREE.Matrix4().set(0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1);
-    put(wing, 'hullExt', V(0, 2.25, 0), new THREE.Euler(), perm);
+    put(wing, 'landerHull', V(0, 2.25, 0), new THREE.Euler(), perm);
     // nacelle
     const nac = new THREE.CylinderGeometry(0.85, 0.85, 5.6, 24);
     put(nac, 'hullDark', V(s * 7.2, 2.45, -7.6), new THREE.Euler(Math.PI / 2, 0, 0));
@@ -67,7 +67,7 @@ export function buildKestrel(k: Kit, p: Place): void {
     put(new THREE.CircleGeometry(0.6, 24), 'paintDark', V(s * 7.2, 2.45, -10.5), new THREE.Euler(0, Math.PI, 0));
     put(new THREE.SphereGeometry(0.85, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), 'hullDark', V(s * 7.2, 2.45, -4.8), new THREE.Euler(Math.PI / 2, 0, 0));
     // tail fin
-    put(new THREE.BoxGeometry(0.18, 2.4, 3.2), 'hullExt', V(s * 1.5, 6.3, -8.6), new THREE.Euler(-0.35, 0, s * 0.3));
+    put(new THREE.BoxGeometry(0.18, 2.4, 3.2), 'landerHull', V(s * 1.5, 6.3, -8.6), new THREE.Euler(-0.35, 0, s * 0.3));
   }
   // main engines
   for (const s of [-1, 1]) {
@@ -104,11 +104,11 @@ export function buildMule(k: Kit, p: Place): void {
   k.b.pbox(p, -3.02, 2.25, -6.5, 3.02, 2.28, -6.1, 'hazard', false);
   k.b.pbox(p, -3.02, 2.25, -6.5, -2.7, 2.28, 6, 'hazard', false);
   k.b.pbox(p, 2.7, 2.25, -6.5, 3.02, 2.28, 6, 'hazard', false);
-  k.b.pbox(p, -1.5, 2.25, 4.4, 1.5, 4.7, 7.1, 'hullExt', false, 0.3);
+  k.b.pbox(p, -1.5, 2.25, 4.4, 1.5, 4.7, 7.1, 'landerHull', false, 0.3);
   put(new THREE.BoxGeometry(2.6, 0.06, 1.3), 'blackGlass', V(0, 4.1, 7.0), new THREE.Euler(0.6, 0, 0));
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
     const c = V(sx * 3.75, 2.2, sz * 4.6);
-    put(new THREE.CylinderGeometry(0.9, 0.9, 2.4, 24), 'hullExt', c);
+    put(new THREE.CylinderGeometry(0.9, 0.9, 2.4, 24), 'landerHull', c);
     put(new THREE.CylinderGeometry(0.7, 0.85, 0.4, 24, 1, true), 'metal', V(c.x, 0.85, c.z));
     k.b.pbox(p, Math.min(sx * 2.9, sx * 3.0), 1.9, sz * 4.6 - 0.3, Math.max(sx * 2.9, sx * 3.0) + (sx > 0 ? 0 : 0), 2.1, sz * 4.6 + 0.3, 'metal', false);
     k.b.cyl(L(p, sx * 2.6, 0, sz * 3.2), L(p, sx * 2.6, 1.6, sz * 3.2), 0.12, 'steel');

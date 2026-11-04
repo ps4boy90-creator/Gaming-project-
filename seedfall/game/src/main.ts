@@ -11,6 +11,7 @@ import { Kit, Item, Room, Seat } from './world/ship/kit';
 import { buildLayout, DECK_Y, ShipRefs } from './world/ship/layout';
 import { Builder } from './world/ship/builder';
 import { buildExterior } from './world/ship/exterior';
+import { Blinds } from './world/ship/blinds';
 import { OrbitView } from './world/orbit/orbit';
 import { Player } from './player/player';
 import { AudioEngine } from './audio/audio';
@@ -63,6 +64,9 @@ class Game {
   private prevFov = 75;
   private returnTo: 'title' | 'paused' = 'title';
   private holo: THREE.Mesh | null = null;
+  private blinds!: Blinds;
+  private snow: THREE.Points | null = null;
+  private snowVel: Float32Array | null = null;
   private hotSave: SaveData | null = null;
 
   async boot(): Promise<void> {
@@ -89,7 +93,7 @@ class Game {
     const pmrem = new THREE.PMREMGenerator(r);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.interior.environment = env;
-    this.interior.environmentIntensity = 0.16;
+    this.interior.environmentIntensity = 0.14;
     this.over.environment = env;
     this.over.environmentIntensity = 0.12;
     this.interior.fog = new THREE.FogExp2(0x0b0f12, 0.006);
@@ -119,6 +123,9 @@ class Game {
     this.mats.screens.commit();
     this.addHologram();
     this.addMist();
+    this.addSnow();
+    this.addCones();
+    this.blinds = new Blinds(this.interior, this.mats, this.refs.blinds);
 
     this.hud.setLoading('Imaging KX-7c from orbit…', 0.62);
     await frame();
@@ -232,6 +239,74 @@ class Game {
       m.userData.speed = 0.004 + i * 0.002;
       m.name = 'mist';
       m.renderOrder = 3;
+      this.interior.add(m);
+    }
+  }
+
+  /** Bridge blinders open the first time you step onto the bridge, and stay open. */
+  private updateBlinds(dt: number): void {
+    if (this.room?.id === 'bridge' && !this.flags.blinds && (this.state === 'play' || this.state === 'busy')) {
+      this.flags.blinds = true;
+      this.blinds.target = 1;
+      this.audio.play('scope');
+    }
+    this.blinds.update(dt);
+  }
+
+  /** Gentle snow in the nursery: condensation falling from the cooling plant. */
+  private addSnow(): void {
+    const box = this.refs.snowBox;
+    const n = this.settings.quality === 'low' ? 900 : 2200;
+    const pos = new Float32Array(n * 3);
+    this.snowVel = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      pos[i * 3] = box.min.x + Math.random() * (box.max.x - box.min.x);
+      pos[i * 3 + 1] = box.min.y + Math.random() * (box.max.y - box.min.y);
+      pos[i * 3 + 2] = box.min.z + Math.random() * (box.max.z - box.min.z);
+      this.snowVel[i] = 0.12 + Math.random() * 0.22;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({ color: 0xdff2ff, size: 0.03, transparent: true, opacity: 0.75, depthWrite: false, map: this.mats.glowTex, alphaTest: 0.02 });
+    this.snow = new THREE.Points(g, m);
+    this.snow.frustumCulled = false;
+    this.interior.add(this.snow);
+  }
+
+  private updateSnow(dt: number): void {
+    if (!this.snow || !this.snowVel) return;
+    const near = this.camera.position.x < -18 && this.camera.position.x > -70 && this.camera.position.y < 5;
+    this.snow.visible = near;
+    if (!near) return;
+    const box = this.refs.snowBox;
+    const a = this.snow.geometry.attributes.position as THREE.BufferAttribute;
+    const p = a.array as Float32Array;
+    const t = this.elapsed;
+    for (let i = 0; i < this.snowVel.length; i++) {
+      p[i * 3 + 1] -= this.snowVel[i] * dt;
+      p[i * 3] += Math.sin(t * 0.7 + i) * 0.04 * dt;
+      p[i * 3 + 2] += Math.cos(t * 0.5 + i * 1.3) * 0.04 * dt;
+      if (p[i * 3 + 1] < box.min.y) p[i * 3 + 1] = box.max.y;
+    }
+    a.needsUpdate = true;
+  }
+
+  /** Light shafts under the hangar lamps. */
+  private addCones(): void {
+    const mat = new THREE.MeshBasicMaterial({
+      map: this.mats.coneTex,
+      color: 0xffe2b8,
+      transparent: true,
+      opacity: 0.04,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    for (const c of this.kit.cones) {
+      const g = new THREE.CylinderGeometry(0.45, 2.3, c.h, 28, 1, true);
+      const m = new THREE.Mesh(g, mat);
+      m.position.set(c.x, c.y - c.h / 2, c.z);
+      m.renderOrder = 4;
       this.interior.add(m);
     }
   }
@@ -400,9 +475,9 @@ class Game {
     this.orbit.time = 0;
     await this.hud.fade(1, 400);
     this.beginPlay();
-    const bunk = this.kit.seats.find((s) => s.id === this.refs.bedSeatId)!;
-    this.player.teleport(bunk.exitX, DECK_Y.crew, bunk.exitZ, bunk.yaw);
-    this.player.sitAt(bunk);
+    const pod = this.kit.seats.find((s) => s.id === this.refs.podSeatId)!;
+    this.player.teleport(pod.exitX, DECK_Y.science, pod.exitZ, pod.yaw);
+    this.player.sitAt(pod);
     this.player.update(1, this.input, false, false, false);
     this.state = 'busy';
     this.updateObjective();
@@ -411,7 +486,7 @@ class Game {
     this.audio.play('breath');
     await wait(2200);
     this.vesta('Good morning, Specialist. Ship time oh-six-forty, day two thousand two hundred and fourteen.');
-    this.vesta('You were revived early. Your messages explain why. Please take your time; cryo legs are unreliable.');
+    this.vesta('You were revived early. Your messages explain why. Your quarters are on Deck 2. Please take your time; cryo legs are unreliable.');
     this.state = 'play';
   }
 
@@ -424,6 +499,7 @@ class Game {
     this.clock.minutes = s.shipMinutes;
     this.player.teleport(s.player.x, s.player.y, s.player.z, s.player.yaw, s.player.pitch);
     this.updateObjective();
+    if (this.flags.blinds) this.blinds.target = 1;
     void this.hud.fade(0, 1200);
     this.hud.toast('Welcome back', this.clock.format());
   }
@@ -535,6 +611,8 @@ class Game {
     // world animation
     this.orbit.update(dt, this.camera.position);
     this.updateLighting(dt);
+    this.updateBlinds(dt);
+    this.updateSnow(dt);
     if (this.holo) {
       this.holo.rotation.y += dt * 0.25;
       (this.holo.parent!.children[2] as THREE.Mesh).rotation.z += dt * 0.6;
@@ -563,7 +641,7 @@ class Game {
     this.sun.intensity = 3.4 * this.orbit.sunVisible;
     this.hemi.position.copy(this.orbit.planetDir).negate();
     this.hemi.groundColor.setRGB(0.42, 0.5, 0.44).multiplyScalar(0.25 + this.orbit.litFraction * 0.75);
-    this.hemi.intensity = 0.35;
+    this.hemi.intensity = 0.22;
   }
 
   private titleCamera(dt: number): void {

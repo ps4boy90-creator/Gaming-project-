@@ -12,10 +12,14 @@ const views = [
   ['cabin', -10.4, 4, 3.2, 2.62, -0.08],
   ['lounge', -3.2, 4, 3.3, Math.PI, -0.12],
   ['galley', 2.6, 4, 2.2, 2.3, -0.1],
-  ['bridge2', 10.5, 8, 0.4, -Math.PI / 2, -0.05],
+  ['bridge2', 9.2, 8, 0.6, -Math.PI / 2 + 0.05, -0.02],
   ['corridor2', -12.8, 4, 0, -Math.PI / 2, -0.04],
   ['dome', -4.6, 8, 2.4, 2.6, -0.28],
   ['planet', 1.0, 8, 7.4, Math.PI + 0.25, -0.5],
+  ['sleepbay', 10.8, 0, -3.0, 0.98, -0.12],
+  ['sleepbay2', 0.9, 0, -4.2, 0.35, -0.32],
+  ['garden', 8.5, 4, 5.2, Math.PI / 2 + 0.2, -0.05],
+  ['hangar2', -83.2, 0, -4.6, 0.92, 0.12],
   ['aft', 6.0, 8, 7.6, Math.PI - 0.9, -0.05],
   ['bridge', 9.0, 8, -1.6, -1.2, -0.1],
   ['lab', -13.2, 0, 2.4, -2.2, -0.15],
@@ -44,7 +48,8 @@ await page.evaluate(() => window.__seedfall.startPlay());
 for (const [name, x, y, z, yaw, pitch] of views) {
   if (only && !only.split(',').includes(name)) continue;
   await page.evaluate(([x, y, z, yaw, pitch]) => window.__seedfall.teleport(x, y, z, yaw, pitch), [x, y, z, yaw, pitch]);
-  await page.waitForTimeout(1800);
+  await page.evaluate(() => window.__seedfall.step(3.5));
+  await page.waitForTimeout(1500);
   await page.screenshot({ path: `${out}/${name}.png` });
   console.log(name, JSON.stringify(await page.evaluate(() => window.__seedfall.info())));
 }
