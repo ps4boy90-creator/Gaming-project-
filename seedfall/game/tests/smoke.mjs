@@ -116,13 +116,21 @@ check('stand up again', (await S(() => window.__seedfall.mode())) === 'walk');
 await tp(9.0, 8, 0, -Math.PI / 2, 0);
 await step(4);
 check('bridge blinders open when you walk in', !!(await S(() => window.__seedfall.flags().blinds)));
-await tp(15.5, 8.24, 0.82, -Math.PI / 2, 0);
-await aim(16.47, 8.76, 0.82);
+await tp(12.35, 8.22, 0.48, -Math.PI / 2, 0);
+await aim(13.14, 8.74, 0.48);
 const pp = await S(() => window.__seedfall.prompt());
 check('pilot seat prompt on the flight deck', /Pilot seat/.test(pp ?? ''), String(pp));
 await press('f', 0.9);
 check('sit in the pilot seat', (await S(() => window.__seedfall.mode())) === 'seated');
 await press('Space', 0.5);
+// walk from the bridge door, round the captain's chair, up onto the flight deck
+await tp(8.6, 8, 0.0, -Math.PI / 2, 0);
+await S(() => window.__seedfall.look(-Math.PI / 2 - 0.35, 0));
+await hold('w', 900);
+await S(() => window.__seedfall.look(-Math.PI / 2, 0));
+await hold('w', 2200);
+const pd = await S(() => window.__seedfall.info().pos);
+check('walk from the door up onto the flight deck', pd[0] > 11.6 && pd[1] > 8.2, `x ${pd[0].toFixed(2)} y ${pd[1].toFixed(2)}`);
 
 // telescope
 await tp(6.6, 8, 6.3, Math.PI, 0);

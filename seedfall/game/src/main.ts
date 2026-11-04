@@ -266,6 +266,7 @@ class Game {
     });
     g.add(beam, planet, ring, readouts);
     g.position.copy(this.refs.holoPos);
+    g.scale.setScalar(this.refs.holoScale);
     g.userData.readouts = readouts;
     this.interior.add(g);
     this.holo = planet;

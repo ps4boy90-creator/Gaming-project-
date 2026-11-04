@@ -149,7 +149,7 @@ MetaHumans for the crew.
 Each milestone ends in something **playable**, with a clear "done when" test.
 
 **Progress:** ✅ M0 Setup · ✅ M1 "Home" · ⏭️ next: M2 "Between ships" (the Kestrel round trip).
-M1 passes a 36-check automated playtest (`game/tests/smoke.mjs`). The walk from your cabin to
+M1 passes a 37-check automated playtest (`game/tests/smoke.mjs`). The walk from your cabin to
 the hangar takes about 30 seconds, including the lift ride.
 
 | # | Milestone | Scope | Done when… |

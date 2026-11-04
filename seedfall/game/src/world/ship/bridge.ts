@@ -114,10 +114,11 @@ function facetConsole(k: Kit, f: ReturnType<typeof facet>, y: number, depth: num
 }
 
 /** A canopy facet: lower wall, posts, header, glass, inner trims with a warm light line. */
-function canopyFacet(k: Kit, f: ReturnType<typeof facet>, y: number, sill: number, top: number): void {
+function canopyFacet(k: Kit, f: ReturnType<typeof facet>, y: number, sill: number, top: number, H: number): void {
   const c = frame(k, f.mx, y, f.mz, f.m);
   const L = f.len;
-  const post = 0.16;
+  const post = 0.13;
+  void H;
   c.box(-L / 2, 0, -0.16, L / 2, sill, 0.16, 'wallDark');
   c.box(-L / 2, top, -0.18, L / 2, 2.62, 0.18, 'ribDark');
   c.box(-L / 2, 0, -0.19, -L / 2 + post, 2.62, 0.19, 'ribDark');
@@ -147,121 +148,129 @@ function slab(k: Kit, pts: Pt[], y0: number, thick: number, key: string): void {
   k.b.add(g, key);
 }
 
-export function buildBridge(k: Kit, y: number, accentDeck: string, blinds: BlindSpec[]): THREE.Vector3 {
-  const H = 2.45;
-  const inside: Pt = { x: 12, z: 0 };
+export interface BridgeResult {
+  holoPos: THREE.Vector3;
+  holoScale: number;
+}
+
+export function buildBridge(k: Kit, y: number, accentDeck: string, blinds: BlindSpec[]): BridgeResult {
+  // compact, like the Covenant's: about 6.4 m deep, 7.2 m wide, 2.35 m to the ceiling
+  const H = 2.35;
+  const W = 3.6; // half width
+  const inside: Pt = { x: 11, z: 0 };
   // nose outline from the starboard side round to port
   const nose: Pt[] = [
-    { x: 12.5, z: 6.0 },
-    { x: 15.0, z: 5.6 },
-    { x: 16.9, z: 4.0 },
-    { x: 17.9, z: 1.5 },
-    { x: 17.9, z: -1.5 },
-    { x: 16.9, z: -4.0 },
-    { x: 15.0, z: -5.6 },
-    { x: 12.5, z: -6.0 },
+    { x: 11.0, z: W },
+    { x: 12.6, z: 3.25 },
+    { x: 13.8, z: 2.1 },
+    { x: 14.4, z: 0.75 },
+    { x: 14.4, z: -0.75 },
+    { x: 13.8, z: -2.1 },
+    { x: 12.6, z: -3.25 },
+    { x: 11.0, z: -W },
   ];
-  k.room({ id: 'bridge', name: 'Bridge', deck: 'command', x0: 8, x1: 17.9, z0: -6, z1: 6, y0: y, h: H, ambience: 'hab' }, { floor: 'none', ceil: null, profile: 'none', intensity: 2.4, lightColor: 0xffd9b0 });
-  const outline: Pt[] = [{ x: 8, z: 6 }, ...nose, { x: 8, z: -6 }];
+  k.room({ id: 'bridge', name: 'Bridge', deck: 'command', x0: 8, x1: 14.4, z0: -W, z1: W, y0: y, h: H, ambience: 'hab' }, { floor: 'none', ceil: null, profile: 'none', intensity: 2.0, lightColor: 0xffd9b0 });
+  const outline: Pt[] = [{ x: 8, z: W }, ...nose, { x: 8, z: -W }];
   slab(k, outline, y - 0.2, 0.2, 'floor');
   slab(k, outline, y + H, 0.25, 'ceil');
-  k.world.add(8, y - 0.2, -6, 17.9, y, 6);
-  k.world.add(8, y + H, -6, 17.9, y + H + 0.25, 6);
+  k.world.add(8, y - 0.2, -W, 14.4, y, W);
+  k.world.add(8, y + H, -W, 14.4, y + H + 0.25, W);
 
-  // side walls with a viewport each, then the faceted canopy
+  // side walls with a small viewport each, then the faceted canopy
   const side = (z: number, dir: 1 | -1) => {
-    const op: Opening = { at: 10.3, w: 2.2, y0: 0.8, y1: 2.05, kind: 'window' };
-    k.wallZ(z, 8, 12.5, y, { t: 0.4, offset: z > 0 ? 0.2 : -0.2, openings: [op] });
-    blinds.push(wallBlind('z', z, dir, 10.3, 2.2, y, 0.8, 2.05));
+    const op: Opening = { at: 9.7, w: 1.3, y0: 0.9, y1: 1.95, kind: 'window' };
+    k.wallZ(z, 8, 11.0, y, { t: 0.4, offset: z > 0 ? 0.2 : -0.2, openings: [op] });
+    blinds.push(wallBlind('z', z, dir, 9.7, 1.3, y, 0.9, 1.95));
   };
-  side(6, -1);
-  side(-6, 1);
+  side(W, -1);
+  side(-W, 1);
   const facets = nose.slice(0, -1).map((a, i) => facet(a, nose[i + 1], inside));
   for (const f of facets) {
-    canopyFacet(k, f, y, 0.7, 2.05);
-    blinds.push({ x: f.mx + f.nx * 0.15, z: f.mz + f.nz * 0.15, yaw: f.m, w: f.len - 0.34, y, y0: 0.7, y1: 2.05 });
+    canopyFacet(k, f, y, 0.72, 1.98, H);
+    blinds.push({ x: f.mx + f.nx * 0.15, z: f.mz + f.nz * 0.15, yaw: f.m, w: f.len - 0.34, y, y0: 0.72, y1: 1.98 });
   }
 
   // raised forward flight deck (split level), hazard edge, rails with a gap at the centre
-  const ry = 0.24;
-  const deckPts: Pt[] = [{ x: 14.2, z: 5.73 }, ...nose.slice(1, -1), { x: 14.2, z: -5.73 }];
+  const ry = 0.22;
+  const DX = 11.4;
+  const dz = 3.51; // canopy half-width at the deck edge
+  const deckPts: Pt[] = [{ x: DX, z: dz }, ...nose.slice(1, -1), { x: DX, z: -dz }];
   slab(k, deckPts, y, ry, 'deckPlate');
-  k.world.add(14.2, y, -5.73, 17.9, y + ry, 5.73);
-  k.b.box(14.16, y, -5.7, 14.24, y + ry + 0.012, 5.7, 'hazard', false);
-  k.b.box(14.24, y + ry, -5.6, 14.3, y + ry + 0.012, 5.6, 'ledStrip', false);
-  for (const [z0, z1] of [[1.1, 5.6], [-5.6, -1.1]]) {
-    k.b.cyl(V(14.2, y + ry + 0.95, z0), V(14.2, y + ry + 0.95, z1), 0.025, 'steel', 8);
-    for (const zz of [z0, (z0 + z1) / 2, z1]) k.b.cyl(V(14.2, y, zz), V(14.2, y + ry + 0.95, zz), 0.02, 'steel', 6);
-    k.world.add(14.15, y, Math.min(z0, z1), 14.25, y + 1.2, Math.max(z0, z1));
+  k.world.add(DX, y, -dz, 14.4, y + ry, dz);
+  k.b.box(DX - 0.04, y, -dz + 0.05, DX + 0.04, y + ry + 0.012, dz - 0.05, 'hazard', false);
+  k.b.box(DX + 0.04, y + ry, -dz + 0.1, DX + 0.1, y + ry + 0.012, dz - 0.1, 'ledStrip', false);
+  for (const [z0, z1] of [[1.1, dz - 0.15], [-dz + 0.15, -1.1]]) {
+    k.b.cyl(V(DX, y + ry + 0.9, z0), V(DX, y + ry + 0.9, z1), 0.025, 'steel', 8);
+    for (const zz of [z0, (z0 + z1) / 2, z1]) k.b.cyl(V(DX, y, zz), V(DX, y + ry + 0.9, zz), 0.02, 'steel', 6);
+    k.world.add(DX - 0.05, y, Math.min(z0, z1), DX + 0.05, y + 1.15, Math.max(z0, z1));
   }
   const fy = y + ry;
 
   // consoles following the glass
-  facetConsole(k, facets[3], fy, 0.7, ['nav', 'telemetry', 'orbit', 'status'], 141);
-  facetConsole(k, facets[2], fy, 0.62, ['comms', 'telemetry', 'status'], 151);
-  facetConsole(k, facets[4], fy, 0.62, ['status', 'orbit', 'nav'], 161);
-  facetConsole(k, facets[1], fy, 0.62, ['comms', 'telemetry'], 171);
-  facetConsole(k, facets[5], fy, 0.62, ['status', 'telemetry'], 181);
+  facetConsole(k, facets[3], fy, 0.58, ['nav', 'orbit'], 141);
+  facetConsole(k, facets[2], fy, 0.52, ['telemetry', 'status'], 151);
+  facetConsole(k, facets[4], fy, 0.52, ['status', 'nav'], 161);
+  facetConsole(k, facets[1], fy, 0.5, ['comms', 'telemetry'], 171);
+  facetConsole(k, facets[5], fy, 0.5, ['status', 'telemetry'], 181);
 
-  // pilot and co-pilot face the front glass; comms and systems face their own facets
-  flightChair(k, 16.45, fy, 0.82, Math.PI / 2, 'Pilot seat');
-  flightChair(k, 16.45, fy, -0.82, Math.PI / 2, 'Co-pilot seat');
+  // pilot and co-pilot shoulder to shoulder at the nose; comms and systems at their facets
+  flightChair(k, 13.12, fy, 0.48, Math.PI / 2, 'Pilot seat');
+  flightChair(k, 13.12, fy, -0.48, Math.PI / 2, 'Co-pilot seat');
   for (const [fi, label] of [[1, 'Comms station'], [5, 'Systems station']] as const) {
     const f = facets[fi];
-    const d = 0.16 + 0.62 + 0.62;
+    const d = 0.16 + 0.5 + 0.55;
     flightChair(k, f.mx + f.nx * d, fy, f.mz + f.nz * d, f.m + Math.PI, label);
   }
-  // joysticks and a throttle quadrant at the front console
+  // joysticks either side of each pilot, throttle quadrant between them
   const fc = frame(k, facets[3].mx, fy, facets[3].mz, facets[3].m);
-  for (const sx of [-0.82, 0.82]) {
-    for (const off of [-0.32, 0.32]) {
-      fc.put(new THREE.CylinderGeometry(0.05, 0.06, 0.04, 12), 'paintDark', V(sx + off, 0.82, 0.78));
-      fc.cyl(V(sx + off, 0.82, 0.78), V(sx + off, 1.02, 0.84), 0.014, 'metal', 8);
-      fc.put(new THREE.SphereGeometry(0.03, 10, 8), 'rubber', V(sx + off, 1.04, 0.85));
-    }
+  for (const sx of [-0.46, 0.46]) {
+    fc.put(new THREE.CylinderGeometry(0.045, 0.055, 0.04, 12), 'paintDark', V(sx, 0.82, 0.64));
+    fc.cyl(V(sx, 0.82, 0.64), V(sx, 1.0, 0.69), 0.013, 'metal', 8);
+    fc.put(new THREE.SphereGeometry(0.028, 10, 8), 'rubber', V(sx, 1.02, 0.7));
   }
-  fc.box(-0.14, 0.8, 0.5, 0.14, 0.88, 0.8, 'paintDark', 0.01);
-  for (const tx of [-0.08, 0, 0.08]) fc.cyl(V(tx, 0.88, 0.62), V(tx, 0.99, 0.58), 0.009, 'chrome', 6);
+  fc.box(-0.12, 0.8, 0.44, 0.12, 0.87, 0.7, 'paintDark', 0.01);
+  for (const tx of [-0.07, 0, 0.07]) fc.cyl(V(tx, 0.87, 0.56), V(tx, 0.97, 0.52), 0.009, 'chrome', 6);
 
   // overhead switch banks hanging just inside the canopy, tilted toward the crew
   for (const fi of [2, 3, 4]) {
     const f = facets[fi];
     const c = frame(k, f.mx, y, f.mz, f.m);
     const L = f.len - 0.4;
-    c.put(new THREE.BoxGeometry(L, 0.07, 0.55), 'paintDark', V(0, H - 0.2, 0.55), new THREE.Euler(0.55, 0, 0));
+    c.put(new THREE.BoxGeometry(L, 0.07, 0.45), 'paintDark', V(0, H - 0.18, 0.42), new THREE.Euler(0.55, 0, 0));
     let sd = fi * 31;
     const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
     for (let x = -L / 2 + 0.06; x < L / 2 - 0.05; x += 0.07) {
       for (let r = 0; r < 4; r++) {
         const v = rnd();
         const key = v < 0.18 ? 'statusAmber' : v < 0.26 ? 'statusGreen' : v < 0.29 ? 'statusRed' : 'paintGrey';
-        c.put(new THREE.BoxGeometry(0.035, 0.012, 0.035), key, V(x, H - 0.25 + r * 0.06, 0.38 + r * 0.1), new THREE.Euler(0.55, 0, 0));
+        c.put(new THREE.BoxGeometry(0.035, 0.012, 0.035), key, V(x, H - 0.24 + r * 0.05, 0.28 + r * 0.085), new THREE.Euler(0.55, 0, 0));
       }
     }
   }
   // centre overhead spine and ceiling beams
-  k.b.box(9.0, y + H - 0.16, -0.38, 14.0, y + H, 0.38, 'ribDark', false, 0.02);
-  for (let x = 9.2; x < 13.9; x += 0.08) {
+  k.b.box(8.5, y + H - 0.16, -0.38, 11.2, y + H, 0.38, 'ribDark', false, 0.02);
+  for (let x = 8.7; x < 11.1; x += 0.08) {
     for (const z of [-0.26, -0.14, 0.14, 0.26]) {
       const v = Math.sin(x * 91 + z * 37);
       k.b.box(x - 0.016, y + H - 0.175, z - 0.016, x + 0.016, y + H - 0.16, z + 0.016, v > 0.7 ? 'statusAmber' : v > 0.55 ? 'statusGreen' : 'paintGrey', false);
     }
   }
-  k.b.box(9.0, y + H - 0.18, -0.02, 14.0, y + H - 0.16, 0.02, 'lightWarm', false);
-  for (const x of [9.6, 11.2, 12.8]) k.b.box(x - 0.1, y + H - 0.14, -6, x + 0.1, y + H, 6, 'rib', false);
+  k.b.box(8.5, y + H - 0.18, -0.02, 11.2, y + H - 0.16, 0.02, 'lightWarm', false);
+  for (const x of [9.1, 10.3]) k.b.box(x - 0.1, y + H - 0.14, -W, x + 0.1, y + H, W, 'rib', false);
   // downlights over each station
-  for (const [x, z] of [[16.45, 0.82], [16.45, -0.82], [15.4, 3.6], [15.4, -3.6], [13.4, 0], [11.0, 0]]) {
+  for (const [x, z] of [[13.1, 0.48], [13.1, -0.48], [12.3, 2.0], [12.3, -2.0], [10.5, 0], [9.45, -2.05]]) {
     k.b.geo(new THREE.CylinderGeometry(0.1, 0.12, 0.05, 16), 'ribDark', V(x, y + H - 0.025, z));
     k.b.geo(new THREE.CylinderGeometry(0.075, 0.075, 0.01, 16), 'lightWarm', V(x, y + H - 0.05, z));
   }
 
   // lower level: captain's chair behind the pilots, holo-nav table, side stations
-  flightChair(k, 13.4, y, 0, Math.PI / 2, "Captain's chair", 'fabricAmber');
-  P.consoleUnit(k, { x: 10.3, y, z: 5.55, rot: 2 }, 2.6, ['status', 'telemetry'], 45);
-  P.consoleUnit(k, { x: 10.3, y, z: -5.55, rot: 0 }, 2.6, ['comms', 'orbit'], 47);
-  P.chair(k, { x: 10.3, y, z: 4.6, rot: 2 }, 'Engineering station');
-  P.chair(k, { x: 10.3, y, z: -4.6, rot: 0 }, 'Science station');
-  k.graphic('BRIDGE · FLIGHT DECK', V(8.11, y + 1.85, 3.6), Math.PI / 2, 1.8, 0.27, { fg: '#e8e3d6' });
+  // lower level: captain's chair just behind the pilots, an engineering station to starboard,
+  // and the holo-nav table tucked to port (an asymmetric plan)
+  flightChair(k, 10.5, y, 0, Math.PI / 2, "Captain's chair", 'fabricAmber');
+  P.consoleUnit(k, { x: 9.55, y, z: W - 0.45, rot: 2 }, 2.0, ['status', 'telemetry'], 45);
+  P.chair(k, { x: 9.55, y, z: W - 1.3, rot: 0 }, 'Engineering station');
+  k.graphic('BRIDGE · FLIGHT DECK', V(8.11, y + 1.75, 2.3), Math.PI / 2, 1.5, 0.22, { fg: '#e8e3d6' });
   void accentDeck;
-  return P.holoTable(k, { x: 11.0, y, z: 0 });
+  const holoPos = P.holoTable(k, { x: 9.45, y, z: -2.05 }, 0.55);
+  return { holoPos, holoScale: 0.62 };
 }

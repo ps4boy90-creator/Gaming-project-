@@ -407,15 +407,15 @@ export function pipeRun(k: Kit, a: THREE.Vector3, bpos: THREE.Vector3, r = 0.06,
   k.b.cyl(a, bpos, r, key, 10);
 }
 
-export function holoTable(k: Kit, p: Place): THREE.Vector3 {
+export function holoTable(k: Kit, p: Place, r = 0.95): THREE.Vector3 {
   const b = k.b;
-  b.geo(new THREE.CylinderGeometry(0.95, 0.75, 0.9, 32), 'paintDark', L(p, 0, 0.45, 0));
-  b.geo(new THREE.CylinderGeometry(0.98, 0.98, 0.05, 32), 'metal', L(p, 0, 0.92, 0));
-  b.geo(new THREE.TorusGeometry(0.8, 0.02, 6, 48), 'podGlow', L(p, 0, 0.95, 0), new THREE.Euler(Math.PI / 2, 0, 0));
-  b.geo(new THREE.CylinderGeometry(0.7, 0.7, 0.02, 32), 'blackGlass', L(p, 0, 0.955, 0));
-  col(k, p, -0.9, 0, -0.9, 0.9, 0.95, 0.9);
-  k.pitem(p, -0.95, 0.7, -0.95, 0.95, 1.8, 0.95, 'Orbital map', 'orbitalMap');
-  return L(p, 0, 1.45, 0);
+  b.geo(new THREE.CylinderGeometry(r, r * 0.79, 0.9, 32), 'paintDark', L(p, 0, 0.45, 0));
+  b.geo(new THREE.CylinderGeometry(r * 1.03, r * 1.03, 0.05, 32), 'metal', L(p, 0, 0.92, 0));
+  b.geo(new THREE.TorusGeometry(r * 0.84, 0.018, 6, 48), 'podGlow', L(p, 0, 0.95, 0), new THREE.Euler(Math.PI / 2, 0, 0));
+  b.geo(new THREE.CylinderGeometry(r * 0.74, r * 0.74, 0.02, 32), 'blackGlass', L(p, 0, 0.955, 0));
+  col(k, p, -r * 0.95, 0, -r * 0.95, r * 0.95, 0.95, r * 0.95);
+  k.pitem(p, -r, 0.7, -r, r, 1.8, r, 'Orbital map', 'orbitalMap');
+  return L(p, 0, 0.95 + 0.5 * (r / 0.95), 0);
 }
 
 

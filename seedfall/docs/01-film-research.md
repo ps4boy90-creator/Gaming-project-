@@ -166,7 +166,7 @@ Names, logos and markings stay our own.
 | What the sources say | Source | How the *Meridian* uses it |
 |---|---|---|
 | Seagers pulled references from **oil rigs** ("like spaceships… full of technology") and the industrial world | Set Decorators Society | Pipe runs, cable trays, valves, power panels, junction boxes and grating in every corridor |
-| **Low ceilings**: "If you can't touch the ceiling, you won't see it"; bridge ceilings about 2 m | Collider set visit | Ceilings dropped to 2.6 m (bridge 2.45 m) with angled corner panels |
+| **Low ceilings**: "If you can't touch the ceiling, you won't see it"; sets "strictly condensed"; bridge ceilings about 2 m | Collider set visit | Ceilings dropped to 2.6 m; the bridge is a compact 6.4 × 7.2 m flight deck with a 2.35 m ceiling |
 | Corridors **cloaked in darkness**, with **detail on all four surfaces** | Set Decorators Society | Darker lighting in pools, downlights and ceiling boxes between ribs, floor LEDs, wall equipment |
 | Built of MDF and painted in a **specialist silver and gold paint** for a sleek metallic look | Screen Global Production | New champagne-gold metal wall panels (some ribbed) with real per-texel metalness, over dark gunmetal |
 | "**Not a grungy ship**": brand new, maiden voyage, little wear | Set Decorators Society | Clean surfaces; wear kept to scuffs at floor level |

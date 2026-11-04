@@ -31,6 +31,7 @@ const win = (at: number, w: number, y0 = 0.85, y1 = 2.1): Opening => ({ at, w, y
 
 export interface ShipRefs {
   holoPos: THREE.Vector3;
+  holoScale: number;
   bedSeatId: string;
   podSeatId: string;
   startPos: THREE.Vector3;
@@ -41,6 +42,7 @@ export interface ShipRefs {
 export function buildLayout(k: Kit): ShipRefs {
   const refs: ShipRefs = {
     holoPos: new THREE.Vector3(),
+    holoScale: 1,
     bedSeatId: '',
     podSeatId: '',
     startPos: new THREE.Vector3(),
@@ -167,7 +169,9 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
   k.screen('map', new THREE.Vector3(7.85, y + 1.5, -5.4), -Math.PI / 2, 1.9, 31, 'SURVEY PLAN · KX-7c', 0);
 
   // Bridge: see bridge.ts (faceted canopy, split level, flight chairs, holo-nav table)
-  refs.holoPos.copy(buildBridge(k, y, d, refs.blinds));
+  const br = buildBridge(k, y, d, refs.blinds);
+  refs.holoPos.copy(br.holoPos);
+  refs.holoScale = br.holoScale;
 }
 
 // --------------------------------------------------------------------------- Deck 2
