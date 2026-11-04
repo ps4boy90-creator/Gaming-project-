@@ -32,11 +32,14 @@ export class Materials {
   mistTex = T.mist();
 
   constructor(onProgress: (label: string) => void = () => {}) {
-    onProgress('wall cladding');
-    const wall = T.wallPanels(1);
+    onProgress('wall padding');
+    const wall = T.paddedWall(21);
+    const tech = T.techPanels(31);
     onProgress('deck plating');
     const floor = T.floorTiles(2);
-    const ceil = T.ceilingPanels(3);
+    const ceil = T.techCeiling(41);
+    const plate = T.diamondPlate(51);
+    const grate = T.grating(61);
     onProgress('metals');
     const metal = T.brushedMetal(4, 0.085);
     const steel = T.brushedMetal(14, 0.5);
@@ -62,9 +65,12 @@ export class Materials {
     };
 
     add('wall', fromSet(wall, { envMapIntensity: 0.6 }), 2, 4);
-    add('wallDark', fromSet(wall, { color: new THREE.Color(0.42, 0.44, 0.46), envMapIntensity: 0.5 }), 2, 4);
+    add('wallDark', fromSet(tech, { envMapIntensity: 0.6 }), 2, 4);
     add('floor', fromSet(floor, { envMapIntensity: 0.5 }), 2, 2);
-    add('ceil', fromSet(ceil, { envMapIntensity: 0.3 }), 2, 2);
+    add('ceil', fromSet(ceil, { envMapIntensity: 0.4, metalness: 0.3 }), 2, 2);
+    add('deckPlate', fromSet(plate, { metalness: 0.65, envMapIntensity: 0.9 }), 1, 1);
+    add('grating', fromSet(grate, { metalness: 0.6, envMapIntensity: 0.8 }), 1, 1);
+    add('panel', fromSet(tech, { color: new THREE.Color(0.85, 0.87, 0.9), envMapIntensity: 0.6 }), 2, 4);
     add('metal', fromSet(metal, { metalness: 0.75, envMapIntensity: 0.9 }), 1, 1);
     add('steel', fromSet(steel, { metalness: 0.9, envMapIntensity: 1.0 }), 1, 1);
     add('paint', fromSet(paintSet, { envMapIntensity: 0.6 }), 1, 1);
@@ -76,6 +82,12 @@ export class Materials {
     add('fabricLight', fromSet(fabLight), 0.5, 0.5);
     add('fabricAmber', fromSet(fabAmber), 0.5, 0.5);
     add('rubber', std({ color: 0x151719, roughness: 0.85 }), 1, 1);
+    add('rib', fromSet(paintSet, { color: new THREE.Color(0.5, 0.52, 0.55), metalness: 0.35, envMapIntensity: 0.8 }), 1, 1);
+    add('ribDark', fromSet(metal, { color: new THREE.Color(1.6, 1.65, 1.75), metalness: 0.6, envMapIntensity: 0.9 }), 1, 1);
+    add('warning', fromSet(paintSet, { color: new THREE.Color(1.15, 0.78, 0.12) }), 1, 1);
+    add('emergency', fromSet(paintSet, { color: new THREE.Color(0.95, 0.12, 0.08) }), 1, 1);
+    add('pipeBlue', fromSet(paintSet, { color: new THREE.Color(0.25, 0.42, 0.62), metalness: 0.3 }), 1, 1);
+    add('pipeGreen', fromSet(paintSet, { color: new THREE.Color(0.3, 0.52, 0.36), metalness: 0.3 }), 1, 1);
     add('hazard', fromSet(hazard), 1, 1);
 
     const accent = (hex: string) => fromSet(paintSet, { color: new THREE.Color(hex).multiplyScalar(1.25) });
@@ -86,13 +98,18 @@ export class Materials {
       return m;
     };
     const light = emissive(0xfff4e8, 4.5);
-    const lightCold = emissive(0xbfe6ff, 3.5);
-    const lightWarm = emissive(0xffc98a, 3.5);
-    this.lightEmissive.push(light, lightWarm);
+    const lightCold = emissive(0xbfe6ff, 3.0);
+    const lightWarm = emissive(0xffc98a, 3.0);
+    const strip = emissive(0xe8f2ff, 3.4);
+    strip.name = 'lightStrip';
+    const led = emissive(0x4fb8ff, 1.6);
+    this.lightEmissive.push(light, lightWarm, strip);
+    add('lightStrip', strip, 0, 0, { cast: false });
+    add('ledStrip', led, 0, 0, { cast: false });
     add('light', light, 0, 0, { cast: false });
     add('lightCold', lightCold, 0, 0, { cast: false });
     add('lightWarm', lightWarm, 0, 0, { cast: false });
-    add('growLight', emissive(0xff5ad2, 5), 0, 0, { cast: false });
+    add('growLight', emissive(0xff5ad2, 3.2), 0, 0, { cast: false });
     add('podGlow', emissive(0x6fe0ff, 2.2), 0, 0, { cast: false });
     add('podFail', emissive(0xff2a1a, 2.5), 0, 0, { cast: false });
     add('statusGreen', emissive(0x3dff7a, 3), 0, 0, { cast: false });
@@ -184,8 +201,11 @@ export class Materials {
   /** Day/night shift: ceiling panels dim and warm at night. */
   setShift(night: number): void {
     for (const m of this.lightEmissive) {
-      m.emissiveIntensity = (m.name === 'lightWarm' ? 3.5 : 4.5) * (1 - night * 0.72);
+      const base = m.name === 'lightWarm' ? 3.0 : m.name === 'lightStrip' ? 3.4 : 4.5;
+      m.emissiveIntensity = base * (1 - night * 0.72);
     }
+    const strip = this.lightEmissive[2];
+    strip.emissive.setRGB(0.91, 0.95 - night * 0.25, 1 - night * 0.5);
     const light = this.lightEmissive[0];
     light.emissive.setRGB(1, 0.957 - night * 0.2, 0.91 - night * 0.42);
   }

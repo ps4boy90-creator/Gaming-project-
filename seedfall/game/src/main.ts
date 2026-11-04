@@ -89,7 +89,7 @@ class Game {
     const pmrem = new THREE.PMREMGenerator(r);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.interior.environment = env;
-    this.interior.environmentIntensity = 0.22;
+    this.interior.environmentIntensity = 0.16;
     this.over.environment = env;
     this.over.environmentIntensity = 0.12;
     this.interior.fog = new THREE.FogExp2(0x0b0f12, 0.006);

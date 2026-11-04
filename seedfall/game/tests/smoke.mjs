@@ -80,6 +80,16 @@ await hold('w', 2600);
 const p2 = await S(() => window.__seedfall.info());
 check('walk out through the cabin door', p2.pos[2] < 1.6, `z ${p2.pos[2].toFixed(2)} room ${p2.room}`);
 
+// long walks past the new ribs, handrails and wall equipment
+await tp(-13.2, 4, 0, -Math.PI / 2, 0); // Deck 2 corridor, facing the bow
+await hold('w', 9500);
+const pc = await S(() => window.__seedfall.info().pos);
+check('walk the full Deck 2 corridor', pc[0] > 12, `x ${pc[0].toFixed(2)}`);
+await tp(-19, 0, 0, Math.PI / 2, 0); // spine, facing aft
+await hold('w', 19000);
+const ps = await S(() => window.__seedfall.info());
+check('walk the spine to the suit room', ps.pos[0] < -69, `x ${ps.pos[0].toFixed(2)} room ${ps.room}`);
+
 // lift
 await tp(-16, 4, -4.4, -Math.PI / 2, 0);
 await aim(-14.75, 5.38, -3.65);

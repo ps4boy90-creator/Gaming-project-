@@ -72,6 +72,13 @@ export interface WallOpts {
 
 export const yawFacing = (dx: number, dz: number) => Math.atan2(-dx, -dz);
 
+export type Profile = 'room' | 'corridor' | 'hall' | 'hangar' | 'none';
+
+/** Mesh yaw that makes a +z-facing object face into the room from a side's wall. */
+function yawFor(s: { axis: 'x' | 'z'; dir: number }): number {
+  return s.axis === 'z' ? (s.dir > 0 ? 0 : Math.PI) : s.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+}
+
 /** Construction kit: walls with doors and windows, rooms with lights, signs, seats, items. */
 export class Kit {
   b: Builder;
@@ -81,6 +88,9 @@ export class Kit {
   seats: Seat[] = [];
   items: Item[] = [];
   private n = 0;
+  /** Every door/window/gap cut so far, so dressing can avoid them. */
+  openings: { axis: 'x' | 'z'; c: number; a0: number; a1: number; y: number; y1: number }[] = [];
+  private pendingShells: { room: Room; h: number; profile: Profile; opts: { lightMat?: string; rib?: number } }[] = [];
   private screenCache = new Map<string, ReturnType<typeof drawScreen>>();
 
   constructor(
@@ -131,6 +141,7 @@ export class Kit {
       emit(oa, ob, op.y1, h, mat);
       if (op.y0 > 0) emit(oa, ob, 0, op.y0, mat);
       cursor = ob;
+      this.openings.push({ axis, c: c + off, a0: oa, a1: ob, y, y1: op.y1 });
       this.opening(axis, c + off, y, t, op);
     }
     emit(cursor, a1, 0, h, mat);
@@ -153,13 +164,38 @@ export class Kit {
     };
     const oa = op.at - op.w / 2;
     const ob = op.at + op.w / 2;
-    const ft = 0.07; // frame thickness
-    const fd = t / 2 + 0.035; // frame depth from centre
     if (op.kind === 'door') {
-      box(oa - ft, oa, 0, op.y1 + ft, -fd, fd, 'metal');
-      box(ob, ob + ft, 0, op.y1 + ft, -fd, fd, 'metal');
-      box(oa - ft, ob + ft, op.y1, op.y1 + ft, -fd, fd, 'metal');
-      box(oa, ob, 0, 0.012, -fd - 0.12, fd + 0.12, 'hazard');
+      const heavy = !!op.heavy;
+      const ft = heavy ? 0.22 : 0.15; // collar width
+      const fd = t / 2 + (heavy ? 0.09 : 0.06); // collar depth from centre
+      const leaf = heavy ? 0.07 : 0.045; // half thickness kept clear for the leaves
+      const frameKey = heavy ? 'ribDark' : 'rib';
+      box(oa - ft, oa, 0, op.y1 + ft, -fd, fd, frameKey);
+      box(ob, ob + ft, 0, op.y1 + ft, -fd, fd, frameKey);
+      box(oa - ft, ob + ft, op.y1, op.y1 + ft, -fd, fd, frameKey);
+      if (heavy) {
+        box(oa - ft + 0.03, oa - 0.03, 0.3, op.y1 - 0.3, -fd - 0.01, -fd, 'hazard');
+        box(oa - ft + 0.03, oa - 0.03, 0.3, op.y1 - 0.3, fd, fd + 0.01, 'hazard');
+        box(ob + 0.03, ob + ft - 0.03, 0.3, op.y1 - 0.3, -fd - 0.01, -fd, 'hazard');
+        box(ob + 0.03, ob + ft - 0.03, 0.3, op.y1 - 0.3, fd, fd + 0.01, 'hazard');
+      }
+      // angled top corners on both faces (the leaves slide between them)
+      const s = heavy ? 0.42 : 0.32;
+      for (const [n0, n1] of [[leaf, fd], [-fd, -leaf]] as const) {
+        this.corner(axis, c, y, oa, op.y1, 1, -1, s, n0, n1, frameKey);
+        this.corner(axis, c, y, ob, op.y1, -1, -1, s, n0, n1, frameKey);
+      }
+      box(oa, ob, 0, 0.014, -fd - 0.12, fd + 0.12, 'hazard');
+      // control panels beside the door, both faces
+      for (const side of [1, -1]) {
+        const n0 = side > 0 ? fd - 0.02 : -fd - 0.03;
+        const n1 = side > 0 ? fd + 0.03 : -fd + 0.02;
+        box(ob + ft + 0.08, ob + ft + 0.26, 1.12, 1.46, n0, n1, 'paintDark');
+        const f0 = side > 0 ? n1 : n0 - 0.006;
+        const f1 = side > 0 ? n1 + 0.006 : n0;
+        box(ob + ft + 0.12, ob + ft + 0.22, 1.36, 1.41, f0, f1, op.locked ? 'statusRed' : 'statusGreen');
+        box(ob + ft + 0.12, ob + ft + 0.22, 1.18, 1.3, f0, f1, 'ledStrip');
+      }
       const pos = axis === 'z' ? { x: op.at, z: c } : { x: c, z: op.at };
       const door = new Door(this.interior, this.mats, this.world, {
         axis: axis === 'z' ? 'x' : 'z',
@@ -177,10 +213,11 @@ export class Kit {
       if (op.sign) {
         const sides: (1 | -1)[] = op.sign.both ? [1, -1] : [op.sign.side];
         const rect = drawDoorSign(this.mats.signs, op.sign.code, op.sign.name, DECK_COLORS[op.sign.deck] ?? '#888', op.sign.sub);
-        for (const s of sides) {
-          const n = s * (t / 2 + 0.02);
-          const p = axis === 'z' ? new THREE.Vector3(op.at, y + op.y1 + 0.3, c + n) : new THREE.Vector3(c + n, y + op.y1 + 0.3, op.at);
-          this.quad(rect, 1.24, 0.31, p, axis === 'z' ? (s > 0 ? 0 : Math.PI) : s > 0 ? Math.PI / 2 : -Math.PI / 2);
+        for (const sd of sides) {
+          const n = sd * (fd + 0.012);
+          const vy = y + op.y1 + ft + 0.12;
+          const p = axis === 'z' ? new THREE.Vector3(op.at, vy, c + n) : new THREE.Vector3(c + n, vy, op.at);
+          this.quad(rect, 0.84, 0.21, p, axis === 'z' ? (sd > 0 ? 0 : Math.PI) : sd > 0 ? Math.PI / 2 : -Math.PI / 2);
         }
       }
       if (op.locked && op.label) {
@@ -188,25 +225,50 @@ export class Kit {
         this.item({
           id: this.uid('locked'),
           min: [mid[0] - (axis === 'z' ? op.w / 2 : 0.4), y + 0.6, mid[1] - (axis === 'z' ? 0.4 : op.w / 2)],
-          max: [mid[0] + (axis === 'z' ? op.w / 2 : 0.4), y + 2.2, mid[1] + (axis === 'z' ? 0.4 : op.w / 2)],
+          max: [mid[0] + (axis === 'z' ? op.w / 2 : 0.4), y + 2.1, mid[1] + (axis === 'z' ? 0.4 : op.w / 2)],
           prompt: op.label,
           action: 'locked',
           data: op.label,
         });
       }
     } else if (op.kind === 'window' || op.kind === 'inner') {
-      box(oa - ft, oa, op.y0 - ft, op.y1 + ft, -fd, fd, 'metal');
-      box(ob, ob + ft, op.y0 - ft, op.y1 + ft, -fd, fd, 'metal');
-      box(oa - ft, ob + ft, op.y1, op.y1 + ft, -fd, fd, 'metal');
-      if (op.y0 > 0.05) box(oa - ft, ob + ft, op.y0 - ft, op.y0, -fd - 0.06, fd + 0.06, 'metal');
-      // mullions for wide panes
-      const panes = Math.max(1, Math.round(op.w / 2.4));
+      const ft = 0.12;
+      const fd = t / 2 + 0.07;
+      box(oa - ft, oa, op.y0 - ft, op.y1 + ft, -fd, fd, 'ribDark');
+      box(ob, ob + ft, op.y0 - ft, op.y1 + ft, -fd, fd, 'ribDark');
+      box(oa - ft, ob + ft, op.y1, op.y1 + ft, -fd, fd, 'ribDark');
+      if (op.y0 > 0.05) box(oa - ft, ob + ft, op.y0 - ft, op.y0, -fd - 0.08, fd + 0.08, 'ribDark');
+      // heavy mullions for wide panes
+      const panes = Math.max(1, Math.round(op.w / 2.2));
       for (let i = 1; i < panes; i++) {
         const m = oa + (op.w * i) / panes;
-        box(m - 0.04, m + 0.04, op.y0, op.y1, -fd + 0.02, fd - 0.02, 'metal');
+        box(m - 0.07, m + 0.07, op.y0, op.y1, -fd + 0.02, fd - 0.02, 'ribDark');
+      }
+      // angled corners: an octagonal viewport
+      const s = Math.min(0.3, (op.y1 - op.y0) * 0.22, op.w * 0.2);
+      for (const [a, sa] of [[oa, 1], [ob, -1]] as const) {
+        this.corner(axis, c, y, a, op.y1, sa, -1, s, -fd, fd, 'ribDark');
+        if (op.y0 > 0.05) this.corner(axis, c, y, a, op.y0, sa, 1, s, -fd, fd, 'ribDark');
       }
       box(oa, ob, op.y0, op.y1, -0.012, 0.012, op.kind === 'window' ? 'glass' : 'glassInner', 'wall');
     }
+  }
+
+  /** Triangular corner gusset in a wall plane: right angle at (a, v), legs along sa·along and sv·up. */
+  private corner(axis: 'x' | 'z', c: number, y: number, a: number, v: number, sa: number, sv: number, s: number, n0: number, n1: number, key: string): void {
+    const sh = new THREE.Shape();
+    sh.moveTo(0, 0);
+    sh.lineTo(sa * s, 0);
+    sh.lineTo(0, sv * s);
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: n1 - n0, bevelEnabled: false });
+    if (axis === 'z') this.b.geo(g, key, new THREE.Vector3(a, y + v, c + n0));
+    else this.b.geo(g, key, new THREE.Vector3(c + n1, y + v, a), new THREE.Euler(0, -Math.PI / 2, 0));
+  }
+
+  /** True if any door/window/gap on this wall line overlaps [a0, a1]. */
+  blocked(axis: 'x' | 'z', c: number, y: number, a0: number, a1: number): boolean {
+    return this.openings.some((o) => o.axis === axis && Math.abs(o.c - c) < 0.36 && Math.abs(o.y - y) < 0.6 && o.a1 > a0 && o.a0 < a1);
   }
 
   // ------------------------------------------------------------------ rooms
@@ -216,76 +278,301 @@ export class Kit {
     opts: {
       floor?: string;
       ceil?: string | null;
-      lights?: 'grid' | 'none' | 'strip';
+      lights?: 'auto' | 'grid' | 'none' | 'strip';
       lightColor?: number;
       lightMat?: string;
       intensity?: number;
       spacing?: number;
       beams?: boolean;
+      profile?: Profile;
+      rib?: number;
     } = {},
   ): Room {
     const h = r.h ?? 3;
     const room: Room = { id: r.id, name: r.name, deck: r.deck, x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y0: r.y0, y1: r.y0 + h, ambience: r.ambience };
     this.rooms.push(room);
+    const profile = opts.profile ?? 'room';
     const b = this.b;
-    b.box(r.x0, r.y0 - 0.2, r.z0, r.x1, r.y0, r.z1, opts.floor ?? 'floor', 'solid');
-    if (opts.ceil !== null) {
-      b.box(r.x0, r.y0 + h, r.z0, r.x1, r.y0 + h + 0.25, r.z1, opts.ceil ?? 'ceil', 'solid');
-      if (opts.beams !== false) {
-        const along = r.x1 - r.x0 >= r.z1 - r.z0 ? 'x' : 'z';
-        const len = along === 'x' ? r.x1 - r.x0 : r.z1 - r.z0;
-        const n = Math.max(1, Math.floor(len / 2.4));
-        for (let i = 1; i < n; i++) {
-          const p = (along === 'x' ? r.x0 : r.z0) + (len * i) / n;
-          if (along === 'x') b.box(p - 0.09, r.y0 + h - 0.16, r.z0, p + 0.09, r.y0 + h, r.z1, 'paintGrey', false);
-          else b.box(r.x0, r.y0 + h - 0.16, p - 0.09, r.x1, r.y0 + h, p + 0.09, 'paintGrey', false);
-        }
-      }
-    }
-    const mode = opts.lights ?? 'grid';
-    if (mode !== 'none') this.fixtures(room, h, opts);
+    const floorKey = opts.floor ?? (profile === 'corridor' || profile === 'hangar' || profile === 'hall' ? 'deckPlate' : 'floor');
+    b.box(r.x0, r.y0 - 0.2, r.z0, r.x1, r.y0, r.z1, floorKey, 'solid');
+    if (opts.ceil !== null) b.box(r.x0, r.y0 + h, r.z0, r.x1, r.y0 + h + 0.25, r.z1, opts.ceil ?? 'ceil', 'solid');
+    this.pendingShells.push({ room, h, profile, opts });
+    const mode = opts.lights ?? 'auto';
+    if (mode === 'grid') this.fixtures(room, h, opts);
+    if (mode !== 'none') this.anchors(room, h, opts);
     return room;
   }
 
-  private fixtures(
-    r: Room,
-    h: number,
-    opts: { lightColor?: number; lightMat?: string; intensity?: number; spacing?: number; lights?: string },
-  ): void {
+  /** Build the structural shells once every wall (and so every opening) exists. */
+  finishShells(): void {
+    for (const s of this.pendingShells) {
+      if (s.profile === 'room' || s.profile === 'corridor' || s.profile === 'hall') this.shipShell(s.room, s.h, s.profile, s.opts);
+      else if (s.profile === 'hangar') this.hangarShell(s.room, s.h);
+    }
+    this.pendingShells = [];
+  }
+
+  private sides(r: Room) {
     const sx = r.x1 - r.x0;
     const sz = r.z1 - r.z0;
-    const spacing = opts.spacing ?? 3.2;
-    const nx = Math.max(1, Math.round(sx / spacing));
-    const nz = Math.max(1, Math.round(sz / spacing));
-    const color = new THREE.Color(opts.lightColor ?? 0xfff1e0);
-    const intensity = opts.intensity ?? 7;
-    const mat = opts.lightMat ?? 'light';
+    const alongX = sx >= sz;
+    return [
+      { axis: 'z' as const, c: r.z1, dir: -1, a0: r.x0, a1: r.x1, long: alongX },
+      { axis: 'z' as const, c: r.z0, dir: 1, a0: r.x0, a1: r.x1, long: alongX },
+      { axis: 'x' as const, c: r.x1, dir: -1, a0: r.z0, a1: r.z1, long: !alongX },
+      { axis: 'x' as const, c: r.x0, dir: 1, a0: r.z0, a1: r.z1, long: !alongX },
+    ];
+  }
+
+  /** A box lying on the ceiling chamfer of one side. */
+  private slope(side: ReturnType<Kit['sides']>[number], yTop: number, ch: number, mid: number, len: number, lift: number, thick: number, width: number, key: string): void {
+    const k = Math.SQRT1_2;
+    const nOff = side.dir * (ch / 2 + lift * k);
+    const yOff = -ch / 2 - lift * k;
+    if (side.axis === 'z') {
+      const g = new THREE.BoxGeometry(len, thick, width);
+      this.b.geo(g, key, new THREE.Vector3(mid, yTop + yOff, side.c + nOff), new THREE.Euler((-side.dir * Math.PI) / 4, 0, 0));
+    } else {
+      const g = new THREE.BoxGeometry(width, thick, len);
+      this.b.geo(g, key, new THREE.Vector3(side.c + nOff, yTop + yOff, mid), new THREE.Euler(0, 0, (side.dir * Math.PI) / 4));
+    }
+  }
+
+  private shipShell(r: Room, h: number, profile: Profile, opts: { lightMat?: string; rib?: number }): void {
+    const b = this.b;
     const yTop = r.y0 + h;
-    const strip = opts.lights === 'strip';
-    for (let i = 0; i < nx; i++) {
-      for (let k = 0; k < nz; k++) {
-        const x = r.x0 + (sx * (i + 0.5)) / nx;
-        const z = r.z0 + (sz * (k + 0.5)) / nz;
-        const alongX = sx >= sz;
-        const lx = strip ? (alongX ? sx / nx - 0.4 : 0.22) : alongX ? 1.3 : 0.3;
-        const lz = strip ? (alongX ? 0.22 : sz / nz - 0.4) : alongX ? 0.3 : 1.3;
-        this.b.box(x - lx / 2 - 0.05, yTop - 0.05, z - lz / 2 - 0.05, x + lx / 2 + 0.05, yTop, z + lz / 2 + 0.05, 'metal', false);
-        this.b.box(x - lx / 2, yTop - 0.07, z - lz / 2, x + lx / 2, yTop - 0.04, z + lz / 2, mat, false);
+    const ch = 0.42;
+    const sides = this.sides(r);
+    const stripKey = opts.lightMat && opts.lightMat !== 'light' ? opts.lightMat : 'lightStrip';
+    for (const s of sides) {
+      const len = s.a1 - s.a0;
+      const mid = (s.a0 + s.a1) / 2;
+      this.slope(s, yTop, ch, mid, len, 0, 0.05, ch * Math.SQRT2 + 0.02, 'panel');
+      if (s.long || profile === 'room') this.slope(s, yTop, ch, mid, Math.max(0.4, len - 0.9), 0.03, 0.03, 0.09, stripKey);
+    }
+    const longSides = sides.filter((s) => s.long);
+    const shortLen = longSides[0].axis === 'z' ? r.z1 - r.z0 : r.x1 - r.x0;
+    const ls = longSides[0];
+    const start = ls.a0;
+    const len = ls.a1 - ls.a0;
+    const spacing = opts.rib ?? (profile === 'hall' ? 2.64 : 2.4);
+    const n = Math.max(1, Math.round(len / spacing));
+    const ribs: number[] = [];
+    for (let i = 1; i < n; i++) ribs.push(start + (len * i) / n);
+    const lo = Math.min(longSides[0].c, longSides[1].c);
+    const hi = Math.max(longSides[0].c, longSides[1].c);
+    for (const p of ribs) {
+      // ceiling beam across the short span
+      if (ls.axis === 'z') b.box(p - 0.11, yTop - 0.14, lo + ch - 0.05, p + 0.11, yTop, hi - ch + 0.05, 'rib', false);
+      else b.box(lo + ch - 0.05, yTop - 0.14, p - 0.11, hi - ch + 0.05, yTop, p + 0.11, 'rib', false);
+      for (const s of longSides) {
+        this.slope(s, yTop, ch, p, 0.22, 0.05, 0.1, ch * Math.SQRT2 + 0.06, 'rib');
+        if (profile === 'room') continue;
+        if (this.blocked(s.axis, s.c, r.y0, p - 0.45, p + 0.45)) continue;
+        const f0 = s.c;
+        const f1 = s.c + s.dir * 0.24;
+        if (s.axis === 'z') b.box(p - 0.13, r.y0, Math.min(f0, f1), p + 0.13, yTop - ch + 0.02, Math.max(f0, f1), 'rib', 'solid', 0.02);
+        else b.box(Math.min(f0, f1), r.y0, p - 0.13, Math.max(f0, f1), yTop - ch + 0.02, p + 0.13, 'rib', 'solid', 0.02);
       }
     }
-    // pool anchors: one per ~4.5 m, slightly below the ceiling
+    // centre ceiling light runs for wide rooms, one per bay
+    if (profile !== 'corridor' && shortLen >= 4) {
+      const bounds = [start, ...ribs, start + len];
+      const cMid = (lo + hi) / 2;
+      for (let i = 0; i < bounds.length - 1; i++) {
+        const a0 = bounds[i] + 0.35;
+        const a1 = bounds[i + 1] - 0.35;
+        if (a1 - a0 < 0.4) continue;
+        for (const off of shortLen >= 7 ? [-1.4, 1.4] : [0]) {
+          if (ls.axis === 'z') {
+            b.box(a0 - 0.05, yTop - 0.05, cMid + off - 0.13, a1 + 0.05, yTop, cMid + off + 0.13, 'metal', false);
+            b.box(a0, yTop - 0.065, cMid + off - 0.08, a1, yTop - 0.04, cMid + off + 0.08, stripKey, false);
+          } else {
+            b.box(cMid + off - 0.13, yTop - 0.05, a0 - 0.05, cMid + off + 0.13, yTop, a1 + 0.05, 'metal', false);
+            b.box(cMid + off - 0.08, yTop - 0.065, a0, cMid + off + 0.08, yTop - 0.04, a1, stripKey, false);
+          }
+        }
+      }
+    }
+    if (profile === 'corridor') this.corridorFit(r, h, longSides, ribs, ch);
+  }
+
+  /** Corridor fit-out: grating, floor LEDs, handrails, ceiling pipes and cable tray, wall equipment. */
+  private corridorFit(r: Room, h: number, longSides: ReturnType<Kit['sides']>, ribs: number[], ch: number): void {
+    const b = this.b;
+    const yTop = r.y0 + h;
+    const ls = longSides[0];
+    const lo = Math.min(longSides[0].c, longSides[1].c);
+    const hi = Math.max(longSides[0].c, longSides[1].c);
+    const cMid = (lo + hi) / 2;
+    const A = (a: number, n: number, yy: number) => (ls.axis === 'z' ? new THREE.Vector3(a, yy, n) : new THREE.Vector3(n, yy, a));
+    // centre grating strip
+    if (ls.axis === 'z') b.box(ls.a0, r.y0, cMid - 0.45, ls.a1, r.y0 + 0.006, cMid + 0.45, 'grating', false);
+    else b.box(cMid - 0.45, r.y0, ls.a0, cMid + 0.45, r.y0 + 0.006, ls.a1, 'grating', false);
+    // ceiling services: pipes on one side, cable tray on the other
+    const sA = longSides[0];
+    const sB = longSides[1];
+    const pipeN = (s: typeof sA, off: number) => s.c + s.dir * (ch + off);
+    for (const [off, rad, key] of [[0.1, 0.055, 'pipeBlue'], [0.24, 0.04, 'steel'], [0.35, 0.03, 'pipeGreen']] as const) {
+      b.cyl(A(ls.a0, pipeN(sA, off), yTop - 0.24), A(ls.a1, pipeN(sA, off), yTop - 0.24), rad, key, 10);
+    }
+    const tn = pipeN(sB, 0.2);
+    if (ls.axis === 'z') b.box(ls.a0, yTop - 0.27, tn - 0.16, ls.a1, yTop - 0.21, tn + 0.16, 'ribDark', false);
+    else b.box(tn - 0.16, yTop - 0.27, ls.a0, tn + 0.16, yTop - 0.21, ls.a1, 'ribDark', false);
+    for (const k of [-0.08, 0, 0.08]) b.cyl(A(ls.a0, tn + k, yTop - 0.18), A(ls.a1, tn + k, yTop - 0.18), 0.025, 'rubber', 6);
+    for (const p of ribs) {
+      for (const s of [sA, sB]) {
+        const n0 = pipeN(s, 0);
+        const n1 = pipeN(s, 0.45);
+        if (ls.axis === 'z') b.box(p - 0.04, yTop - 0.3, Math.min(n0, n1), p + 0.04, yTop - 0.14, Math.max(n0, n1), 'metal', false);
+        else b.box(Math.min(n0, n1), yTop - 0.3, p - 0.04, Math.max(n0, n1), yTop - 0.14, p + 0.04, 'metal', false);
+      }
+    }
+    // bays between ribs: handrails, floor LEDs, equipment
+    const bounds = [ls.a0, ...ribs, ls.a1];
+    const kinds = ['o2', 'ext', 'intercom', 'valve', 'panel'] as const;
+    let ki = Math.abs(Math.round(r.x0 + r.z0 + r.y0)) % kinds.length;
+    longSides.forEach((s, si) => {
+      const face = s.c + s.dir * 0.1;
+      for (let i = 0; i < bounds.length - 1; i++) {
+        const b0 = bounds[i] + (i === 0 ? 0.15 : 0.2);
+        const b1 = bounds[i + 1] - (i === bounds.length - 2 ? 0.15 : 0.2);
+        if (b1 - b0 < 0.8) continue;
+        if (this.blocked(s.axis, s.c, r.y0, b0 - 0.1, b1 + 0.1)) continue;
+        // LED strip at the floor
+        const l0 = face + s.dir * 0.02;
+        const l1 = face + s.dir * 0.05;
+        if (s.axis === 'z') b.box(b0, r.y0 + 0.02, Math.min(l0, l1), b1, r.y0 + 0.04, Math.max(l0, l1), 'ledStrip', false);
+        else b.box(Math.min(l0, l1), r.y0 + 0.02, b0, Math.max(l0, l1), r.y0 + 0.04, b1, 'ledStrip', false);
+        // handrail on standoffs
+        const rn = face + s.dir * 0.09;
+        b.cyl(A(b0 + 0.1, rn, r.y0 + 1.0), A(b1 - 0.1, rn, r.y0 + 1.0), 0.024, 'steel', 10);
+        for (const a of [b0 + 0.2, b1 - 0.2]) b.cyl(A(a, face, r.y0 + 1.0), A(a, rn, r.y0 + 1.0), 0.016, 'steel', 6);
+        // equipment in alternating bays
+        if ((i + si) % 2 === 0) this.equipment(kinds[ki++ % kinds.length], s, (b0 + b1) / 2, face, r.y0);
+      }
+    });
+  }
+
+  /** Wall-mounted ship equipment facing into the room from a wall face. */
+  private equipment(kind: 'o2' | 'ext' | 'intercom' | 'valve' | 'panel', s: ReturnType<Kit['sides']>[number], a: number, face: number, y: number): void {
+    const b = this.b;
+    const P = (along: number, out: number, up: number) => (s.axis === 'z' ? new THREE.Vector3(a + along, y + up, face + s.dir * out) : new THREE.Vector3(face + s.dir * out, y + up, a + along));
+    const B = (a0: number, a1: number, o0: number, o1: number, v0: number, v1: number, key: string) => {
+      const p0 = P(a0, o0, v0);
+      const p1 = P(a1, o1, v1);
+      b.box(Math.min(p0.x, p1.x), p0.y, Math.min(p0.z, p1.z), Math.max(p0.x, p1.x), p1.y, Math.max(p0.z, p1.z), key, false);
+    };
+    const yaw = s.axis === 'z' ? (s.dir > 0 ? 0 : Math.PI) : s.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    const itemAt = (prompt: string, text: string, v0: number, v1: number, w: number) => {
+      const p0 = P(-w / 2, 0, v0);
+      const p1 = P(w / 2, 0.25, v1);
+      this.item({ id: this.uid('equip'), min: [Math.min(p0.x, p1.x), p0.y, Math.min(p0.z, p1.z)], max: [Math.max(p0.x, p1.x), p1.y, Math.max(p0.z, p1.z)], prompt, action: 'flavor', data: text });
+    };
+    void yaw;
+    switch (kind) {
+      case 'o2':
+        B(-0.28, 0.28, 0, 0.13, 1.25, 1.9, 'warning');
+        B(-0.24, 0.24, 0.13, 0.135, 1.42, 1.8, 'blackGlass');
+        B(-0.28, 0.28, 0.13, 0.135, 1.27, 1.36, 'hazard');
+        B(0.17, 0.23, 0.135, 0.14, 1.83, 1.87, 'statusGreen');
+        itemAt('Emergency oxygen', 'Emergency oxygen station. Four masks, sealed. Fifteen minutes each.', 1.25, 1.9, 0.56);
+        break;
+      case 'ext':
+        B(-0.14, 0.14, 0, 0.04, 0.5, 1.2, 'emergency');
+        b.cyl(P(0, 0.12, 0.55), P(0, 0.12, 1.05), 0.075, 'emergency', 14);
+        b.cyl(P(0, 0.12, 1.05), P(0, 0.12, 1.14), 0.03, 'metal', 8);
+        B(-0.1, 0.1, 0.04, 0.2, 0.75, 0.79, 'metal');
+        itemAt('Fire suppressant', 'Fire suppressant. Foam, not water. Water and electronics do not get along.', 0.5, 1.2, 0.28);
+        break;
+      case 'intercom':
+        B(-0.15, 0.15, 0, 0.05, 1.32, 1.74, 'paintDark');
+        B(-0.1, 0.1, 0.05, 0.055, 1.52, 1.66, 'ledStrip');
+        for (let k = 0; k < 4; k++) B(-0.1, 0.1, 0.05, 0.056, 1.36 + k * 0.03, 1.375 + k * 0.03, 'metal');
+        itemAt('Intercom', 'Intercom. VESTA is listening. She is always listening.', 1.32, 1.74, 0.3);
+        break;
+      case 'valve':
+        b.cyl(P(0, 0.12, 0), P(0, 0.12, 2.55), 0.07, 'pipeGreen', 12);
+        b.geo(new THREE.TorusGeometry(0.15, 0.022, 8, 20), 'emergency', P(0, 0.26, 1.25), new THREE.Euler(0, yawFor(s), 0));
+        b.cyl(P(0, 0.12, 1.25), P(0, 0.26, 1.25), 0.025, 'metal', 8);
+        B(-0.1, 0.1, 0, 0.12, 2.0, 2.14, 'metal');
+        B(-0.1, 0.1, 0, 0.12, 0.3, 0.44, 'metal');
+        itemAt('Coolant valve', 'Coolant line, loop B. The label says DO NOT CLOSE. Someone has added: "seriously".', 0.9, 1.6, 0.4);
+        break;
+      case 'panel':
+        B(-0.32, 0.32, 0, 0.12, 0.85, 1.75, 'wallDark');
+        B(-0.3, 0.3, 0.12, 0.125, 1.55, 1.7, 'hazard');
+        B(0.18, 0.26, 0.125, 0.13, 1.05, 1.1, 'statusAmber');
+        B(-0.05, 0.05, 0.12, 0.17, 1.2, 1.32, 'metal');
+        itemAt('Power distribution', 'Power distribution, section ' + Math.abs(Math.round(a)) + '. Hums slightly louder than its neighbours.', 0.85, 1.75, 0.64);
+        break;
+    }
+  }
+
+  private hangarShell(r: Room, h: number): void {
+    const b = this.b;
+    const yTop = r.y0 + h;
+    for (const s of this.sides(r)) {
+      const len = s.a1 - s.a0;
+      const n = Math.max(1, Math.round(len / 6));
+      for (let i = 1; i < n; i++) {
+        const p = s.a0 + (len * i) / n;
+        if (this.blocked(s.axis, s.c, r.y0, p - 0.6, p + 0.6)) continue;
+        const f0 = s.c;
+        const f1 = s.c + s.dir * 0.55;
+        if (s.axis === 'z') b.box(p - 0.32, r.y0, Math.min(f0, f1), p + 0.32, yTop, Math.max(f0, f1), 'ribDark', 'solid', 0.03);
+        else b.box(Math.min(f0, f1), r.y0, p - 0.32, Math.max(f0, f1), yTop, p + 0.32, 'ribDark', 'solid', 0.03);
+        // knee brace up into the ceiling truss
+        const k0 = s.c + s.dir * 0.55;
+        const k1 = s.c + s.dir * 2.2;
+        if (s.axis === 'z') b.box(p - 0.2, yTop - 1.6, Math.min(k0, k1), p + 0.2, yTop - 1.2, Math.max(k0, k1), 'ribDark', false);
+        else b.box(Math.min(k0, k1), yTop - 1.6, p - 0.2, Math.max(k0, k1), yTop - 1.2, p + 0.2, 'ribDark', false);
+        if (s.axis === 'z' && s.dir < 0) b.box(p - 0.3, yTop - 1.0, r.z0, p + 0.3, yTop, r.z1, 'ribDark', false);
+        // amber marker light on each pillar
+        const l0 = s.c + s.dir * 0.55;
+        const l1 = s.c + s.dir * 0.57;
+        if (s.axis === 'z') b.box(p - 0.08, r.y0 + 3.2, Math.min(l0, l1), p + 0.08, r.y0 + 3.4, Math.max(l0, l1), 'statusAmber', false);
+        else b.box(Math.min(l0, l1), r.y0 + 3.2, p - 0.08, Math.max(l0, l1), r.y0 + 3.4, p + 0.08, 'statusAmber', false);
+      }
+    }
+  }
+
+  private anchors(r: Room, h: number, opts: { lightColor?: number; intensity?: number }): void {
+    const sx = r.x1 - r.x0;
+    const sz = r.z1 - r.z0;
+    const yTop = r.y0 + h;
+    const color = new THREE.Color(opts.lightColor ?? 0xfff1e0);
+    const intensity = opts.intensity ?? 7;
     const ax = Math.max(1, Math.round(sx / 4.5));
     const az = Math.max(1, Math.round(sz / 4.5));
     for (let i = 0; i < ax; i++) {
       for (let k = 0; k < az; k++) {
         this.lights.add({
           x: r.x0 + (sx * (i + 0.5)) / ax,
-          y: yTop - 0.35,
+          y: yTop - 0.45,
           z: r.z0 + (sz * (k + 0.5)) / az,
           color,
           intensity: intensity * Math.min(2.2, Math.max(1, (sx * sz) / (ax * az * 14))),
           distance: Math.max(7, Math.min(16, Math.hypot(sx / ax, sz / az) * 1.6 + h)),
         });
+      }
+    }
+  }
+
+  private fixtures(r: Room, h: number, opts: { lightMat?: string; spacing?: number }): void {
+    const sx = r.x1 - r.x0;
+    const sz = r.z1 - r.z0;
+    const spacing = opts.spacing ?? 3.2;
+    const nx = Math.max(1, Math.round(sx / spacing));
+    const nz = Math.max(1, Math.round(sz / spacing));
+    const mat = opts.lightMat ?? 'light';
+    const yTop = r.y0 + h;
+    for (let i = 0; i < nx; i++) {
+      for (let k = 0; k < nz; k++) {
+        const x = r.x0 + (sx * (i + 0.5)) / nx;
+        const z = r.z0 + (sz * (k + 0.5)) / nz;
+        this.b.box(x - 0.75, yTop - 0.3, z - 0.3, x + 0.75, yTop, z + 0.3, 'ribDark', false);
+        this.b.box(x - 0.65, yTop - 0.32, z - 0.22, x + 0.65, yTop - 0.3, z + 0.22, mat, false);
       }
     }
   }

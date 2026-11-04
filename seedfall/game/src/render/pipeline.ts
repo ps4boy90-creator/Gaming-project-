@@ -79,7 +79,7 @@ export class Pipeline {
       this.gtao = g;
     }
     const div = quality === 'low' ? 2 : 1;
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(w / div, h / div), 0.42, 0.55, 0.92);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(w / div, h / div), 0.3, 0.45, 1.05);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.finish = new ShaderPass(FinishShader);

@@ -21,7 +21,7 @@ const door = (at: number, w: number, code: string, name: string, deck: string, s
   at,
   w,
   y0: 0,
-  y1: 2.4,
+  y1: 2.2,
   kind: 'door',
   sign: { code, name, deck, side, sub },
 });
@@ -43,6 +43,7 @@ export function buildLayout(k: Kit): ShipRefs {
   deckScience(k);
   spineAndVault(k);
   hangar(k);
+  k.finishShells();
   return refs;
 }
 
@@ -56,18 +57,18 @@ function liftAndLobby(k: Kit, deck: string, y: number): void {
   k.wallX(-18, -3, 3, y, {
     mat: 'wallDark',
     accent: deck,
-    openings: deck === 'science' ? [{ at: 0, w: 2.2, y0: 0, y1: 2.5, kind: 'door', heavy: true, sign: { code: '3-00', name: 'Spine · Cryo · Hangar', deck: 'spine', side: 1 } }] : [],
+    openings: deck === 'science' ? [{ at: 0, w: 2.2, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '3-00', name: 'Spine · Cryo · Hangar', deck: 'spine', side: 1 } }] : [],
   });
   k.wallZ(3, -18, -14, y, { mat: 'wallDark', accent: deck });
   k.wallZ(-3, -18, -14, y, {
     mat: 'wallDark',
     accent: deck,
-    openings: [{ at: -16, w: 1.5, y0: 0, y1: 2.3, kind: 'door', id: `lift-${deck}`, sign: { code: `${num}-LIFT`, name: 'Lift', deck, side: 1 } }],
+    openings: [{ at: -16, w: 1.5, y0: 0, y1: 2.2, kind: 'door', id: `lift-${deck}`, sign: { code: `${num}-LIFT`, name: 'Lift', deck, side: 1 } }],
   });
   // deck banner on the lobby wall
-  k.stencil(`DECK ${num} · ${names[deck].toUpperCase()}`, deck, new THREE.Vector3(-15.9, y + 1.75, 2.88), Math.PI, 0.42, num);
+  k.stencil(`DECK ${num} · ${names[deck].toUpperCase()}`, deck, new THREE.Vector3(-15.9, y + 1.85, 2.88), Math.PI, 0.36, num);
   // lift car
-  k.room({ id: `lift-${deck}`, name: 'Lift', deck, x0: LIFT.x0, x1: LIFT.x1, z0: LIFT.z0, z1: LIFT.z1, y0: y, ambience: 'lift' }, { floor: 'floor', spacing: 3, intensity: 3, lightMat: 'lightWarm', beams: false });
+  k.room({ id: `lift-${deck}`, name: 'Lift', deck, x0: LIFT.x0, x1: LIFT.x1, z0: LIFT.z0, z1: LIFT.z1, y0: y, ambience: 'lift' }, { floor: 'deckPlate', lights: 'grid', spacing: 3, intensity: 3, lightMat: 'lightWarm', profile: 'none' });
   k.wallX(LIFT.x0, LIFT.z0, LIFT.z1, y, { mat: 'steel', skirting: false });
   k.wallX(LIFT.x1, LIFT.z0, LIFT.z1, y, { mat: 'steel', skirting: false });
   k.wallZ(LIFT.z0, LIFT.x0, LIFT.x1, y, { mat: 'steel', skirting: false });
@@ -92,7 +93,7 @@ function liftAndLobby(k: Kit, deck: string, y: number): void {
 function deckCommand(k: Kit, refs: ShipRefs): void {
   const y = DECK_Y.command;
   const d = 'command';
-  k.room({ id: 'c-corridor', name: 'Deck 1 · Corridor', deck: d, x0: -14, x1: 8, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { lights: 'strip', spacing: 3, intensity: 6 });
+  k.room({ id: 'c-corridor', name: 'Deck 1 · Corridor', deck: d, x0: -14, x1: 8, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { profile: 'corridor', intensity: 6 });
   k.wallZ(CZ, -14, 8, y, { accent: d, openings: [door(-10, 1.4, '1-02', 'Comms & Nav', d, -1), door(0, 2.0, '1-03', 'Observation', d, -1)] });
   k.wallZ(-CZ, -14, 8, y, { accent: d, openings: [door(-9, 1.4, '1-04', 'Ready room', d, 1), door(2, 1.6, '1-05', 'Briefing', d, 1)] });
   k.wallX(-14, CZ, HULL, y, {});
@@ -102,7 +103,7 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
   k.wallZ(HULL, -14, -6, y, { t: 0.4, offset: 0.2, openings: [win(-10, 2.2)] });
   k.wallZ(-HULL, -14, 8, y, { t: 0.4, offset: -0.2, openings: [win(-9, 2.2), win(2, 3.2)] });
   // bridge aft bulkhead (also the forward walls of the dome and briefing room)
-  k.wallX(8, -HULL, HULL, y, { accent: d, openings: [{ ...door(0, 2.0, '1-01', 'Bridge', d, -1), heavy: true }] });
+  k.wallX(8, -HULL, HULL, y, { accent: d, openings: [{ ...door(0, 2.0, '1-01', 'Bridge', d, -1), heavy: true, y1: 2.1 }] });
 
   // Comms & Nav
   k.room({ id: 'comms', name: 'Comms & Nav', deck: d, x0: -14, x1: -6, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { intensity: 5 });
@@ -113,7 +114,7 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
   P.plant(k, { x: -6.6, y, z: 2.2 }, 1.1);
 
   // Observation dome: floor-to-ceiling glass, skylight
-  const dome = k.room({ id: 'dome', name: 'Observation dome', deck: d, x0: -6, x1: 8, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { ceil: null, lights: 'none' });
+  const dome = k.room({ id: 'dome', name: 'Observation dome', deck: d, x0: -6, x1: 8, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { ceil: null, lights: 'none', profile: 'none' });
   const domeGlass: Opening[] = [-4.6, -1.8, 1.0, 3.8, 6.6].map((x) => ({ at: x, w: 2.5, y0: 0.15, y1: 2.85, kind: 'window' as const }));
   k.wallZ(HULL, -6, 8, y, { t: 0.4, offset: 0.2, openings: domeGlass, skirting: false });
   // skylight: beams + glass
@@ -155,9 +156,9 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
 
   // Bridge
   k.room({ id: 'bridge', name: 'Bridge', deck: d, x0: 8, x1: 17, z0: -6, z1: 6, y0: y, ambience: 'hab' }, { intensity: 4, lightColor: 0xdfe8ff, spacing: 3.5 });
-  k.wallZ(6, 8, 17, y, { t: 0.4, offset: 0.2, openings: [win(11, 3.0, 0.7, 2.75), win(14.5, 3.0, 0.7, 2.75)] });
-  k.wallZ(-6, 8, 17, y, { t: 0.4, offset: -0.2, openings: [win(12.5, 3.0, 0.7, 2.75)] });
-  k.wallX(17, -6, 6, y, { t: 0.4, offset: 0.2, openings: [win(-3.6, 3.3, 0.7, 2.8), win(0, 3.3, 0.7, 2.8), win(3.6, 3.3, 0.7, 2.8)] });
+  k.wallZ(6, 8, 17, y, { t: 0.4, offset: 0.2, openings: [win(11, 2.6, 0.75, 2.45), win(14.5, 2.6, 0.75, 2.45)] });
+  k.wallZ(-6, 8, 17, y, { t: 0.4, offset: -0.2, openings: [win(12.5, 2.6, 0.75, 2.45)] });
+  k.wallX(17, -6, 6, y, { t: 0.4, offset: 0.2, openings: [win(-3.7, 3.0, 0.7, 2.45), win(0, 3.0, 0.7, 2.45), win(3.7, 3.0, 0.7, 2.45)] });
   P.consoleUnit(k, { x: 16.5, y, z: -1.5, rot: 3 }, 2.2, ['telemetry', 'nav'], 41);
   P.consoleUnit(k, { x: 16.5, y, z: 1.5, rot: 3 }, 2.2, ['orbit', 'status'], 43);
   P.chair(k, { x: 15.2, y, z: -1.5, rot: 1 }, 'Pilot seat', 'fabricLight');
@@ -173,7 +174,7 @@ function deckCommand(k: Kit, refs: ShipRefs): void {
 function deckCrew(k: Kit, refs: ShipRefs): void {
   const y = DECK_Y.crew;
   const d = 'crew';
-  k.room({ id: 'r-corridor', name: 'Deck 2 · Corridor', deck: d, x0: -14, x1: 14, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { lights: 'strip', spacing: 3, intensity: 6 });
+  k.room({ id: 'r-corridor', name: 'Deck 2 · Corridor', deck: d, x0: -14, x1: 14, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { profile: 'corridor', intensity: 6 });
   k.wallZ(CZ, -14, 14, y, {
     accent: d,
     openings: [door(-11, 1.3, '2-01', 'Specialist', d, -1, 'Your quarters'), door(-3, 2.0, '2-03', 'Lounge', d, -1), door(5, 1.6, '2-04', 'Galley & mess', d, -1)],
@@ -196,9 +197,9 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
   k.wallZ(HULL, -14, 14, y, {
     t: 0.4,
     offset: 0.2,
-    openings: [win(-11, 2.2), { at: -3, w: 9.2, y0: 0.45, y1: 2.7, kind: 'window' }, win(6, 2.6), win(10.6, 2.6)],
+    openings: [win(-9.8, 1.8, 1.0, 2.3), win(-6.0, 2.3, 0.55, 2.45), win(-3.0, 2.3, 0.55, 2.45), win(0.0, 2.3, 0.55, 2.45), win(6, 2.4), win(10.6, 2.4)],
   });
-  k.wallZ(-HULL, -14, 14, y, { t: 0.4, offset: -0.2, openings: [win(-2, 2.0, 1.0, 2.2), win(5, 2.6), win(11, 4.4, 0.7, 2.7)] });
+  k.wallZ(-HULL, -14, 14, y, { t: 0.4, offset: -0.2, openings: [win(-2, 1.6, 1.1, 2.2), win(5, 2.4), win(11, 4.2, 0.75, 2.45)] });
   k.poster('Protocol 7', ['Decontaminate.', 'Every time.', 'HCT SAFETY'], 'aft', new THREE.Vector3(1.0, y + 1.5, -CZ + 0.12), 0);
   k.poster('Haven awaits', ['2,400 colonists', 'One new world', 'HAVEN COLONIAL TRUST'], 'crew', new THREE.Vector3(8.5, y + 1.5, CZ - 0.12), Math.PI);
 
@@ -206,6 +207,13 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
   k.room({ id: 'cabin', name: 'Your quarters', deck: d, x0: -14, x1: -8, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { intensity: 4, lightColor: 0xffe4c4, lightMat: 'lightWarm', spacing: 3.6 });
   P.bed(k, { x: -12.78, y, z: 7.75, rot: 1 }, 'Your bunk', true);
   refs.bedSeatId = k.seats[k.seats.length - 1].id;
+  // built-in sleeping alcove: padded back, canopy with a reading light, foot shelf
+  k.b.box(-13.9, y + 0.55, 8.3, -11.55, y + 1.75, 9.0, 'wall', 'solid');
+  k.b.box(-13.92, y + 1.72, 6.95, -11.5, y + 1.86, 9.0, 'rib', false, 0.02);
+  k.b.box(-13.85, y + 1.69, 7.05, -11.6, y + 1.72, 7.15, 'lightWarm', false);
+  k.b.box(-11.62, y, 6.95, -11.48, y + 1.86, 9.0, 'rib', 'solid', 0.02);
+  k.b.box(-11.48, y + 0.55, 7.6, -11.2, y + 0.6, 8.9, 'steel', false);
+  k.b.box(-11.48, y + 1.1, 7.6, -11.2, y + 1.15, 8.9, 'steel', false);
   P.desk(k, { x: -8.46, y, z: 4.4, rot: 3 }, 'mail', 5, 1.5);
   P.chair(k, { x: -9.3, y, z: 4.4, rot: 1 }, 'Desk chair');
   k.item({ id: 'mail', min: [-8.95, y + 0.75, 3.9], max: [-8.15, y + 1.45, 4.9], prompt: 'Read messages', action: 'mail' });
@@ -219,9 +227,9 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
 
   // Lounge
   k.room({ id: 'lounge', name: 'Recreation lounge', deck: d, x0: -8, x1: 2, z0: CZ, z1: HULL, y0: y, ambience: 'hab' }, { intensity: 4, lightColor: 0xffdcb0, lightMat: 'lightWarm' });
-  P.couch(k, { x: -5.2, y, z: 6.6, rot: 0 }, 2.4, 'Couch');
-  P.couch(k, { x: -1.0, y, z: 6.6, rot: 0 }, 2.4, 'Couch');
-  P.table(k, { x: -3.1, y, z: 7.7, rot: 0 }, 1.2, 0.6, 0.42, 'paintDark');
+  P.couch(k, { x: -5.4, y, z: 6.9, rot: 0 }, 2.2, 'Couch');
+  P.couch(k, { x: -0.8, y, z: 6.9, rot: 0 }, 2.2, 'Couch');
+  P.table(k, { x: -3.1, y, z: 7.9, rot: 0 }, 1.0, 0.5, 0.42, 'paintDark');
   P.couch(k, { x: 1.35, y, z: 4.2, rot: 3 }, 2.0, 'Armchair', 'fabricAmber');
   k.screen('telemetry', new THREE.Vector3(-7.88, y + 1.6, 4.6), Math.PI / 2, 1.8, 61, 'FILM LIBRARY', 0);
   P.couch(k, { x: -5.6, y, z: 4.6, rot: 3 }, 1.8, 'Couch');
@@ -282,8 +290,8 @@ function deckCrew(k: Kit, refs: ShipRefs): void {
 function deckScience(k: Kit): void {
   const y = DECK_Y.science;
   const d = 'science';
-  k.room({ id: 's-corridor', name: 'Deck 3 · Corridor', deck: d, x0: -14, x1: 14, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { lights: 'strip', spacing: 3, intensity: 6 });
-  k.wallZ(CZ, -14, 14, y, { accent: d, openings: [door(-10, 1.6, '3-01', 'Laboratory', d, -1), door(-3, 1.4, '3-02', 'Lab · east', d, -1), { ...door(3, 1.4, '3-03', 'Specimen vault', d, -1), heavy: true }, door(10, 1.4, '3-04', 'Life support', d, -1)] });
+  k.room({ id: 's-corridor', name: 'Deck 3 · Corridor', deck: d, x0: -14, x1: 14, z0: -CZ, z1: CZ, y0: y, ambience: 'hab' }, { profile: 'corridor', intensity: 6 });
+  k.wallZ(CZ, -14, 14, y, { accent: d, openings: [door(-10, 1.6, '3-01', 'Laboratory', d, -1), door(-3, 1.4, '3-02', 'Lab · east', d, -1), { ...door(3, 1.4, '3-03', 'Specimen vault', d, -1), heavy: true, y1: 2.1 }, door(10, 1.4, '3-04', 'Life support', d, -1)] });
   k.wallZ(-CZ, -14, 14, y, { accent: d, openings: [door(-8, 1.6, '3-05', 'Workshop & armory', d, 1), door(6, 1.6, '3-06', 'Stores', d, 1)] });
   for (const x of [0, 6]) k.wallX(x, CZ, HULL, y, { t: x === 0 || x === 6 ? 0.3 : 0.2 });
   k.wallX(-2, -HULL, -CZ, y, {});
@@ -343,7 +351,7 @@ function deckScience(k: Kit): void {
 function spineAndVault(k: Kit): void {
   const y = 0;
   const d = 'spine';
-  k.room({ id: 'spine', name: 'Main spine', deck: d, x0: -70, x1: -18, z0: -2, z1: 2, y0: y, ambience: 'spine' }, { lights: 'strip', spacing: 4, intensity: 5, lightColor: 0xf0f4ff });
+  k.room({ id: 'spine', name: 'Main spine', deck: d, x0: -70, x1: -18, z0: -2, z1: 2, y0: y, ambience: 'spine' }, { profile: 'corridor', intensity: 5, lightColor: 0xf0f4ff, rib: 3.0 });
   const starboard: Opening[] = [];
   for (let x = -66; x <= -22; x += 6) starboard.push(win(x, 1.8, 1.0, 2.3));
   k.wallZ(2, -70, -18, y, { mat: 'wallDark', accent: d, openings: starboard });
@@ -352,33 +360,27 @@ function spineAndVault(k: Kit): void {
     accent: d,
     h: 4.5,
     openings: [
-      { at: -30, w: 2.2, y0: 0, y1: 2.6, kind: 'gap' },
-      { at: -56, w: 2.2, y0: 0, y1: 2.6, kind: 'gap' },
-      { at: -36.5, w: 3.4, y0: 0.9, y1: 2.5, kind: 'inner' },
-      { at: -43, w: 3.4, y0: 0.9, y1: 2.5, kind: 'inner' },
-      { at: -49.5, w: 3.4, y0: 0.9, y1: 2.5, kind: 'inner' },
+      { at: -30, w: 2.2, y0: 0, y1: 2.25, kind: 'gap' },
+      { at: -56, w: 2.2, y0: 0, y1: 2.25, kind: 'gap' },
+      { at: -36.5, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
+      { at: -43, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
+      { at: -49.5, w: 3.4, y0: 0.9, y1: 2.35, kind: 'inner' },
     ],
   });
-  k.stencil('CRYO VAULT 3 · PODS 0721–0792', 'spine', new THREE.Vector3(-30, y + 2.78, -1.88), 0, 0.28, 7);
-  k.stencil('CRYO VAULT 3', 'spine', new THREE.Vector3(-56, y + 2.78, -1.88), 0, 0.28, 8);
+  k.stencil('CRYO VAULT 3 · PODS 0721–0792', 'spine', new THREE.Vector3(-30, y + 2.4, -1.88), 0, 0.2, 7);
+  k.stencil('CRYO VAULT 3', 'spine', new THREE.Vector3(-56, y + 2.4, -1.88), 0, 0.2, 8);
   k.stencil('HANGAR · KESTREL · MULE  ▸', 'spine', new THREE.Vector3(-62, y + 1.7, 1.88), Math.PI, 0.3, 9);
-  k.stencil('◂  HABITAT · LIFT', 'spine', new THREE.Vector3(-24, y + 1.7, -1.88), 0, 0.3, 10);
-  // pipes along the spine ceiling
-  P.pipeRun(k, new THREE.Vector3(-70, y + 2.75, 1.65), new THREE.Vector3(-18, y + 2.75, 1.65), 0.07);
-  P.pipeRun(k, new THREE.Vector3(-70, y + 2.6, 1.72), new THREE.Vector3(-18, y + 2.6, 1.72), 0.045, 'accent-spine');
-  P.pipeRun(k, new THREE.Vector3(-70, y + 2.75, -1.65), new THREE.Vector3(-18, y + 2.75, -1.65), 0.06, 'paintGrey');
-  // floor centre grating strip
-  k.b.box(-70, y + 0.001, -0.4, -18, y + 0.012, 0.4, 'metal', false);
+  k.stencil('◂  HABITAT · LIFT', 'spine', new THREE.Vector3(-22.6, y + 1.7, -1.88), 0, 0.3, 10);
 
   // Cryo Vault 3
-  k.room({ id: 'vault', name: 'Cryo Vault 3', deck: d, x0: -62, x1: -24, z0: -14, z1: -2, y0: y, h: 4.5, ambience: 'vault' }, { lights: 'strip', spacing: 4.2, intensity: 3.5, lightColor: 0x9fd8ff, lightMat: 'lightCold', floor: 'floor' });
+  k.room({ id: 'vault', name: 'Cryo Vault 3', deck: d, x0: -62, x1: -24, z0: -14, z1: -2, y0: y, h: 4.5, ambience: 'vault' }, { profile: 'hall', intensity: 3.5, lightColor: 0x9fd8ff, lightMat: 'lightCold' });
   k.wallZ(-14, -62, -24, y, { mat: 'wallDark', h: 4.5, accent: d });
   k.wallX(-24, -14, -2, y, { mat: 'wallDark', h: 4.5, accent: d });
   k.wallX(-62, -14, -2, y, {
     mat: 'wallDark',
     h: 4.5,
     accent: d,
-    openings: [{ at: -8, w: 2.4, y0: 0, y1: 2.6, kind: 'door', heavy: true, locked: true, label: 'Seed Bank · "the Orchard" · authorised access only', sign: { code: 'SB-01', name: 'Seed Bank', deck: 'aft', side: 1, sub: 'The Orchard' } }],
+    openings: [{ at: -8, w: 2.4, y0: 0, y1: 2.5, kind: 'door', heavy: true, locked: true, label: 'Seed Bank · "the Orchard" · authorised access only', sign: { code: 'SB-01', name: 'Seed Bank', deck: 'aft', side: 1, sub: 'The Orchard' } }],
   });
   let n = 721;
   const failedPods = new Set([734, 768]);
@@ -402,10 +404,10 @@ function spineAndVault(k: Kit): void {
 
   // Suit room
   k.room({ id: 'suitroom', name: 'Suit room', deck: 'aft', x0: -78, x1: -70, z0: -4, z1: 4, y0: y, ambience: 'hab' }, { intensity: 6 });
-  k.wallX(-70, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.8, y0: 0, y1: 2.4, kind: 'door', heavy: true, sign: { code: '0-10', name: 'Suit room', deck: 'aft', side: 1 } }] });
+  k.wallX(-70, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.8, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '0-10', name: 'Suit room', deck: 'aft', side: 1 } }] });
   k.wallZ(4, -78, -70, y, { mat: 'wallDark', accent: 'aft' });
   k.wallZ(-4, -78, -70, y, { mat: 'wallDark', accent: 'aft' });
-  k.wallX(-78, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.5, y0: 0, y1: 2.3, kind: 'door', heavy: true, sign: { code: '0-11', name: 'Decon airlock', deck: 'aft', side: 1, both: true } }] });
+  k.wallX(-78, -4, 4, y, { mat: 'wallDark', accent: 'aft', openings: [{ at: 0, w: 1.5, y0: 0, y1: 2.1, kind: 'door', heavy: true, sign: { code: '0-11', name: 'Decon airlock', deck: 'aft', side: 1, both: true } }] });
   const crew = ['Specialist', 'Tanabe', 'Brandt', 'Varga', 'Mensah', 'Okonkwo'];
   crew.slice(0, 3).forEach((name, i) => P.suitLocker(k, { x: -76.5 + i * 1.05, y, z: 3.35, rot: 2 }, name));
   crew.slice(3).forEach((name, i) => P.suitLocker(k, { x: -76.5 + i * 1.05, y, z: -3.35, rot: 0 }, name));
@@ -413,7 +415,7 @@ function spineAndVault(k: Kit): void {
   k.poster('Protocol 7', ['Decontaminate.', 'Every time.', 'HCT SAFETY'], 'aft', new THREE.Vector3(-71.2, y + 1.6, 3.88), Math.PI);
 
   // Decon airlock
-  k.room({ id: 'decon', name: 'Decontamination airlock', deck: 'aft', x0: -82, x1: -78, z0: -1.5, z1: 1.5, y0: y, ambience: 'lift' }, { intensity: 3, lightColor: 0xffb060, lightMat: 'statusAmber', spacing: 2 });
+  k.room({ id: 'decon', name: 'Decontamination airlock', deck: 'aft', x0: -82, x1: -78, z0: -1.5, z1: 1.5, y0: y, ambience: 'lift' }, { intensity: 3, lightColor: 0xffb060, lightMat: 'statusAmber', spacing: 2, lights: 'grid', profile: 'none', floor: 'grating' });
   k.wallZ(1.5, -82, -78, y, { mat: 'steel' });
   k.wallZ(-1.5, -82, -78, y, { mat: 'steel' });
   for (let x = -81.5; x <= -78.5; x += 0.75) {
@@ -430,8 +432,8 @@ function spineAndVault(k: Kit): void {
 function hangar(k: Kit): void {
   const y = 0;
   const d = 'aft';
-  k.room({ id: 'hangar', name: 'Hangar bay', deck: d, x0: -112, x1: -82, z0: -15, z1: 15, y0: y, h: 12, ambience: 'hangar' }, { spacing: 7, intensity: 70, lightColor: 0xfff0dc, beams: true });
-  k.wallX(-82, -15, 15, y, { mat: 'wallDark', h: 12, accent: d, openings: [{ at: 0, w: 1.6, y0: 0, y1: 2.4, kind: 'door', heavy: true, sign: { code: '0-12', name: 'Hangar', deck: d, side: -1 } }] });
+  k.room({ id: 'hangar', name: 'Hangar bay', deck: d, x0: -112, x1: -82, z0: -15, z1: 15, y0: y, h: 12, ambience: 'hangar' }, { spacing: 7, intensity: 120, lightColor: 0xfff0dc, lights: 'grid', profile: 'hangar' });
+  k.wallX(-82, -15, 15, y, { mat: 'wallDark', h: 12, accent: d, openings: [{ at: 0, w: 1.6, y0: 0, y1: 2.2, kind: 'door', heavy: true, sign: { code: '0-12', name: 'Hangar', deck: d, side: -1 } }] });
   k.wallX(-112, -15, 15, y, { mat: 'wallDark', h: 12 });
   k.wallZ(15, -112, -82, y, { mat: 'wallDark', h: 12, accent: d, openings: [win(-91, 4.0, 1.0, 3.6), win(-103, 4.0, 1.0, 3.6)] });
   k.wallZ(-15, -112, -82, y, { mat: 'wallDark', h: 12, accent: d });

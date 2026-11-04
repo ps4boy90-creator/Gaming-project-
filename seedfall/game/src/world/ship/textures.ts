@@ -483,3 +483,240 @@ export function mist(seed = 12): THREE.Texture {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+
+/* ------------------------------------------------------------------ spaceship surfaces */
+
+/** Crew-area wall, 2 m × 4 m tile, v = 0 at the deck: kick plate, dark equipment band with
+ *  vents, a trim band, white padded quilting, and a technical upper band. */
+export function paddedWall(seed = 21): PBRSet {
+  const w = 512;
+  const h = 1024;
+  const L = layers(w, h);
+  for (let y = 0; y < h; y++) {
+    const v = y / h;
+    const ym = v * 4;
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const xm = u * 2;
+      const i = y * w + x;
+      const n = fbm(u, v, 8, 3, seed);
+      let r = 0.8;
+      let g = 0.81;
+      let b = 0.79;
+      let hgt = 0;
+      let rough = 0.6;
+      if (ym < 0.12) {
+        r = g = b = 0.12 + n * 0.04;
+        rough = 0.55;
+        hgt = -0.2;
+      } else if (ym < 1.0) {
+        // lower equipment panels with vent slots and fasteners
+        const px = xm % 1.0;
+        const py = ym - 0.12;
+        const seamV = Math.max(seam(px, 0.006), seam(px - 1, 0.006));
+        const seamH = Math.max(seam(ym - 0.12, 0.006), seam(ym - 1.0, 0.006));
+        const vent = px > 0.18 && px < 0.52 && py > 0.32 && py < 0.58 && (py * 40) % 1 < 0.45 ? 1 : 0;
+        let bolt = 0;
+        for (const [bx, by] of [[0.04, 0.05], [0.96, 0.05], [0.04, 0.83], [0.96, 0.83]]) bolt = Math.max(bolt, 1 - smooth(0.004, 0.009, Math.hypot(px - bx, py - by)));
+        const tag = px > 0.66 && px < 0.86 && py > 0.6 && py < 0.7 ? 1 : 0;
+        const pid = hash2(Math.floor(xm), 7, seed);
+        const base = 0.27 + pid * 0.04 + n * 0.03;
+        r = base;
+        g = base * 1.02;
+        b = base * 1.06;
+        if (tag) {
+          r = 0.72;
+          g = 0.7;
+          b = 0.6;
+        }
+        hgt = -Math.max(seamV, seamH) - vent * 0.7 + bolt * 0.5;
+        if (vent) r = g = b = 0.04;
+        rough = 0.42 + n * 0.15;
+      } else if (ym < 1.14) {
+        r = g = b = 0.2;
+        hgt = -0.1;
+        rough = 0.5;
+      } else if (ym < 2.56) {
+        // padded quilting, 0.5 m × 0.355 m cushions
+        const cx = (xm / 0.5) % 1;
+        const cy = ((ym - 1.14) / 0.355) % 1;
+        const ex = Math.pow(Math.abs(cx * 2 - 1), 4);
+        const ey = Math.pow(Math.abs(cy * 2 - 1), 4);
+        const pillow = (1 - ex) * (1 - ey);
+        const stitchX = seam(cx, 0.02) + seam(cx - 1, 0.02);
+        const stitchY = seam(cy, 0.03) + seam(cy - 1, 0.03);
+        const button = 1 - smooth(0.0, 0.035, Math.hypot(Math.min(cx, 1 - cx) * 0.5, Math.min(cy, 1 - cy) * 0.355));
+        hgt = pillow * 1.2 - Math.min(1, stitchX + stitchY) * 0.4 - button * 0.4;
+        const shade = 0.78 + pillow * 0.05 + n * 0.03;
+        r = shade;
+        g = shade * 1.01;
+        b = shade * 0.985;
+        rough = 0.55 + (1 - pillow) * 0.15;
+      } else if (ym < 2.62) {
+        r = g = b = 0.16;
+        hgt = -0.3;
+      } else {
+        const sV = Math.max(seam(xm % 1.0, 0.006), seam((xm % 1.0) - 1, 0.006));
+        r = g = b = 0.4 + n * 0.04;
+        hgt = -sV;
+        rough = 0.5;
+      }
+      L.height[i] = hgt;
+      L.albedo[i * 3] = r;
+      L.albedo[i * 3 + 1] = g;
+      L.albedo[i * 3 + 2] = b;
+      L.rough[i] = rough;
+    }
+  }
+  return bake(L, 10);
+}
+
+/** Service-area wall: grey plating with greebles (vents, inset panels, rivet rows, labels). */
+export function techPanels(seed = 31): PBRSet {
+  const w = 512;
+  const h = 1024;
+  const L = layers(w, h);
+  const rowsM = [0, 0.12, 0.9, 1.9, 2.6, 4];
+  for (let y = 0; y < h; y++) {
+    const v = y / h;
+    const ym = v * 4;
+    let row = 0;
+    while (row < rowsM.length - 2 && ym > rowsM[row + 1]) row++;
+    const y0 = rowsM[row];
+    const y1 = rowsM[row + 1];
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const xm = u * 2;
+      const i = y * w + x;
+      const col = Math.floor(xm);
+      const px = xm - col;
+      const py = (ym - y0) / (y1 - y0);
+      const pid = hash2(col, row, seed);
+      const n = fbm(u, v, 8, 3, seed + 1);
+      const sm = Math.max(seam(px, 0.005), seam(px - 1, 0.005), seam(ym - y0, 0.006), seam(ym - y1, 0.006));
+      let feat = 0;
+      let dark = 0;
+      const kind = Math.floor(pid * 5);
+      if (row === 0) dark = 1;
+      else if (kind === 0) {
+        // vent slots
+        if (px > 0.15 && px < 0.85 && py > 0.25 && py < 0.75 && (px * 36) % 1 < 0.4) {
+          feat = -0.6;
+          dark = 0.85;
+        }
+      } else if (kind === 1) {
+        // inset hatch with handle
+        const inside = px > 0.12 && px < 0.88 && py > 0.12 && py < 0.88;
+        const edge = inside && (px < 0.14 || px > 0.86 || py < 0.14 || py > 0.86);
+        if (edge) feat = -0.5;
+        if (px > 0.7 && px < 0.8 && py > 0.45 && py < 0.55) feat = 0.6;
+      } else if (kind === 2) {
+        // rivet rows
+        if ((Math.abs(py - 0.1) < 0.02 || Math.abs(py - 0.9) < 0.02) && (px * 20) % 1 < 0.25) feat = 0.5;
+      } else if (kind === 3) {
+        // label plate
+        if (px > 0.1 && px < 0.45 && py > 0.65 && py < 0.8) feat = 0.15;
+      }
+      const base = (row === 0 ? 0.13 : 0.34 + pid * 0.06) + (n - 0.5) * 0.05;
+      let r = base;
+      let g = base * 1.02;
+      let b = base * 1.05;
+      if (kind === 3 && feat === 0.15) {
+        r = 0.78;
+        g = 0.74;
+        b = 0.55;
+      }
+      const k = 1 - dark * 0.85 - sm * 0.5;
+      L.height[i] = feat - sm;
+      L.albedo[i * 3] = r * k;
+      L.albedo[i * 3 + 1] = g * k;
+      L.albedo[i * 3 + 2] = b * k;
+      L.rough[i] = 0.45 + n * 0.2 + dark * 0.2;
+    }
+  }
+  return bake(L, 10);
+}
+
+/** Dark technical ceiling plates with round vents, 2 m tile. */
+export function techCeiling(seed = 41): PBRSet {
+  const s = 512;
+  const L = layers(s, s);
+  for (let y = 0; y < s; y++) {
+    const v = y / s;
+    for (let x = 0; x < s; x++) {
+      const u = x / s;
+      const i = y * s + x;
+      const pu = (u * 2) % 1;
+      const pv = (v * 4) % 1;
+      const sm = Math.max(seam(pu, 0.01), seam(pu - 1, 0.01), seam(pv, 0.02), seam(pv - 1, 0.02));
+      const cell = hash2(Math.floor(u * 2), Math.floor(v * 4), seed);
+      const vent = cell > 0.6 ? 1 - smooth(0.16, 0.2, Math.hypot(pu - 0.5, (pv - 0.5) * 0.5)) : 0;
+      const ring = cell > 0.6 ? seam(Math.hypot(pu - 0.5, (pv - 0.5) * 0.5) - 0.2, 0.02) : 0;
+      const slots = vent > 0 && (pu * 30) % 1 < 0.4 ? 1 : 0;
+      const n = fbm(u, v, 6, 3, seed);
+      L.height[i] = -sm - vent * slots * 0.5 + ring * 0.4;
+      const c = (0.16 + cell * 0.04 + n * 0.03) * (1 - sm * 0.6) * (1 - vent * slots * 0.8);
+      L.albedo[i * 3] = c;
+      L.albedo[i * 3 + 1] = c * 1.02;
+      L.albedo[i * 3 + 2] = c * 1.06;
+      L.rough[i] = 0.5 + n * 0.2;
+    }
+  }
+  return bake(L, 6);
+}
+
+/** Diamond tread deck plate, 1 m tile. */
+export function diamondPlate(seed = 51): PBRSet {
+  const s = 512;
+  const L = layers(s, s);
+  const k = 16;
+  for (let y = 0; y < s; y++) {
+    const v = y / s;
+    for (let x = 0; x < s; x++) {
+      const u = x / s;
+      const i = y * s + x;
+      const cu = (u * k) % 1;
+      const cv = (v * k) % 1;
+      const odd = (Math.floor(u * k) + Math.floor(v * k)) % 2 === 0;
+      const du = cu - 0.5;
+      const dv = cv - 0.5;
+      const a = odd ? du + dv : du - dv;
+      const bb = odd ? du - dv : du + dv;
+      const lozenge = 1 - smooth(0.05, 0.08, Math.abs(a) * 0.35 + Math.abs(bb) * 1.6 - 0.12);
+      const sm = Math.max(seam(u, 0.003), seam(u - 1, 0.003), seam(v, 0.003), seam(v - 1, 0.003));
+      const wear = smooth(0.45, 0.75, fbm(u, v, 3, 4, seed));
+      const n = fbm(u, v, 12, 3, seed + 2);
+      L.height[i] = lozenge * 0.6 - sm;
+      const c = 0.2 + n * 0.05 + wear * 0.08 + lozenge * wear * 0.1;
+      L.albedo[i * 3] = c;
+      L.albedo[i * 3 + 1] = c * 1.01;
+      L.albedo[i * 3 + 2] = c * 1.03;
+      L.rough[i] = 0.55 - lozenge * 0.15 - wear * 0.12 + sm * 0.2;
+    }
+  }
+  return bake(L, 4);
+}
+
+/** Floor grating: bars over a dark void, 1 m tile. */
+export function grating(seed = 61): PBRSet {
+  const s = 512;
+  const L = layers(s, s);
+  for (let y = 0; y < s; y++) {
+    const v = y / s;
+    for (let x = 0; x < s; x++) {
+      const u = x / s;
+      const i = y * s + x;
+      const bar = (u * 32) % 1 < 0.28 ? 1 : 0;
+      const cross = (v * 10) % 1 < 0.1 ? 1 : 0;
+      const solid = Math.max(bar, cross);
+      const n = fbm(u, v, 8, 3, seed);
+      L.height[i] = solid ? 0.6 + cross * 0.2 : -0.8;
+      const c = solid ? 0.26 + n * 0.06 : 0.015;
+      L.albedo[i * 3] = c;
+      L.albedo[i * 3 + 1] = c * 1.02;
+      L.albedo[i * 3 + 2] = c * 1.05;
+      L.rough[i] = solid ? 0.4 + n * 0.2 : 0.9;
+    }
+  }
+  return bake(L, 5);
+}
