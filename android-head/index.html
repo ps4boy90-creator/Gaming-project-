@@ -376,7 +376,7 @@ const PATHS = [
    { t: 'Cross to the thalamus', d: 'Second neurons cross the midline and climb to the thalamus.', glow: ['touchpath','thalamus'], cur: [['touch@',0,0.55]] },
    { t: 'Touch map', d: 'Third neurons reach the face area of the somatosensory cortex, on the opposite side from the touch.', glow: ['touchpath','s1','parietal'], cur: [['touch@',0.5,1]] } ],
    extra: [] },
- { id: 'blood', name: 'Blood flow', sub: 'Supply, ring, distribution, return', view: [0.7, 0.15, 60], steps: [
+ { id: 'blood', name: 'Coolant loop', sub: 'Laid out like the blood supply: inlets, ring, distribution, return', view: [0.7, 0.15, 60], steps: [
    { t: 'Two inlets each side', d: 'The internal carotids climb at the front. The vertebral arteries climb at the back, through the neck vertebrae.', glow: ['carotid','vertebral'], cur: ['cca@','ica@','va@','bas'], col: ART },
    { t: 'Ring manifold', d: 'All four feed the circle of Willis, so a blockage in one can be bypassed.', glow: ['willis'], cur: ['willis'], col: ART },
    { t: 'Distribution', d: 'Three cerebral arteries on each side spread over and into the brain.', glow: ['cerebral'], cur: ['mca@','mca2@','aca@','pca@'], col: ART },
@@ -490,9 +490,12 @@ function initGraphics() {
 
   const C = {
     shell: 0xe6eaef, metal: 0x9aa4b1, bone: 0x8e99a8, tooth: 0xf1eee4,
-    nerve: 0xf0c93a, nerve2: 0xe89f3a, tract: 0xf3df8a, muscle: 0xc65c3e, tendon: 0xe6d3c0,
+    nerve: 0xf2c230, nerve2: 0x9fdc55, tract: 0xf3df8a, muscle: 0xe07a2f, tendon: 0xb9c2cc,
+    conn: 0x23272e, chrome: 0xcfd6de, steel: 0x8a94a0,
     art: 0xd8404f, vein: 0x4a76d8, sensor: 0x58c7d8, voice: 0x74c08a
   };
+
+  const K = { conn: lin(C.conn), chrome: lin(C.chrome), steel: lin(C.steel), dark: c => c.clone().multiplyScalar(0.62) };
 
   /* ---------- geometry helpers ---------- */
   function hermite(ys, vs, y, flat0) {   // ys descending
@@ -521,17 +524,26 @@ function initGraphics() {
   const _P = new T.Vector3(), _N = new T.Vector3(), _B = new T.Vector3(), _T = new T.Vector3();
   function tubeGeo(curve, o) {
     const len = curve.getLength();
-    const seg = o.seg || clamp(Math.round(len * (o.den || 2.6)), 6, 240);
+    const seg = o.seg || clamp(Math.round(len * (o.den || (o.style ? 4.2 : 2.6))), 6, 260);
     const rad = o.rad || 8, closed = !!o.closed;
     const fr = curve.computeFrenetFrames(seg, closed);
     const nv = (seg + 1) * (rad + 1) + (o.caps ? 2 : 0);
     const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), idx = [];
-    const flat = o.flat || 1, fd = o.flatDir;
+    const flat = o.flat || 1, fd = o.flatDir, st = closed && o.style !== 'conduit' ? null : o.style;
     const r0 = o.r, r1 = o.r1 === undefined ? o.r : o.r1, belly = o.belly || 0;
+    const col = o.style ? new Float32Array(nv * 3) : null, body = o.body || K.chrome;
+    const e = Math.min(0.2, ({ act: 0.7, cable: 0.32, hose: 0.38 }[st] || 0) / len);
+    let cc = body;
     for (let i = 0; i <= seg; i++) {
       const t = i / seg; curve.getPointAt(t, _P);
       let r = o.rf ? o.rf(t) : lerp(r0, r1, t);
-      if (belly) r += belly * Math.pow(Math.sin(Math.PI * t), 0.8);
+      if (belly && st !== 'act') r += belly * Math.pow(Math.sin(Math.PI * t), 0.8);
+      cc = body;
+      const a2 = t < 0.5 ? t : 1 - t;
+      if (st === 'act') { r += belly * 0.85; if (a2 < e) { r *= 0.3; cc = K.steel; } else if (a2 < e * 1.7) { r *= 1.14; cc = K.chrome; } else cc = (i & 1) ? body : K.dark(body); }
+      else if (st === 'cable') { if (a2 < e) { r *= 1.75; cc = K.conn; } }
+      else if (st === 'hose') { if (a2 < e) { r *= 1.28; cc = K.chrome; } }
+      else if (st === 'conduit') { if (i & 1) { r *= 1.1; cc = K.dark(body); } }
       if (fd) {
         _T.copy(fr.tangents[i]); _N.copy(typeof fd === 'function' ? fd(_P) : fd);
         _N.addScaledVector(_T, -_N.dot(_T));
@@ -547,6 +559,7 @@ function initGraphics() {
         let nx = _N.x * c * rb + _B.x * s * rn, ny = _N.y * c * rb + _B.y * s * rn, nz = _N.z * c * rb + _B.z * s * rn;
         const l = Math.hypot(nx, ny, nz) || 1;
         nor[k] = nx / l; nor[k + 1] = ny / l; nor[k + 2] = nz / l;
+        if (col) { col[k] = cc.r; col[k + 1] = cc.g; col[k + 2] = cc.b; }
       }
     }
     for (let i = 0; i < seg; i++) for (let j = 0; j < rad; j++) {
@@ -557,11 +570,13 @@ function initGraphics() {
       const c0 = (seg + 1) * (rad + 1), c1 = c0 + 1;
       curve.getPointAt(0, _P); pos.set([_P.x, _P.y, _P.z], c0 * 3); _T.copy(fr.tangents[0]); nor.set([-_T.x, -_T.y, -_T.z], c0 * 3);
       curve.getPointAt(1, _P); pos.set([_P.x, _P.y, _P.z], c1 * 3); _T.copy(fr.tangents[seg]); nor.set([_T.x, _T.y, _T.z], c1 * 3);
-      for (let j = 0; j < rad; j++) { idx.push(c0, j + 1, j); const e = seg * (rad + 1) + j; idx.push(c1, e, e + 1); }
+      for (let j = 0; j < rad; j++) { idx.push(c0, j + 1, j); const q = seg * (rad + 1) + j; idx.push(c1, q, q + 1); }
+      if (col) { col.set([col[0], col[1], col[2]], c0 * 3); col.set([cc.r, cc.g, cc.b], c1 * 3); }
     }
     const g = new T.BufferGeometry();
     g.setAttribute('position', new T.BufferAttribute(pos, 3));
     g.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    if (col) g.setAttribute('color', new T.BufferAttribute(col, 3));
     g.setIndex(idx);
     return g;
   }
@@ -576,10 +591,16 @@ function initGraphics() {
   // tube(part id, points, options): options r, r1, belly, flat, flatDir, name (register curve), m (material), color, mo
   function tube(id, pts, o) {
     const mesh = new T.Mesh(new T.BufferGeometry(), o.m || mat(o.color, o.mo));
+    if (o.style) {                       // styled tubes carry their colours per vertex; the material goes white
+      const m = mesh.material;
+      if (!m.userData.body) { m.userData.body = m.color.clone(); m.color.setRGB(1, 1, 1); m.vertexColors = true; }
+      o.body = m.userData.body;
+    }
     const rec = { mesh, pts, o };
     const curve = rebuildTube(rec);
     if (pts.some(p => p.j)) DYN.push(rec);
     reg(mesh, id, { anchor: curve.getPointAt(0.5) });
+    if (o.style) mesh.userData.glow = o.body.clone();
     return mesh;
   }
   function curveOnly(name, pts) { CURVES[name] = new T.CatmullRomCurve3(pts, false, 'centripetal'); }
@@ -730,6 +751,12 @@ function initGraphics() {
     const base = new T.Mesh(new T.CylinderGeometry(6.0, 6.0, 0.3, 56), mat(0x3a414d, { metalness: 0.7, roughness: 0.45 })); base.position.set(0, -16.35, -1.3); reg(base, 'shell');
   })();
 
+  const mTrim = mat(0x2a2f37, { metalness: 0.85, roughness: 0.3 });
+  both(s => {
+    const pts = []; for (let i = 0; i < 30; i++) { const a = i / 30 * TAU, x = s * 3.2 + 1.54 * Math.cos(a), y = 0.8 + 0.97 * Math.sin(a); pts.push(S(x, y, -0.03)); }
+    tube('shell', pts, { m: mTrim, r: 0.1, closed: true, rad: 6 }).userData.trim = true;
+  });
+
   // ----- chassis: jaw frame, joints, cheek struts, teeth -----
   const mJawFrame = mat(C.bone, { metalness: 0.55, roughness: 0.35 });
   const radial = p => P(p.x, 0, p.z - 1.5);
@@ -816,37 +843,42 @@ function initGraphics() {
   }
   const CX = (s, y, z, off) => P(s * (hemiX(y, z) + (off === undefined ? 0.22 : off)), y, z);
   const LOBES = ['frontal', 'parietal', 'temporal', 'occipital'];
-  const LOBE_TINT = [0xdba9c3, 0xcaa7d9, 0xb5a5dd, 0xa3aae1];
+  const LOBE_TINT = [0xff5fa8, 0xb48cff, 0x6f97ff, 0x3fd0ff];
+  const LOBE_FIN = [P(0, 0.35, 1), P(1, 0.2, 0.3), P(0, 1, 0.25), P(0.25, 0.35, -1)];   // louvre direction per module
   function lobeOf(x, y, z) {
     if (z < -5.6 - 0.12 * (y - 4)) return 3;
     if (z < 4.6 && y < 1.9 + (4.4 - z) * 0.2 && Math.abs(x) > 1.2) return 2;
     if (z > -0.9 + (10.3 - y) * 0.22) return 0;
     return 1;
   }
+  // housing: a metal skin with cooling slots cut in the shader, over a glowing processor block
+  function finMat(dir) {
+    const m = phys(0x596373, { metalness: 0.85, roughness: 0.34, clearcoat: 0.3, clearcoatRoughness: 0.4, side: T.DoubleSide });
+    const uFin = { value: new T.Vector4(dir.x, dir.y, dir.z, 0.78) };
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uFin = uFin;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObj;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObj = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vObj;\nuniform vec4 uFin;')
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity );\nif (fract(dot(vObj, uFin.xyz) / uFin.w) < 0.24) discard;');
+    };
+    m.customProgramCacheKey = () => 'fin';
+    return m;
+  }
   both(s => {
-    const W = 112, H = 84, g = new T.SphereGeometry(1, W, H), p = g.attributes.position, v = new T.Vector3();
-    const lobe = new Uint8Array(p.count), shade = new Float32Array(p.count);
+    const W = 96, H = 72, g = new T.SphereGeometry(1, W, H), p = g.attributes.position, v = new T.Vector3();
+    const lobe = new Uint8Array(p.count);
     for (let i = 0; i < p.count; i++) {
       hemiMap(s, p.getX(i), p.getY(i), p.getZ(i), v);
       lobe[i] = lobeOf(v.x, v.y, v.z);
-      const n1 = Math.sin(v.x * 1.9 + 1.3 * Math.sin(v.y * 1.4 + v.z * 0.9)) * Math.sin(v.y * 2.1 + 1.2 * Math.sin(v.z * 1.7 + v.x * 0.6)) + 0.5 * Math.sin(v.z * 2.6 + 1.5 * Math.sin(v.x * 1.3 + v.y * 1.1));
-      const val = Math.abs(n1), sul = 1 - sstep(0, 0.24, val);
-      shade[i] = 0.6 + 0.4 * (1 - sul);
-      if (Math.abs(v.x) > GAP + 0.01) {
-        const dx = v.x - s * 2.5, dy = v.y - 3.5, dz = v.z + 0.2, l = Math.hypot(dx, dy, dz) || 1, d = -0.2 * sul + 0.05;
-        v.x += dx / l * d; v.y += dy / l * d; v.z += dz / l * d;
-        if (s * v.x < GAP) v.x = s * GAP;
-      }
       p.setXYZ(i, v.x, v.y, v.z);
     }
     g.computeVertexNormals(); fixGridSeam(g, W, H);
-    const ix = g.index.array, nrm = g.attributes.normal, buf = LOBES.map(() => ({ p: [], n: [], c: [] })), col = new T.Color();
+    const ix = g.index.array, nrm = g.attributes.normal, buf = LOBES.map(() => ({ p: [], n: [] }));
     for (let t = 0; t < ix.length; t += 3) {
-      const L = lobe[ix[t]], b = buf[L];
+      const b = buf[lobe[ix[t]]];
       for (let k = 0; k < 3; k++) {
         const i = ix[t + (s > 0 ? k : 2 - k)];
         b.p.push(p.getX(i), p.getY(i), p.getZ(i)); b.n.push(nrm.getX(i), nrm.getY(i), nrm.getZ(i));
-        col.setHex(LOBE_TINT[L]).convertSRGBToLinear().multiplyScalar(shade[i]); b.c.push(col.r, col.g, col.b);
       }
     }
     const anchors = [P(s * 4.2, 6.6, 5.2), P(s * 4.6, 8.0, -3.4), P(s * 6.3, 0.8, 0.6), P(s * 2.6, 3.4, -8.0)];
@@ -854,9 +886,11 @@ function initGraphics() {
       const lg = new T.BufferGeometry();
       lg.setAttribute('position', new T.Float32BufferAttribute(buf[L].p, 3));
       lg.setAttribute('normal', new T.Float32BufferAttribute(buf[L].n, 3));
-      lg.setAttribute('color', new T.Float32BufferAttribute(buf[L].c, 3));
-      const m = phys(undefined, { vertexColors: true, roughness: 0.45, metalness: 0.02, clearcoat: 0.45, clearcoatRoughness: 0.4 });
-      reg(new T.Mesh(lg, m), id, { anchor: anchors[L] });
+      const d = LOBE_FIN[L].clone(); d.x *= s; d.normalize();
+      const skin = reg(new T.Mesh(lg, finMat(d)), id, { anchor: anchors[L] });
+      const block = new T.Mesh(lg, mat(0x0c0f14, { emissive: LOBE_TINT[L], emissiveIntensity: 0.4, roughness: 0.7 }));
+      const k = 0.94; block.scale.setScalar(k); block.position.set(s * 3.2 * (1 - k), 4.0 * (1 - k), -0.2 * (1 - k)); reg(block, id);
+      skin.userData.glow = block.userData.glow = lin(LOBE_TINT[L]);
     });
   });
   function cortexNode(id, s, ux, uy, uz, color) {
@@ -877,64 +911,69 @@ function initGraphics() {
   NODE.broca = cortexNode('broca', 1, 0.8, -0.08, 0.5, 0xffb08a);
 
   // ----- core: deep structures, brainstem, cerebellum, cord -----
-  both(s => blob('thalamus', P(s * 1.25, 2.05, -1.3), [0.95, 0.8, 1.5], mat(0xa590d2, { roughness: 0.4 })));
+  both(s => blob('thalamus', P(s * 1.25, 2.05, -1.3), [0.95, 0.8, 1.5], mat(0x7d6fc4, { roughness: 0.3, metalness: 0.65, emissive: 0x6a4fd0, emissiveIntensity: 0.3 })));
   both(s => blob('lgn', P(s * 2.35, 1.25, -2.0), [0.3, 0.26, 0.3], mat(0xf3df8a, { emissive: 0xf3df8a, emissiveIntensity: 0.25 })));
   both(s => blob('mgn', P(s * 1.75, 1.2, -2.45), [0.26, 0.24, 0.26], mat(0x9fd3ff, { emissive: 0x9fd3ff, emissiveIntensity: 0.25 })));
-  tube('callosum', [P(0, 2.4, 3.4), P(0, 4.0, 2.7), P(0, 4.7, 0), P(0, 4.4, -2.4), P(0, 3.3, -3.6)], { color: 0xe7ddf2, r: 1.5, flat: 0.3, flatDir: p => P(0, p.y - 2, p.z), mo: { roughness: 0.5 }, caps: true });
-  tube('midbrain', [P(0, 1.75, -1.5), P(0, 0.9, -1.45), P(0, 0.15, -1.3)], { color: 0xc9a2ba, r: 1.08, r1: 0.95, rad: 16, caps: true });
-  blob('pons', P(0, -1.05, -0.75), [1.55, 1.15, 1.25], mat(0xd0aab2));
-  tube('medulla', [P(0, -1.9, -1.2), P(0, -3.2, -1.6), P(0, -4.3, -1.9)], { color: 0xc9a59f, r: 0.9, r1: 0.62, rad: 14 });
+  tube('callosum', [P(0, 2.4, 3.4), P(0, 4.0, 2.7), P(0, 4.7, 0), P(0, 4.4, -2.4), P(0, 3.3, -3.6)], { color: 0xaeb8c6, style: 'conduit', r: 1.5, flat: 0.22, flatDir: p => P(0, p.y - 2, p.z), mo: { roughness: 0.45, metalness: 0.3 }, caps: true });
+  tube('midbrain', [P(0, 1.75, -1.5), P(0, 0.9, -1.45), P(0, 0.15, -1.3)], { color: 0x687282, style: 'conduit', den: 3, r: 1.05, r1: 0.93, rad: 18, mo: { metalness: 0.8, roughness: 0.32 }, caps: true });
+  blob('pons', P(0, -1.05, -0.75), [1.55, 1.15, 1.25], mat(0x7c8696, { metalness: 0.8, roughness: 0.3 }));
+  tube('medulla', [P(0, -1.9, -1.2), P(0, -3.2, -1.6), P(0, -4.3, -1.9)], { color: 0x687282, style: 'conduit', den: 3, r: 0.88, r1: 0.6, rad: 16, mo: { metalness: 0.8, roughness: 0.32 } });
   (function () {
-    const m = mat(0xc690b2, { roughness: 0.45 });
-    const folia = v => { const d = 0.07 * Math.sin(v.y * 9 + v.z * 1.5); const l = v.length() || 1; v.multiplyScalar(1 + d / l); };
+    const m = mat(0x5a6474, { roughness: 0.33, metalness: 0.85 });
+    const folia = v => { const d = 0.1 * Math.sign(Math.sin(v.y * 9 + v.z * 1.5)); const l = v.length() || 1; v.multiplyScalar(1 + d / l); };
     both(s => blob('cerebellum', P(s * 2.3, -2.5, -5.0), [2.7, 2.0, 2.5], m, { w: 44, h: 40, fn: folia }));
     blob('cerebellum', P(0, -2.4, -5.2), [1.0, 1.85, 2.3], m, { w: 24, h: 40, fn: folia });
   })();
   (function () {
     const pts = []; for (let y = -4.3; y > -16.3; y -= 1.5) pts.push(P(0, y, canalZ(y))); pts.push(P(0, -16.2, canalZ(-16.2)));
-    tube('cord', pts, { color: 0xeadcc6, r: 0.5, flat: 0.85, flatDir: P(0, 0, 1), rad: 12, name: 'cord', caps: true });
+    tube('cord', pts, { color: 0x465062, style: 'conduit', r: 0.5, flat: 0.85, flatDir: P(0, 0, 1), rad: 12, name: 'cord', mo: { metalness: 0.5, roughness: 0.4 }, caps: true });
   })();
 
-  // ----- sensors: eyes -----
+  // ----- sensors: camera eyes on gimbal balls -----
   const eyes = {};
   const EYE = s => P(s * 3.2, 0.8, 7.0);
   both((s, k) => {
     const g = new T.Group(); g.position.copy(EYE(s)); head.add(g); eyes[k] = g;
-    const add = (geo, m) => { const me = new T.Mesh(geo, m); reg(me, 'eye', { parent: g, anchor: EYE(s) }); return me; };
-    add(new T.SphereGeometry(1.2, 40, 28), phys(0xf3f4f1, { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1 }));
-    const cap = (r, th, m) => { const geo = new T.SphereGeometry(r, 32, 10, 0, TAU, 0, th); geo.rotateX(Math.PI / 2); return add(geo, m); };
-    cap(1.212, 0.5, mat(0x2a6f86, { metalness: 0.6, roughness: 0.3, emissive: 0x1f9fb8, emissiveIntensity: 0.35 }));
-    cap(1.222, 0.21, mat(0x05070a, { roughness: 0.1, metalness: 0.3 }));
-    const ring = add(new T.TorusGeometry(0.58, 0.035, 8, 40), mat(C.metal, { metalness: 0.9, roughness: 0.25 })); ring.position.z = 1.07;
-    const cornea = add(new T.SphereGeometry(0.66, 28, 18), phys(0xffffff, { roughness: 0.02, transparent: true, opacity: 0.22, depthWrite: false, clearcoat: 1 })); cornea.position.z = 0.7;
+    const add = (geo, m, z) => { const me = new T.Mesh(geo, m); if (z) me.position.z = z; reg(me, 'eye', { parent: g, anchor: EYE(s) }); return me; };
+    const dark = mat(0x1d2229, { metalness: 0.85, roughness: 0.33 }), chrome = mat(C.chrome, { metalness: 0.95, roughness: 0.18 });
+    add(new T.SphereGeometry(1.2, 40, 28), dark);                                                   // gimbal ball
+    const band = add(new T.TorusGeometry(1.2, 0.045, 8, 48), chrome); band.rotation.x = Math.PI / 2;   // equator race
+    const barrel = new T.CylinderGeometry(0.8, 0.86, 0.5, 36, 1, true); barrel.rotateX(Math.PI / 2);
+    add(barrel, mat(0x2b313a, { metalness: 0.9, roughness: 0.28, side: T.DoubleSide }), 1.0);        // lens barrel
+    add(new T.TorusGeometry(0.8, 0.07, 10, 44), chrome, 1.25);                                       // bezel
+    const glass = new T.SphereGeometry(0.76, 32, 16, 0, TAU, 0, Math.PI / 2); glass.rotateX(Math.PI / 2); glass.scale(1, 1, 0.42);
+    add(glass, phys(0x061019, { roughness: 0.03, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03 }), 1.2);   // front element
+    add(new T.TorusGeometry(0.43, 0.05, 8, 40), mat(0x0a1a22, { emissive: 0x35d6ff, emissiveIntensity: 1.5 }), 1.47); // iris ring
+    add(new T.CircleGeometry(0.2, 20), mat(0x000000, { emissive: 0xff3b30, emissiveIntensity: 0.9 }), 1.535);         // sensor
   });
 
   // ----- actuators: six muscles per eye -----
-  const mEom = mat(C.muscle, { roughness: 0.55 });
+  const mEom = mat(C.muscle, { roughness: 0.38, metalness: 0.5 });
   both((s, k) => {
     const E = EYE(s), A = P(s * 1.4, 0.65, 2.95), R = 1.2;
     const rect = (dx, dy, nm) => {
       const d = P(dx, dy, 0);
       const pts = [A.clone().addScaledVector(d, 0.15), P(E.x, E.y, E.z - 1.9).addScaledVector(d, 1.15), P(E.x, E.y, E.z - 0.35).addScaledVector(d, R + 0.1), E.clone().add(P(d.x * 0.9, d.y * 0.9, 0.44).multiplyScalar(R * 1.01))];
-      tube('eom', pts, { m: mEom, r: 0.09, belly: 0.25, flat: 0.45, flatDir: d, name: 'eom' + nm + '.' + k });
+      tube('eom', pts, { m: mEom, style: 'act', r: 0.09, belly: 0.25, flat: 0.45, flatDir: d, name: 'eom' + nm + '.' + k });
     };
     rect(0, 1, 'S'); rect(0, -1, 'I'); rect(-s, 0, 'M'); rect(s, 0, 'L');
     const tro = P(E.x - s * 1.6, E.y + 1.45, E.z + 0.45);
-    tube('eom', [P(A.x - s * 0.12, A.y + 0.18, A.z), P(E.x - s * 1.75, E.y + 1.2, E.z - 2.0), tro], { m: mEom, r: 0.07, belly: 0.16, flat: 0.6, flatDir: P(-s, 1, 0) });
+    tube('eom', [P(A.x - s * 0.12, A.y + 0.18, A.z), P(E.x - s * 1.75, E.y + 1.2, E.z - 2.0), tro], { m: mEom, style: 'act', r: 0.07, belly: 0.16, flat: 0.6, flatDir: P(-s, 1, 0) });
     tube('eom', [tro, P(E.x - s * 0.5, E.y + 1.27, E.z - 0.1), E.clone().add(P(s * 0.3, 0.86, -0.42).multiplyScalar(R * 1.01))], { color: C.tendon, r: 0.06, r1: 0.1, flat: 0.5, flatDir: P(0, 1, 0) });
     const tr = new T.Mesh(new T.TorusGeometry(0.15, 0.05, 8, 16), mat(C.metal, { metalness: 0.9, roughness: 0.25 })); tr.position.copy(tro); tr.rotation.y = s * 0.9; reg(tr, 'eom');
-    tube('eom', [P(E.x - s * 1.45, E.y - 1.4, E.z + 0.7), P(E.x - s * 0.2, E.y - 1.32, E.z + 0.15), E.clone().add(P(s * 0.8, -0.5, -0.36).multiplyScalar(R * 1.01))], { m: mEom, r: 0.08, belly: 0.14, flat: 0.5, flatDir: P(0, -1, 0) });
+    tube('eom', [P(E.x - s * 1.45, E.y - 1.4, E.z + 0.7), P(E.x - s * 0.2, E.y - 1.32, E.z + 0.15), E.clone().add(P(s * 0.8, -0.5, -0.36).multiplyScalar(R * 1.01))], { m: mEom, style: 'act', r: 0.08, belly: 0.14, flat: 0.5, flatDir: P(0, -1, 0) });
   });
 
   // ----- nerves: optic pathway, four fibre groups coloured by the side of the brain they end in -----
+  const FIBRE = { emissive: C.tract, emissiveIntensity: 0.4, roughness: 0.3 };   // light-guide bundles inside the core
   const mToL = mat(C.nerve, { roughness: 0.45 }), mToR = mat(C.nerve2, { roughness: 0.45 });
   both((s, k) => {
     const E = EYE(s), o = 0.1;
     const Tp = [P(E.x - s * 0.35 + s * o, E.y, E.z - 1.17), P(s * 2.4, 0.75, 4.6), P(s * 1.5, 0.66, 3.0), P(s * 0.8, 0.55, 1.75), P(s * 0.45, 0.5, 1.08), P(s * 0.78, 0.55, 0.45), P(s * 1.6, 0.85, -0.5), P(s * 2.2, 1.13, -1.5), P(s * 2.35, 1.25, -2.0)];
     const Np = [P(E.x - s * 0.35 - s * o, E.y, E.z - 1.17), P(s * 2.2, 0.75, 4.6), P(s * 1.3, 0.66, 3.0), P(s * 0.6, 0.55, 1.75), P(s * 0.12, 0.5, 1.14), P(-s * 0.28, 0.5, 0.86), P(-s * 0.68, 0.55, 0.42), P(-s * 1.5, 0.85, -0.5), P(-s * 2.1, 1.13, -1.5), P(-s * 2.35, 1.25, -2.0)];
-    tube('cn2', Tp, { m: s > 0 ? mToL : mToR, r: 0.13, name: 'ofT.' + k, den: 5 });
-    tube('cn2', Np, { m: s > 0 ? mToR : mToL, r: 0.13, name: 'ofN.' + k, den: 5 });
-    const mR = s > 0 ? mToL.clone() : mToR.clone();
+    tube('cn2', Tp, { m: s > 0 ? mToL : mToR, style: 'cable', r: 0.13, name: 'ofT.' + k, den: 5 });
+    tube('cn2', Np, { m: s > 0 ? mToR : mToL, style: 'cable', r: 0.13, name: 'ofN.' + k, den: 5 });
+    const mR = mat(s > 0 ? C.nerve : C.nerve2, { roughness: 0.3, emissive: s > 0 ? C.nerve : C.nerve2, emissiveIntensity: 0.3 });
     tube('optrad', [P(s * 2.35, 1.25, -2.0), P(s * 3.0, 2.2, -3.4), P(s * 2.6, 3.4, -6.0), P(s * 0.95, 3.7, -8.0)], { m: mR, r: 0.17, flat: 0.5, flatDir: P(s, 0, 0), name: 'oradU.' + k });
     tube('optrad', [P(s * 2.35, 1.25, -2.0), P(s * 3.3, 0.6, -0.3), P(s * 3.9, 0.55, -2.6), P(s * 3.2, 1.6, -5.8), P(s * 0.95, 2.9, -8.1)], { m: mR, r: 0.17, flat: 0.5, flatDir: P(s, 0, 0), name: 'oradL.' + k });
     curveOnly('light.' + k, [P(E.x * 1.6, E.y + 1, 16), P(E.x, E.y, 8.3)]);
@@ -945,10 +984,11 @@ function initGraphics() {
   both((s, k) => {
     const X0 = sideX(-0.4, -0.9), drum = P(s * 5.15, -0.55, -0.45);
     tube('earcanal', [P(s * (X0 + 0.12), -0.4, -0.9), P(s * 6.3, -0.3, -0.75), drum], { color: 0x3aa3b5, r: 0.36, r1: 0.3, mo: { side: T.DoubleSide, roughness: 0.4, metalness: 0.3 }, rad: 12 });
-    const Ce = P(s * (sideX(0, -1.4) + 0.05), 0, -1.4), ear = [[0.9, 1.7, 0.1], [0.1, 2.9, 0.4], [-1.1, 2.5, 0.75], [-1.6, 0.9, 0.9], [-1.35, -0.9, 0.75], [-0.6, -2.3, 0.45], [0.25, -2.9, 0.22], [0.75, -2.1, 0.1]];
+    const hub = P(s * (X0 + 0.2), -0.4, -0.9);
     const mEar = phys(C.shell, { roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.25 });
-    tube('earcanal', ear.map(e => P(Ce.x + s * e[2], Ce.y + e[1], Ce.z + e[0])), { m: mEar, r: 0.3, rad: 10, caps: true });
-    blob('earcanal', P(Ce.x + s * 0.3, -0.05, Ce.z - 0.35), [0.22, 2.3, 1.15], mEar.clone());
+    const hr = new T.Mesh(new T.TorusGeometry(1.75, 0.27, 12, 44), mEar); hr.rotation.y = Math.PI / 2; hr.position.copy(hub); reg(hr, 'earcanal', { anchor: hub });
+    const hp = new T.Mesh(new T.RingGeometry(0.5, 1.75, 40), mat(0x262b33, { metalness: 0.85, roughness: 0.35, side: T.DoubleSide })); hp.rotation.y = Math.PI / 2; hp.position.copy(hub); reg(hp, 'earcanal');
+    const hl = new T.Mesh(new T.TorusGeometry(0.56, 0.06, 8, 32), mat(0x0a1a22, { emissive: 0x35d6ff, emissiveIntensity: 1.2 })); hl.rotation.y = Math.PI / 2; hl.position.set(hub.x + s * 0.06, hub.y, hub.z); reg(hl, 'earcanal');
     const dm = new T.Mesh(new T.CircleGeometry(0.4, 20), mat(0xf1e6da, { side: T.DoubleSide, transparent: true, opacity: 0.85, roughness: 0.3 })); dm.position.copy(drum); dm.lookAt(drum.x + s, drum.y - 0.3, drum.z - 0.25); reg(dm, 'ossicles', { anchor: drum });
     const mO = mat(0xf0ead8, { metalness: 0.4, roughness: 0.3 });
     const oss = [drum, P(s * 4.9, -0.1, -0.4), P(s * 4.7, -0.15, -0.6), P(s * 4.6, -0.5, -0.5), P(s * 4.3, -0.5, -0.35)];
@@ -969,11 +1009,11 @@ function initGraphics() {
       const m = new T.Mesh(new T.TorusGeometry(0.4, 0.065, 8, 32), mV); m.quaternion.setFromUnitVectors(P(0, 0, 1), c[0].normalize()); m.position.copy(Cv).add(c[1]); reg(m, 'vestibular');
     });
     const mN = mat(C.nerve, { roughness: 0.45 });
-    tube('cn8', [B.clone().addScaledVector(Ax, -0.12), P(s * 3.0, -1.0, -0.3), P(s * 2.0, -1.6, -0.6), P(s * 1.0, -1.95, -0.85)], { m: mN, r: 0.1, name: 'cn8c.' + k });
-    tube('cn8', [P(s * 4.0, -0.45, -0.5), P(s * 3.1, -0.8, -0.55), P(s * 2.0, -1.42, -0.78), P(s * 1.0, -1.8, -1.0)], { m: mN, r: 0.1, name: 'cn8v.' + k });
+    tube('cn8', [B.clone().addScaledVector(Ax, -0.12), P(s * 3.0, -1.0, -0.3), P(s * 2.0, -1.6, -0.6), P(s * 1.0, -1.95, -0.85)], { m: mN, style: 'cable', r: 0.1, name: 'cn8c.' + k });
+    tube('cn8', [P(s * 4.0, -0.45, -0.5), P(s * 3.1, -0.8, -0.55), P(s * 2.0, -1.42, -0.78), P(s * 1.0, -1.8, -1.0)], { m: mN, style: 'cable', r: 0.1, name: 'cn8v.' + k });
     // central auditory pathway: starts on this side, most of it crosses
     const a1 = NODE['a1' + (s > 0 ? 'R' : 'L')];
-    tube('audpath', [P(s * 0.95, -1.95, -0.9), P(s * 0.3, -1.75, -0.75), P(-s * 0.45, -1.4, -0.9), P(-s * 0.8, -0.3, -1.5), P(-s * 0.5, 0.75, -2.35), P(-s * 1.75, 1.2, -2.45), P(-s * 3.6, 1.9, -1.8), a1.clone()], { color: C.tract, r: 0.09, name: 'aud.' + k });
+    tube('audpath', [P(s * 0.95, -1.95, -0.9), P(s * 0.3, -1.75, -0.75), P(-s * 0.45, -1.4, -0.9), P(-s * 0.8, -0.3, -1.5), P(-s * 0.5, 0.75, -2.35), P(-s * 1.75, 1.2, -2.45), P(-s * 3.6, 1.9, -1.8), a1.clone()], { color: C.tract, mo: FIBRE, r: 0.09, name: 'aud.' + k });
   });
 
   // ----- sensors + nerves: smell -----
@@ -985,7 +1025,7 @@ function initGraphics() {
     curveOnly('olff.' + k, [P(s * 0.45, 0.54, 6.8), P(s * 0.5, 1.3, 6.8)]);
     curveOnly('odor.' + k, [P(s * 1.2, -7, 15), P(s * 0.7, -3.3, 10.6), P(s * 0.55, -1.5, 8.6), P(s * 0.45, 0.4, 6.9)]);
     const pir = NODE['pir' + k];
-    tube('cn1', [P(s * 0.5, 1.36, 6.0), P(s * 0.7, 1.3, 4.0), P(s * 1.15, 1.15, 2.45), P(s * 2.0, 0.2, 1.9), pir.clone()], { color: C.nerve, r: 0.09, name: 'olf.' + k });
+    tube('cn1', [P(s * 0.5, 1.36, 6.0), P(s * 0.7, 1.3, 4.0), P(s * 1.15, 1.15, 2.45), P(s * 2.0, 0.2, 1.9), pir.clone()], { color: C.nerve, style: 'cable', r: 0.09, name: 'olf.' + k });
   });
 
   // ----- nerves: cranial nerves III-XII and central tracts -----
@@ -993,79 +1033,79 @@ function initGraphics() {
     const mk = () => mat(C.nerve, { roughness: 0.45 });
     // III / IV / VI
     const m3 = mk(), E = EYE(s);
-    tube('cn346', [P(s * 0.25, 0.6, -1.75), P(s * 0.38, 0.45, -0.6), P(s * 0.95, 0.78, 0.6), P(s * 1.32, 0.88, 2.0), P(s * 1.5, 0.88, 2.95)], { m: m3, r: 0.1, name: 'cn346.' + k });
-    [[P(E.x, E.y + 1.2, E.z - 2.0)], [P(E.x + s * 1.25, E.y, E.z - 2.0)], [P(E.x - s * 1.6, E.y + 1.1, E.z - 2.2)], [P(E.x, E.y - 1.2, E.z - 2.0)]].forEach(t => tube('cn346', [P(s * 1.5, 0.88, 2.95), t[0]], { m: m3, r: 0.045, seg: 5, rad: 5 }));
+    tube('cn346', [P(s * 0.25, 0.6, -1.75), P(s * 0.38, 0.45, -0.6), P(s * 0.95, 0.78, 0.6), P(s * 1.32, 0.88, 2.0), P(s * 1.5, 0.88, 2.95)], { m: m3, style: 'cable', r: 0.1, name: 'cn346.' + k });
+    [[P(E.x, E.y + 1.2, E.z - 2.0)], [P(E.x + s * 1.25, E.y, E.z - 2.0)], [P(E.x - s * 1.6, E.y + 1.1, E.z - 2.2)], [P(E.x, E.y - 1.2, E.z - 2.0)]].forEach(t => tube('cn346', [P(s * 1.5, 0.88, 2.95), t[0]], { m: m3, style: 'cable', r: 0.045, seg: 5, rad: 5 }));
     // V trigeminal
     const m5 = mk(), Gg = P(s * 2.3, -0.75, 1.2);
-    tube('cn5', [P(s * 1.2, -0.95, -0.45), P(s * 1.8, -0.85, 0.4), Gg], { m: m5, r: 0.2, name: 'cn5r.' + k });
-    blob('cn5', Gg, [0.42, 0.26, 0.48], m5, { nopick: false });
-    tube('cn5', [Gg, P(s * 2.3, 1.6, 3.0), P(s * 2.8, 2.6, 5.2), S(s * 2.7, 2.6), S(s * 2.9, 4.6), S(s * 3.1, 6.6)], { m: m5, r: 0.11, r1: 0.05, name: 'cn5v1.' + k });
-    tube('cn5', [Gg, P(s * 2.5, -0.95, 3.0), P(s * 3.0, -1.1, 5.6), S(s * 3.0, -1.6), S(s * 2.6, -3.3), S(s * 2.1, -4.9)], { m: m5, r: 0.11, r1: 0.05, name: 'cn5v2.' + k });
-    tube('cn5', [Gg, P(s * 2.7, -1.9, 1.0), P(s * 3.7, -3.4, 1.1), J(s * 4.2, -4.6, 0.9), J(s * 4.0, -8.0, 3.0), J(s * 2.8, -8.6, 6.0), SJ(s * 2.2, -8.3, 0.5)], { m: m5, r: 0.11, r1: 0.05, name: 'cn5v3.' + k });
-    tube('cn5', [P(s * 3.7, -3.4, 1.1), P(s * 4.6, -3.3, 1.5), P(s * 5.25, -3.6, 1.9)], { m: m5, r: 0.06, name: 'cn5m.' + k });
+    tube('cn5', [P(s * 1.2, -0.95, -0.45), P(s * 1.8, -0.85, 0.4), Gg], { m: m5, style: 'cable', r: 0.2, name: 'cn5r.' + k });
+    { const jb = new T.Mesh(new T.BoxGeometry(0.85, 0.5, 0.95), mat(C.conn, { metalness: 0.7, roughness: 0.35 })); jb.position.copy(Gg); jb.rotation.y = s * 0.5; reg(jb, 'cn5'); }
+    tube('cn5', [Gg, P(s * 2.3, 1.6, 3.0), P(s * 2.8, 2.6, 5.2), S(s * 2.7, 2.6), S(s * 2.9, 4.6), S(s * 3.1, 6.6)], { m: m5, style: 'cable', r: 0.11, r1: 0.05, name: 'cn5v1.' + k });
+    tube('cn5', [Gg, P(s * 2.5, -0.95, 3.0), P(s * 3.0, -1.1, 5.6), S(s * 3.0, -1.6), S(s * 2.6, -3.3), S(s * 2.1, -4.9)], { m: m5, style: 'cable', r: 0.11, r1: 0.05, name: 'cn5v2.' + k });
+    tube('cn5', [Gg, P(s * 2.7, -1.9, 1.0), P(s * 3.7, -3.4, 1.1), J(s * 4.2, -4.6, 0.9), J(s * 4.0, -8.0, 3.0), J(s * 2.8, -8.6, 6.0), SJ(s * 2.2, -8.3, 0.5)], { m: m5, style: 'cable', r: 0.11, r1: 0.05, name: 'cn5v3.' + k });
+    tube('cn5', [P(s * 3.7, -3.4, 1.1), P(s * 4.6, -3.3, 1.5), P(s * 5.25, -3.6, 1.9)], { m: m5, style: 'cable', r: 0.06, name: 'cn5m.' + k });
     // touch: pons -> crosses -> thalamus -> touch map
     const s1 = NODE['s1' + (s > 0 ? 'R' : 'L')];
-    tube('touchpath', [P(s * 1.0, -1.0, -0.8), P(-s * 0.4, -0.4, -1.2), P(-s * 0.7, 0.8, -1.6), P(-s * 1.4, 1.9, -1.9), P(-s * 2.4, 3.2, -1.2), s1.clone()], { color: C.tract, r: 0.09, name: 'touch.' + k });
+    tube('touchpath', [P(s * 1.0, -1.0, -0.8), P(-s * 0.4, -0.4, -1.2), P(-s * 0.7, 0.8, -1.6), P(-s * 1.4, 1.9, -1.9), P(-s * 2.4, 3.2, -1.2), s1.clone()], { color: C.tract, mo: FIBRE, r: 0.09, name: 'touch.' + k });
     // VII facial
     const m7 = mk(), Pp = P(s * 5.75, -2.9, 1.3);
-    tube('cn7', [P(s * 1.0, -1.85, -0.7), P(s * 2.6, -1.1, -0.4), P(s * 3.6, -0.5, -0.2), P(s * 4.3, -0.1, 0.1), P(s * 4.8, -0.9, -1.25), P(s * 5.0, -2.6, -1.35), P(s * 5.6, -2.95, 0.3), Pp], { m: m7, r: 0.1, name: 'cn7.' + k });
-    tube('cn7', [Pp, U(s, -1.2, 2.6), U(s, 1.2, 4.2), U(s, 3.0, 5.4), S(s * 4.2, 3.9)], { m: m7, r: 0.07, r1: 0.04, name: 'cn7t.' + k });
-    tube('cn7', [Pp, U(s, -2.0, 2.8), U(s, -1.2, 4.6), S(s * 4.9, -0.4), S(s * 4.5, 0.4)], { m: m7, r: 0.07, r1: 0.04, name: 'cn7z.' + k });
-    tube('cn7', [Pp, U(s, -3.2, 2.8), U(s, -3.8, 4.8), S(s * 3.9, -4.3), S(s * 2.7, -5.0)], { m: m7, r: 0.07, r1: 0.04, name: 'cn7b.' + k });
-    tube('cn7', [Pp, U(s, -4.6, 2.2), J(s * (sideX(-6.9, 3.2) - 0.42), -6.9, 3.2), SJ(s * 3.6, -8.1), SJ(s * 2.3, -7.6)], { m: m7, r: 0.07, r1: 0.04, name: 'cn7m.' + k });
-    tube('cn7', [Pp, P(s * 5.3, -5.8, 0.6), P(s * 4.7, -9.0, 1.6), P(s * 4.0, -12, 2.4)], { m: m7, r: 0.07, r1: 0.04, name: 'cn7c.' + k });
+    tube('cn7', [P(s * 1.0, -1.85, -0.7), P(s * 2.6, -1.1, -0.4), P(s * 3.6, -0.5, -0.2), P(s * 4.3, -0.1, 0.1), P(s * 4.8, -0.9, -1.25), P(s * 5.0, -2.6, -1.35), P(s * 5.6, -2.95, 0.3), Pp], { m: m7, style: 'cable', r: 0.1, name: 'cn7.' + k });
+    tube('cn7', [Pp, U(s, -1.2, 2.6), U(s, 1.2, 4.2), U(s, 3.0, 5.4), S(s * 4.2, 3.9)], { m: m7, style: 'cable', r: 0.07, r1: 0.04, name: 'cn7t.' + k });
+    tube('cn7', [Pp, U(s, -2.0, 2.8), U(s, -1.2, 4.6), S(s * 4.9, -0.4), S(s * 4.5, 0.4)], { m: m7, style: 'cable', r: 0.07, r1: 0.04, name: 'cn7z.' + k });
+    tube('cn7', [Pp, U(s, -3.2, 2.8), U(s, -3.8, 4.8), S(s * 3.9, -4.3), S(s * 2.7, -5.0)], { m: m7, style: 'cable', r: 0.07, r1: 0.04, name: 'cn7b.' + k });
+    tube('cn7', [Pp, U(s, -4.6, 2.2), J(s * (sideX(-6.9, 3.2) - 0.42), -6.9, 3.2), SJ(s * 3.6, -8.1), SJ(s * 2.3, -7.6)], { m: m7, style: 'cable', r: 0.07, r1: 0.04, name: 'cn7m.' + k });
+    tube('cn7', [Pp, P(s * 5.1, -5.8, 0.6), P(s * 4.3, -9.0, 1.1), P(s * 3.6, -12, 1.5)], { m: m7, style: 'cable', r: 0.07, r1: 0.04, name: 'cn7c.' + k });
     // X vagus (IX travels with it)
     const m10 = mk();
-    tube('cn10', [P(s * 0.75, -2.9, -1.35), P(s * 2.0, -3.4, -1.2), P(s * 3.0, -3.9, -1.0), P(s * 3.0, -6, -0.25), P(s * 2.8, -9.5, 0.2), P(s * 2.5, -13, 0.45), P(s * 2.3, -16.2, 0.55)], { m: m10, r: 0.11, name: 'cn10.' + k });
-    tube('cn10', [P(s * 2.92, -7.2, -0.1), P(s * 2.3, -9.2, 1.6), P(s * 1.5, -10.6, 2.3)], { m: m10, r: 0.06, name: 'cn10l.' + k });
+    tube('cn10', [P(s * 0.75, -2.9, -1.35), P(s * 2.0, -3.4, -1.2), P(s * 3.0, -3.9, -1.0), P(s * 3.0, -6, -0.25), P(s * 2.8, -9.5, 0.2), P(s * 2.5, -13, 0.45), P(s * 2.3, -16.2, 0.55)], { m: m10, style: 'cable', r: 0.11, name: 'cn10.' + k });
+    tube('cn10', [P(s * 2.92, -7.2, -0.1), P(s * 2.3, -9.2, 1.6), P(s * 1.5, -10.6, 2.3)], { m: m10, style: 'cable', r: 0.06, name: 'cn10l.' + k });
     // XI accessory, XII hypoglossal
-    tube('cn11', [P(s * 0.7, -4.5, -1.9), P(s * 1.9, -4.0, -1.4), P(s * 3.2, -4.1, -1.2), P(s * 4.2, -5.6, -1.6), P(s * 4.7, -7.6, -1.0)], { m: mk(), r: 0.07, name: 'cn11.' + k });
-    tube('cn12', [P(s * 0.45, -3.3, -1.15), P(s * 1.7, -3.9, -0.7), P(s * 2.9, -5.6, 0.4), P(s * 2.9, -7.6, 1.8), J(s * 1.5, -7.9, 4.2), J(s * 0.9, -7.5, 5.2)], { m: mk(), r: 0.08, name: 'cn12.' + k });
+    tube('cn11', [P(s * 0.7, -4.5, -1.9), P(s * 1.9, -4.0, -1.4), P(s * 3.2, -4.1, -1.2), P(s * 4.2, -5.6, -1.6), P(s * 4.7, -7.6, -1.0)], { m: mk(), style: 'cable', r: 0.07, name: 'cn11.' + k });
+    tube('cn12', [P(s * 0.45, -3.3, -1.15), P(s * 1.7, -3.9, -0.7), P(s * 2.9, -5.6, 0.4), P(s * 2.9, -7.6, 1.8), J(s * 1.5, -7.9, 4.2), J(s * 0.9, -7.5, 5.2)], { m: mk(), style: 'cable', r: 0.08, name: 'cn12.' + k });
     // motor command bus: face motor cortex -> internal capsule -> brainstem (crosses low down)
     const m1 = NODE['m1' + k];
-    tube('corticobulbar', [m1.clone(), P(s * 3.6, 4.3, 0.5), P(s * 2.25, 2.3, -0.1), P(s * 0.75, 0.9, -0.95), P(s * 0.5, -1.0, -0.6), P(-s * 0.5, -1.9, -1.0), P(-s * 0.5, -2.9, -1.4)], { color: C.tract, r: 0.1, name: 'cb.' + k });
-    tube('mlf', [P(s * 0.7, -1.9, -1.35), P(s * 0.3, -1.2, -1.6), P(s * 0.25, -0.5, -1.9), P(s * 0.25, 0.6, -1.75)], { color: C.tract, r: 0.07, name: 'mlf.' + k });
+    tube('corticobulbar', [m1.clone(), P(s * 3.6, 4.3, 0.5), P(s * 2.25, 2.3, -0.1), P(s * 0.75, 0.9, -0.95), P(s * 0.5, -1.0, -0.6), P(-s * 0.5, -1.9, -1.0), P(-s * 0.5, -2.9, -1.4)], { color: C.tract, mo: FIBRE, r: 0.1, name: 'cb.' + k });
+    tube('mlf', [P(s * 0.7, -1.9, -1.35), P(s * 0.3, -1.2, -1.6), P(s * 0.25, -0.5, -1.9), P(s * 0.25, 0.6, -1.75)], { color: C.tract, mo: FIBRE, r: 0.07, name: 'mlf.' + k });
   });
 
   // ----- actuators: jaw, neck, face -----
   both((s, k) => {
-    tube('masseter', [P(s * 5.75, -1.35, 3.3), P(s * 5.55, -4.2, 2.2), J(s * 4.95, -6.8, 0.9)], { color: C.muscle, r: 0.5, belly: 0.5, flat: 0.38, flatDir: P(s, 0, 0), rad: 12, mo: { roughness: 0.55 } });
-    const mT = mat(C.muscle, { roughness: 0.55 });
+    tube('masseter', [P(s * 5.75, -1.35, 3.3), P(s * 5.55, -4.2, 2.2), J(s * 4.95, -6.8, 0.9)], { color: C.muscle, style: 'act', r: 0.5, belly: 0.5, flat: 0.38, flatDir: P(s, 0, 0), rad: 12, mo: { roughness: 0.38, metalness: 0.5 } });
+    const mT = mat(C.muscle, { roughness: 0.38, metalness: 0.5 });
     [[5.2, 3.6], [6.1, 1.2], [5.7, -1.4], [4.3, -3.4]].forEach((o, i) => {
-      tube('temporalis', [U(s, o[0], o[1], 0.5), U(s, lerp(o[0], 0.6, 0.55), lerp(o[1], 2.6, 0.55), 0.55), P(s * 5.4, -0.7, 2.7 - i * 0.12), J(s * 4.95, -2.05, 2.85)], { m: mT, r: 0.12, belly: 0.34, flat: 0.35, flatDir: P(s, 0, 0) });
+      tube('temporalis', [U(s, o[0], o[1], 0.5), U(s, lerp(o[0], 0.6, 0.55), lerp(o[1], 2.6, 0.55), 0.55), P(s * 5.4, -0.7, 2.7 - i * 0.12), J(s * 4.95, -2.05, 2.85)], { m: mT, style: 'act', r: 0.12, belly: 0.34, flat: 0.35, flatDir: P(s, 0, 0) });
     });
-    const mD = mat(C.muscle, { roughness: 0.55 });
-    tube('digastric', [P(s * 4.9, -3.1, -2.0), P(s * 3.4, -7.2, 0.2), P(s * 1.5, -9.45, 2.55)], { m: mD, r: 0.1, belly: 0.25 });
-    tube('digastric', [P(s * 1.5, -9.45, 2.55), J(s * 1.0, -10.15, 4.6), J(s * 0.7, -10.45, 6.5)], { m: mD, r: 0.1, belly: 0.22 });
-    tube('scm', [P(s * 5.3, -2.9, -2.4), P(s * 4.9, -6.5, -1.2), P(s * 4.2, -10, 0.8), P(s * 2.9, -13.5, 2.5), P(s * 1.5, -16.2, 3.0)], { color: C.muscle, r: 0.3, belly: 0.5, flat: 0.5, flatDir: p => P(p.x, 0, p.z + 1), rad: 12, mo: { roughness: 0.55 }, caps: true });
-    tube('zygomaticus', [S(s * 4.6, -1.9, 0.5), S(s * 3.7, -4.0, 0.5), S(s * 2.75, -5.75, 0.5)], { color: C.muscle, r: 0.07, belly: 0.17, flat: 0.4, flatDir: P(0, 0, 1), mo: { roughness: 0.55 } });
+    const mD = mat(C.muscle, { roughness: 0.38, metalness: 0.5 });
+    tube('digastric', [P(s * 4.9, -3.1, -2.0), P(s * 3.4, -7.2, 0.2), P(s * 1.5, -9.45, 2.55)], { m: mD, style: 'act', r: 0.1, belly: 0.25 });
+    tube('digastric', [P(s * 1.5, -9.45, 2.55), J(s * 1.0, -10.15, 4.6), J(s * 0.7, -10.45, 6.5)], { m: mD, style: 'act', r: 0.1, belly: 0.22 });
+    tube('scm', [P(s * 5.3, -2.9, -2.4), P(s * 4.9, -6.5, -1.2), P(s * 4.2, -10, 0.8), P(s * 2.9, -13.5, 2.5), P(s * 1.5, -16.2, 3.0)], { color: C.muscle, style: 'act', r: 0.3, belly: 0.5, flat: 0.5, flatDir: p => P(p.x, 0, p.z + 1), rad: 12, mo: { roughness: 0.38, metalness: 0.5 }, caps: true });
+    tube('zygomaticus', [S(s * 4.6, -1.9, 0.5), S(s * 3.7, -4.0, 0.5), S(s * 2.75, -5.75, 0.5)], { color: C.muscle, style: 'act', r: 0.07, belly: 0.17, flat: 0.4, flatDir: P(0, 0, 1), mo: { roughness: 0.38, metalness: 0.5 } });
   });
   (function lips() {
-    const m = mat(C.muscle, { roughness: 0.55 }), up = [], lo = [];
+    const m = mat(C.muscle, { roughness: 0.38, metalness: 0.5 }), up = [], lo = [];
     for (let i = 0; i <= 14; i++) { const x = -2.7 + 5.4 * i / 14, e = Math.sqrt(Math.max(0, 1 - Math.pow(x / 2.7, 2))); up.push(S(x, -6.0 + 0.8 * e, 0.5)); lo.push(SJ(x, -6.12 - 0.85 * e, 0.5)); }
-    tube('orbicularis', up, { m, r: 0.2, flat: 0.45, flatDir: P(0, 0, 1) });
-    tube('orbicularis', lo, { m, r: 0.2, flat: 0.45, flatDir: P(0, 0, 1) });
+    tube('orbicularis', up, { m, style: 'act', r: 0.2, flat: 0.45, flatDir: P(0, 0, 1) });
+    tube('orbicularis', lo, { m, style: 'act', r: 0.2, flat: 0.45, flatDir: P(0, 0, 1) });
   })();
-  blob('tongue', P(0, -7.1, 4.9), [1.9, 0.8, 2.9], mat(0xd98a94, { roughness: 0.45 }), { parent: jawIn, anchor: P(0, -6.5, 6.0) });
+  blob('tongue', P(0, -7.1, 4.9), [1.9, 0.8, 2.9], mat(0x4d4450, { roughness: 0.7 }), { parent: jawIn, anchor: P(0, -6.5, 6.0) });
 
   // ----- fluid: arteries -----
-  const mA = () => mat(C.art, { roughness: 0.35, metalness: 0.1 }), mVn = () => mat(C.vein, { roughness: 0.35, metalness: 0.1 });
+  const mA = () => mat(C.art, { roughness: 0.22, metalness: 0.25 }), mVn = () => mat(C.vein, { roughness: 0.22, metalness: 0.25 });
   const mCar = mA(), mExt = mA(), mVert = mA(), mCer = mA();
   both((s, k) => {
-    tube('carotid', [P(s * 1.9, -16.2, 1.1), P(s * 2.2, -13, 0.9), P(s * 2.5, -9.9, 0.7)], { m: mCar, r: 0.33, name: 'cca.' + k });
-    tube('carotid', [P(s * 2.5, -9.9, 0.7), P(s * 2.75, -8.6, 0.25), P(s * 2.55, -6, -0.3), P(s * 2.3, -3.9, -0.25), P(s * 2.1, -2.6, 0.3), P(s * 1.6, -1.6, 1.2), P(s * 1.15, -0.5, 1.7), P(s * 1.25, 0.4, 1.55), P(s * 1.05, 1.05, 1.0)], { m: mCar, r: 0.28, r1: 0.19, name: 'ica.' + k });
-    tube('extcarotid', [P(s * 2.5, -9.9, 0.7), P(s * 2.95, -8.2, 1.2), P(s * 3.9, -6.0, 0.9), P(s * 4.6, -3.6, 0.5), U(s, -1.0, 0.5, 0.35), U(s, 1.5, 1.2, 0.35), U(s, 4.2, 2.6, 0.35), U(s, 6.2, 3.4, 0.35)], { m: mExt, r: 0.22, r1: 0.08, name: 'eca.' + k });
-    tube('extcarotid', [P(s * 3.4, -7.2, 1.1), P(s * 4.3, -8.4, 1.8), P(s * 4.7, -8.6, 3.1), S(s * 4.2, -7.3, 0.45), S(s * 3.3, -5.4, 0.45), S(s * 2.2, -3.6, 0.45), S(s * 1.55, -1.0, 0.45)], { m: mExt, r: 0.13, r1: 0.06, name: 'fa.' + k });
+    tube('carotid', [P(s * 1.9, -16.2, 1.1), P(s * 2.2, -13, 0.9), P(s * 2.5, -9.9, 0.7)], { m: mCar, style: 'hose', r: 0.33, name: 'cca.' + k });
+    tube('carotid', [P(s * 2.5, -9.9, 0.7), P(s * 2.75, -8.6, 0.25), P(s * 2.55, -6, -0.3), P(s * 2.3, -3.9, -0.25), P(s * 2.1, -2.6, 0.3), P(s * 1.6, -1.6, 1.2), P(s * 1.15, -0.5, 1.7), P(s * 1.25, 0.4, 1.55), P(s * 1.05, 1.05, 1.0)], { m: mCar, style: 'hose', r: 0.28, r1: 0.19, name: 'ica.' + k });
+    tube('extcarotid', [P(s * 2.5, -9.9, 0.7), P(s * 2.95, -8.2, 1.2), P(s * 3.9, -6.0, 0.9), P(s * 4.6, -3.6, 0.5), U(s, -1.0, 0.5, 0.35), U(s, 1.5, 1.2, 0.35), U(s, 4.2, 2.6, 0.35), U(s, 6.2, 3.4, 0.35)], { m: mExt, style: 'hose', r: 0.22, r1: 0.08, name: 'eca.' + k });
+    tube('extcarotid', [P(s * 3.4, -7.2, 1.1), P(s * 4.3, -8.4, 1.8), P(s * 4.7, -8.6, 3.1), S(s * 4.2, -7.3, 0.45), S(s * 3.3, -5.4, 0.45), S(s * 2.2, -3.6, 0.45), S(s * 1.55, -1.0, 0.45)], { m: mExt, style: 'hose', r: 0.13, r1: 0.06, name: 'fa.' + k });
     const vz = y => canalZ(y) + 0.75, va = [P(s * 1.6, -16.2, vz(-16.2))];
     for (let i = VY.length - 2; i >= 1; i--) va.push(P(s * 1.6, VY[i], vz(VY[i])));
     va.push(P(s * 1.75, -4.95, vz(-4.9)), P(s * 2.0, -4.3, -2.3), P(s * 1.2, -4.0, -2.3), P(s * 0.8, -3.5, -0.95), P(0, -2.25, -0.3));
-    tube('vertebral', va, { m: mVert, r: 0.19, name: 'va.' + k, den: 4 });
-    tube('cerebral', [P(s * 1.05, 1.05, 1.0), P(s * 2.6, 1.45, 1.9), P(s * 4.3, 1.9, 2.2), CX(s, 3.0, 1.2), CX(s, 4.6, -0.8), CX(s, 6.4, -2.4)], { m: mCer, r: 0.15, r1: 0.07, name: 'mca.' + k });
-    tube('cerebral', [P(s * 4.3, 1.9, 2.2), CX(s, 3.4, 3.4), CX(s, 5.6, 4.4), CX(s, 7.6, 3.6)], { m: mCer, r: 0.1, r1: 0.06, name: 'mca2.' + k });
-    tube('cerebral', [P(s * 0.45, 1.35, 1.95), P(s * 0.11, 2.0, 3.6), P(s * 0.11, 3.6, 4.2), P(s * 0.11, 5.4, 2.4), P(s * 0.11, 5.8, -0.6), P(s * 0.11, 5.0, -3.6)], { m: mCer, r: 0.08, name: 'aca.' + k });
-    tube('cerebral', [P(0, 0.6, -0.12), P(s * 1.0, 0.7, -0.2), P(s * 1.7, 0.65, -1.4), P(s * 1.9, 0.6, -3.2), P(s * 1.3, 0.25, -5.6), P(s * 0.6, 0.3, -7.6)], { m: mCer, r: 0.1, r1: 0.06, name: 'pca.' + k });
+    tube('vertebral', va, { m: mVert, style: 'hose', r: 0.19, name: 'va.' + k, den: 4 });
+    tube('cerebral', [P(s * 1.05, 1.05, 1.0), P(s * 2.6, 1.45, 1.9), P(s * 4.3, 1.9, 2.2), CX(s, 3.0, 1.2), CX(s, 4.6, -0.8), CX(s, 6.4, -2.4)], { m: mCer, style: 'hose', r: 0.15, r1: 0.07, name: 'mca.' + k });
+    tube('cerebral', [P(s * 4.3, 1.9, 2.2), CX(s, 3.4, 3.4), CX(s, 5.6, 4.4), CX(s, 7.6, 3.6)], { m: mCer, style: 'hose', r: 0.1, r1: 0.06, name: 'mca2.' + k });
+    tube('cerebral', [P(s * 0.45, 1.35, 1.95), P(s * 0.11, 2.0, 3.6), P(s * 0.11, 3.6, 4.2), P(s * 0.11, 5.4, 2.4), P(s * 0.11, 5.8, -0.6), P(s * 0.11, 5.0, -3.6)], { m: mCer, style: 'hose', r: 0.08, name: 'aca.' + k });
+    tube('cerebral', [P(0, 0.6, -0.12), P(s * 1.0, 0.7, -0.2), P(s * 1.7, 0.65, -1.4), P(s * 1.9, 0.6, -3.2), P(s * 1.3, 0.25, -5.6), P(s * 0.6, 0.3, -7.6)], { m: mCer, style: 'hose', r: 0.1, r1: 0.06, name: 'pca.' + k });
   });
-  tube('vertebral', [P(0, -2.25, -0.3), P(0, -1.05, 0.62), P(0, -0.1, 0.35), P(0, 0.6, -0.12)], { m: mVert, r: 0.2, name: 'bas' });
+  tube('vertebral', [P(0, -2.25, -0.3), P(0, -1.05, 0.62), P(0, -0.1, 0.35), P(0, 0.6, -0.12)], { m: mVert, style: 'hose', r: 0.2, name: 'bas' });
   tube('willis', [P(0.45, 1.35, 1.95), P(1.05, 1.05, 1.0), P(0.95, 0.8, 0.1), P(0, 0.6, -0.12), P(-0.95, 0.8, 0.1), P(-1.05, 1.05, 1.0), P(-0.45, 1.35, 1.95)], { color: C.art, r: 0.12, closed: true, name: 'willis', den: 6, mo: { roughness: 0.35 } });
 
   // ----- fluid: veins -----
@@ -1073,15 +1113,15 @@ function initGraphics() {
     const m = mVn(), pts = [];
     for (let i = 0; i <= 10; i++) { const a = lerp(0.35, Math.PI, i / 10); pts.push(P(0, 4.3 + 6.32 * Math.sin(a), -0.2 + 8.75 * Math.cos(a))); }
     pts.push(P(0, 2.4, -8.72), P(0, 0.7, -8.5));
-    tube('sinus', pts, { m, r: 0.26, flat: 0.6, flatDir: p => P(0, p.y - 4.3, p.z + 0.2), name: 'sss' });
-    both((s, k) => tube('sinus', [P(0, 0.7, -8.5), P(s * 2.6, 0.3, -7.9), P(s * 5.0, 0.1, -5.6), P(s * 5.9, -0.6, -3.6), P(s * 5.3, -2.2, -2.6), P(s * 3.9, -3.5, -1.7), P(s * 3.3, -4.0, -1.0)], { m, r: 0.27, name: 'ts.' + k }));
+    tube('sinus', pts, { m, style: 'hose', r: 0.26, flat: 0.6, flatDir: p => P(0, p.y - 4.3, p.z + 0.2), name: 'sss' });
+    both((s, k) => tube('sinus', [P(0, 0.7, -8.5), P(s * 2.6, 0.3, -7.9), P(s * 5.0, 0.1, -5.6), P(s * 5.9, -0.6, -3.6), P(s * 5.3, -2.2, -2.6), P(s * 3.9, -3.5, -1.7), P(s * 3.3, -4.0, -1.0)], { m, style: 'hose', r: 0.27, name: 'ts.' + k }));
     const mj = mVn();
-    both((s, k) => tube('jugular', [P(s * 3.3, -4.0, -1.0), P(s * 3.5, -6.5, -0.3), P(s * 3.35, -9.9, 0.6), P(s * 3.0, -13, 1.0), P(s * 2.75, -16.2, 1.2)], { m: mj, r: 0.4, name: 'ijv.' + k }));
+    both((s, k) => tube('jugular', [P(s * 3.3, -4.0, -1.0), P(s * 3.5, -6.5, -0.3), P(s * 3.35, -9.9, 0.6), P(s * 3.0, -13, 1.0), P(s * 2.75, -16.2, 1.2)], { m: mj, style: 'hose', r: 0.4, name: 'ijv.' + k }));
   })();
 
   // ----- voice: larynx and trachea -----
   (function () {
-    const mL = mat(C.voice, { roughness: 0.45, side: T.DoubleSide });
+    const mL = mat(C.voice, { roughness: 0.35, metalness: 0.55, side: T.DoubleSide });
     const prof = [new T.Vector2(1.38, -10.15), new T.Vector2(1.42, -10.7), new T.Vector2(1.3, -11.4), new T.Vector2(1.15, -12.0)];
     const th = new T.Mesh(new T.LatheGeometry(prof, 28, -0.62 * Math.PI, 1.24 * Math.PI), mL); th.position.set(0, 0, 1.9); reg(th, 'larynx', { anchor: P(0, -11, 3.3) });
     const cr = new T.Mesh(new T.TorusGeometry(1.05, 0.2, 10, 32), mL); cr.rotation.x = Math.PI / 2; cr.position.set(0, -12.35, 1.85); reg(cr, 'larynx');
@@ -1138,6 +1178,7 @@ function initGraphics() {
       for (const m of part.meshes) {
         const b = m.userData.base, mt = m.material;
         let vis = state.sys[part.sys] || !!lv, op = b.opacity, tr = b.transparent, dw = b.depthWrite;
+        if (m.userData.trim) { if (state.shell === 'off' && !isSel) vis = false; mt.clippingPlanes = state.shell === 'cut' ? CLIP : NOCLIP; }
         if (m.userData.shell) {
           let mode = state.shell;
           if (mode === 'off' && isSel) mode = 'glass';
@@ -1300,7 +1341,7 @@ function initGraphics() {
     want.forEach(id => {
       const part = PART[id]; if (!part || !part.anchor) return;
       let el = tagEls.get(id);
-      if (!el) { el = document.createElement('div'); el.className = 'tag'; el.textContent = part.name.replace(/ \(.*\)$/, ''); tagsEl.appendChild(el); tagEls.set(id, el); }
+      if (!el) { el = document.createElement('div'); el.className = 'tag'; el.textContent = part.bot; tagsEl.appendChild(el); tagEls.set(id, el); }
       v.copy(part.anchor);
       (part.meshes[0].parent || head).localToWorld(v); v.project(camera);
       const x = clamp((v.x * 0.5 + 0.5) * w, 40, w - 40); let y = clamp((-v.y * 0.5 + 0.5) * h - 16, 54, h - 70);
@@ -1339,16 +1380,16 @@ const UI = {
         <div class="sys-head">
           <button type="button" class="sys-open" aria-expanded="false" aria-controls="list-${s.id}">
             <span class="sw" style="background:${s.color}"></span>
-            <span class="names"><b>${esc(s.name)}</b><i>${esc(s.bot)}</i></span>
+            <span class="names"><b>${esc(s.bot)}</b><i>${esc(s.name)}</i></span>
             <span class="count">${counts[s.id]}</span><span class="chev"></span>
           </button>
-          <label class="tog"><input type="checkbox" id="sys-${s.id}" checked><span class="tog-ui"></span><span class="sr">Show ${esc(s.name.toLowerCase())}</span></label>
+          <label class="tog"><input type="checkbox" id="sys-${s.id}" checked><span class="tog-ui"></span><span class="sr">Show ${esc(s.bot.toLowerCase())}</span></label>
         </div>
         <ul class="parts" id="list-${s.id}" hidden>
-          ${ORDER.filter(id => PART[id].sys === s.id).map(id => `<li><button type="button" data-part="${id}"><span>${esc(PART[id].name)}</span><small>${esc(PART[id].bot)}</small></button></li>`).join('')}
+          ${ORDER.filter(id => PART[id].sys === s.id).map(id => `<li><button type="button" data-part="${id}"><span>${esc(PART[id].bot)}</span><small>${esc(PART[id].name)}</small></button></li>`).join('')}
         </ul>
-      </section>`).join('') + '<p class="note">Human name on top, android build underneath. The switch hides a whole system.</p>';
-    $('pane-paths').innerHTML = '<ul class="paths">' + PATHS.map(p => `<li><button type="button" class="path" data-path="${p.id}"><b>${esc(p.name)}</b><small>${esc(p.sub)}</small></button></li>`).join('') + '</ul><p class="note">Each path follows the real route, relay by relay. Yellow pulses are nerve signals, red is supply and blue is return.</p>';
+      </section>`).join('') + '<p class="note">Android part on top, the human original it stands in for underneath. The switch hides a whole system.</p>';
+    $('pane-paths').innerHTML = '<ul class="paths">' + PATHS.map(p => `<li><button type="button" class="path" data-path="${p.id}"><b>${esc(p.name)}</b><small>${esc(p.sub)}</small></button></li>`).join('') + '</ul><p class="note">Each path follows the real route, relay by relay. Yellow pulses are signals, red is coolant supply and blue is return.</p>';
 
     sysEl.addEventListener('click', e => {
       const open = e.target.closest('.sys-open');
@@ -1426,13 +1467,14 @@ const UI = {
         <div class="row"><button type="button" class="btn" id="path-pause" aria-pressed="false">Pause</button><button type="button" class="btn" id="path-stop">Stop</button></div>`;
     } else if (state.sel) {
       const p = PART[state.sel], s = SYSMAP[p.sys];
-      el.innerHTML = `<p class="eyebrow"><span class="sw" style="background:${s.color}"></span>${esc(s.name)} · ${esc(s.bot)}</p>
-        <h2>${esc(p.name)}</h2><p class="bot">Android build: <b>${esc(p.bot)}</b></p><p class="text">${esc(p.text)}</p>
-        <div class="links"><span class="links-label">Connects to</span>${p.links.map(id => `<button type="button" class="chip" data-part="${id}"><span class="sw" style="background:${SYSMAP[PART[id].sys].color}"></span>${esc(PART[id].name)}</button>`).join('')}</div>
+      el.innerHTML = `<p class="eyebrow"><span class="sw" style="background:${s.color}"></span>${esc(s.bot)}</p>
+        <h2>${esc(p.bot)}</h2><p class="bot">Stands in for the human <b>${esc(p.name)}</b></p>
+        <p class="links-label" style="margin:13px 0 0">How the original works</p><p class="text" style="margin-top:5px">${esc(p.text)}</p>
+        <div class="links"><span class="links-label">Plugs into</span>${p.links.map(id => `<button type="button" class="chip" data-part="${id}" title="${esc(PART[id].name)}"><span class="sw" style="background:${SYSMAP[PART[id].sys].color}"></span>${esc(PART[id].bot)}</button>`).join('')}</div>
         <div class="row"><button type="button" class="btn" id="clear">Show everything</button></div>`;
     } else {
-      el.innerHTML = `<p class="eyebrow">How to read it</p><h2>Same layout, different materials</h2>
-        <p class="text">Every part sits where the human original sits and plugs into the same neighbours. Tap a part to isolate it with everything it connects to, or play a signal path to follow a message from sensor to processor to actuator.</p>
+      el.innerHTML = `<p class="eyebrow">How to read it</p><h2>A machine laid out like a body</h2>
+        <p class="text">Cameras, microphones, processor modules, actuators, cable harnesses and coolant hoses. Each one is mounted where the human part it replaces sits and plugs into the same neighbours. Tap a part to isolate it with everything it connects to, or play a signal path to follow a message from sensor to processor to actuator.</p>
         <div class="row"><button type="button" class="btn" data-go="see" id="demo">Play the sight path</button></div>`;
       $('demo').addEventListener('click', () => { $('tab-paths').click(); UI.play('see'); });
     }
