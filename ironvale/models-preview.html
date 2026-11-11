@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ironvale - model preview</title>
+    <style>
+      html, body { margin: 0; background: #20242b; font-family: system-ui, sans-serif; }
+      #wrap { position: relative; display: inline-block; }
+      canvas { display: block; }
+      .lbl {
+        position: absolute; transform: translate(-50%, 0); white-space: nowrap;
+        font: 600 12px/1.2 system-ui, sans-serif; color: #1c2026; background: rgba(255, 255, 255, 0.78);
+        padding: 1px 5px; border-radius: 4px; pointer-events: none;
+      }
+      .lbl small { font-weight: 400; color: #555; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Dev tool: renders every procedural model from src/render/models.ts.
+      Query params:
+        ?only=bed,toilet   show just these ids (object ids or scenery kinds)
+        ?az=45             camera azimuth in degrees (45 / 135 / 225 / 315 ...)
+        ?el=38             camera elevation in degrees
+        ?ppu=110           pixels per world unit (zoom)
+        ?width=22          row width of the layout in screen units
+        ?people=1          show orange pose dummies at the seat / bed / stand slots
+        ?labels=0          hide labels
+    -->
+    <div id="wrap"></div>
+    <script type="module" src="/src/models-preview.ts"></script>
+  </body>
+</html>
