@@ -14,6 +14,8 @@
  *   position 3 | normal 3 | uv 2 | texture layer 1 | tint 3 |
  *   sky occlusion 1 | emission 1 | wind sway 1 | kind 1
  * `kind`: 0 solid, 1 ground (blends grass into dirt tracks), 2 foliage card.
+ * A solid can also carry a gloss from 0 to 1 -- glazed china, a TV screen, a
+ * varnished table -- which rides in the same slot as a fraction below 0.5.
  */
 import { IDENT, mul, xformPoint, xformDir, cross, sub, normalize, dot, chain, translate, rotY, rotZ } from './math.js';
 
@@ -32,9 +34,40 @@ export function stick(m, a, b, w, h, o) {
   ), () => m.box(0, 0, 0, len, h, w, o));
 }
 
+/**
+ * A wall with holes in it, on the plane z = 0: the outside face looks down
+ * +Z and the inside face sits `t` behind it. `holes` are rectangles
+ * { x0, x1, y0, y1 }; the wall is cut into a grid along their edges and every
+ * cell that is not a hole gets a face on each side, so the texture runs
+ * unbroken across the cuts. Each hole gets its reveals -- the thickness of
+ * the wall, seen edge-on -- except along a bottom edge that sits on the floor.
+ */
+export function wall(m, x0, x1, y0, y1, holes, outer, inner, t, reveal) {
+  const hs = holes.filter((h) => h.x1 > x0 + 1e-6 && h.x0 < x1 - 1e-6);
+  const cuts = (lo, hi, a, b) => [...new Set([lo, hi, ...hs.flatMap((h) => [h[a], h[b]])])].filter((v) => v >= lo && v <= hi).sort((p, q) => p - q);
+  const xs = cuts(x0, x1, 'x0', 'x1'), ys = cuts(y0, y1, 'y0', 'y1');
+  for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
+    const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+    if (hs.some((h) => cx > h.x0 && cx < h.x1 && cy > h.y0 && cy < h.y1)) continue;
+    if (outer) m.quad([xs[i], ys[j], 0], [xs[i + 1], ys[j], 0], [xs[i + 1], ys[j + 1], 0], [xs[i], ys[j + 1], 0], outer);
+    if (inner) m.quad([xs[i + 1], ys[j], -t], [xs[i], ys[j], -t], [xs[i], ys[j + 1], -t], [xs[i + 1], ys[j + 1], -t], inner);
+  }
+  for (const h of hs) {
+    const a = Math.max(h.x0, x0), b = Math.min(h.x1, x1);
+    if (h.x0 >= x0) m.quad([a, h.y0, 0], [a, h.y0, -t], [a, h.y1, -t], [a, h.y1, 0], reveal);
+    if (h.x1 <= x1) m.quad([b, h.y0, -t], [b, h.y0, 0], [b, h.y1, 0], [b, h.y1, -t], reveal);
+    m.quad([a, h.y1, 0], [b, h.y1, 0], [b, h.y1, -t], [a, h.y1, -t], reveal);
+    if (h.y0 > y0 + 1e-6) m.quad([a, h.y0, -t], [b, h.y0, -t], [b, h.y0, 0], [a, h.y0, 0], reveal);
+  }
+}
+
 export class Mesh {
   constructor(tiles) {
-    this.data = [];
+    // A typed array that doubles when full. The scene is several hundred
+    // thousand vertices; as a plain array of numbers it would cost twice the
+    // memory and then be copied into one of these anyway.
+    this.buf = new Float32Array(1 << 20);
+    this.used = 0;
     this.count = 0;
     this.stack = [IDENT];
     /** metres covered by one repeat of each texture layer */
@@ -49,11 +82,32 @@ export class Mesh {
   _vert(p, n, u, v, o, i) {
     const w = xformPoint(this.m, p);
     const c = o.col || [1, 1, 1];
-    this.data.push(
-      w[0], w[1], w[2], n[0], n[1], n[2], u, v, o.layer || 0, c[0], c[1], c[2],
-      pick(o.occ, i, 1), o.emit || 0, pick(o.sway, i, 0), o.kind || 0,
-    );
+    if (this.used + STRIDE > this.buf.length) {
+      const bigger = new Float32Array(this.buf.length * 2);
+      bigger.set(this.buf);
+      this.buf = bigger;
+    }
+    const b = this.buf, k = this.used;
+    b[k] = w[0]; b[k + 1] = w[1]; b[k + 2] = w[2];
+    b[k + 3] = n[0]; b[k + 4] = n[1]; b[k + 5] = n[2];
+    b[k + 6] = u; b[k + 7] = v; b[k + 8] = o.layer || 0;
+    b[k + 9] = c[0]; b[k + 10] = c[1]; b[k + 11] = c[2];
+    b[k + 12] = pick(o.occ, i, 1); b[k + 13] = o.emit || 0; b[k + 14] = pick(o.sway, i, 0);
+    b[k + 15] = o.kind || (o.gloss ? o.gloss * 0.4 : 0);
+    this.used += STRIDE;
     this.count++;
+  }
+
+  /**
+   * A triangle or quad with a normal at each corner, in local space. This is
+   * what lets a lathe-turned leg or a cushion shade as a curve instead of as
+   * the facets it is made of.
+   */
+  smooth(pts, nrms, uvs, o = {}) {
+    const wn = nrms.map((n) => normalize(xformDir(this.m, n)));
+    for (const k of pts.length === 4 ? [0, 1, 2, 0, 2, 3] : [0, 1, 2]) {
+      this._vert(pts[k], wn[k], uvs[k][0], uvs[k][1], o, 0);
+    }
   }
 
   /** Plane-space UV axes: U horizontal, V up the slope. Flat faces use X / -Z. */
@@ -147,5 +201,5 @@ export class Mesh {
     if (cap && o.capBottom) this.poly(lo.slice().reverse(), o.cap || o);
   }
 
-  finish() { return new Float32Array(this.data); }
+  finish() { return this.buf.subarray(0, this.used); }
 }

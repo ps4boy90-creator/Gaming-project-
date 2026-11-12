@@ -147,8 +147,11 @@ Where a browser will not capture the mouse, hold a button and drag to look.
 On a phone held upright the view widens so it is never a keyhole.
 
 Walk up the drive through the open gate. The porch steps take you onto the
-deck; the barn's right-hand door has been rolled back far enough to get in, and
-inside it is black without the torch.
+deck, and the front door is standing open: inside are a hall, a dining room
+laid for a meal, a kitchen in the lean-to at the back, and a living room where
+the television has been left on with nothing on it. The barn's right-hand door
+has been rolled back far enough to get in, and inside it is black without the
+torch.
 
 **How the look is made.** The reference style is not pixel art. It is
 recognisably real materials on boxy geometry, lit by almost nothing, then
@@ -156,17 +159,33 @@ degraded as if recorded to tape. So:
 
 - *Geometry is primitive on purpose* — boxes, quads and cylinders, hard edges,
   no bevels — but the trim is real: window frames and sills, corner boards,
-  porch balusters, X-braced barn doors. About 140,000 vertices, drawn in one
-  call.
-- *Textures are painted at load time*, twenty-two 512×512 layers in one texture
-  array, and filtered smoothly. Every face is mapped in metres from its own
+  porch balusters, X-braced barn doors. About 430,000 vertices, drawn in one
+  call; two thirds of them are furniture.
+- *Textures are painted at load time*, thirty-three 512×512 layers in one
+  texture array, and filtered smoothly. Every face is mapped in metres from its own
   plane, so a clapboard is the same height on the house as on the porch gable.
 - *There are no shadow maps.* Each vertex carries how much sky it can see,
   which is what keeps moonlight out of the barn and off the porch ceiling.
   Moon shadows come from eight boxes instead — the house, the barn and the
-  pickup, each fitted just inside its walls — and a ray test per pixel. The
-  six warm lights fall off within a few metres, and the ones behind windows are
-  spots aimed away from the wall, so nothing shines through to the far side.
+  pickup, each fitted just inside its walls — and a ray test per pixel.
+- *Every light knows where it is allowed to fall.* With no shadows, a lamp in
+  the dining room would light the lawn and the room next door straight through
+  the walls. So the six outdoor lights ignore anything inside the house, and
+  each of the five indoor ones lights only its own room's rectangle, fading
+  out over a short margin so that it spills a little way through a doorway and
+  no further.
+- *The house is cut open for real.* Outside walls are built round their door
+  and window openings, with the thickness of the wall showing in the reveals,
+  so the lit rooms are visible from the yard through the curtains. There is no
+  glass; it would need a blended pass of its own, and at night it is not
+  missed.
+- *Indoors, nothing is a box standing in for a thing.* `detail.js` adds what
+  the buildings never needed: profiles turned on a lathe, boxes with properly
+  rounded edges, tubes swept along a path, cloth hanging in folds, each with a
+  normal at every vertex so it shades as a curve, and a gloss for china, chrome
+  and varnish. Chair legs are turned, the telephone has a coiled cord, the
+  bookcase holds ninety separate books, the cooker has four ring elements and
+  a kettle. The rooms themselves stay flat-walled, because walls are flat.
 - *Night is navy, not black*, and the fog is darker than the horizon it fades
   toward — otherwise a distant tree line dissolves into the sky instead of
   standing against it. That one inequality is most of the forest.
@@ -190,18 +209,21 @@ work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
 `farm.measure()` in the console returns those numbers for the current frame.
 
 ```bash
-node tools/verify/farm.cjs       # 33 checks; screenshots in tools/verify/shots/
+node tools/verify/farm.cjs       # 43 checks; screenshots in tools/verify/shots/
 ```
 
 The suite checks the picture against those targets and then walks into things:
 the gate is open and the fence is not, the steps lead onto the porch and the
 rail keeps you off it, one barn door admits you and the other does not, and
-the forest closes in before the map runs out. It finishes on an emulated phone,
+the forest closes in before the map runs out. Indoors it goes room to room —
+hall to dining room to kitchen, hall to living room — and checks that the
+table, the counter and the walls are solid and the stair door is shut. It finishes on an emulated phone,
 walking and turning by touch alone.
 
 **What it is not.** The textures are procedural, not photographs, so up close
 under the torch they are plainer than the real thing. There are no people in
-it and no house interior — lit windows are painted curtains.
+it. Only the ground floor of the house is built: the stair is boxed in behind
+a door that is shut, and the upstairs windows are still painted on.
 `?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
 camera, the clock and the filters for repeatable captures.
 

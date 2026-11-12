@@ -49,7 +49,7 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
     boxes: farm.world.boxes.length, trunks: farm.world.trunks.length,
   }));
   check('the forest is a forest', world.trees > 1200, `${world.trees} trees, ${world.verts} vertices`);
-  check('lights fit the shader', world.lights > 3 && world.lights <= 8, `${world.lights} lights`);
+  check('lights fit the shader', world.lights > 3 && world.lights <= 12, `${world.lights} lights`);
 
   /** Stand somewhere, look somewhere, measure the frame and keep a picture of it. */
   const shot = async (name, x, z, yaw, pitch = 0, torch = false) => {
@@ -105,14 +105,49 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
 
   const house = await G(() => ({ ...farm.site.house }));
   const toWorld = (s, lx, lz) => [s.x + lx * Math.cos(s.yaw) + lz * Math.sin(s.yaw), s.z - lx * Math.sin(s.yaw) + lz * Math.cos(s.yaw)];
-  let [sx, sz] = toWorld(house, 0, 9.5);
-  p = await walk(sx, sz, house.yaw, 6);            // straight up the steps at the front door
-  const [dx, dz] = toWorld(house, 0, 3.5);
-  const fromDoor = Math.hypot(p.x - dx, p.z - dz);
-  check('the steps lead onto the porch', Math.abs(p.floor - 0.5) < 0.03, `floor ${p.floor.toFixed(2)}`);
-  check('the front wall stops you at the door', fromDoor > 0.3 && fromDoor < 0.7, `${fromDoor.toFixed(2)} m from the wall`);
+  // Everything about the house is said in its own coordinates: front is +Z,
+  // the dining room is at -X, the kitchen beyond the back wall at -Z.
+  const local = (s, q) => { const c = Math.cos(s.yaw), sn = Math.sin(s.yaw), dx = q.x - s.x, dz = q.z - s.z; return { x: dx * c - dz * sn, z: dx * sn + dz * c }; };
+  const heading = (s, dx, dz) => { const c = Math.cos(s.yaw), sn = Math.sin(s.yaw); return Math.atan2(-(dx * c + dz * sn), -(-dx * sn + dz * c)); };
+  const inHouse = async (fx, fz, dx, dz, seconds) => {
+    const [wx, wz] = toWorld(house, fx, fz);
+    const q = await walk(wx, wz, heading(house, dx, dz), seconds);
+    return { ...local(house, q), floor: q.floor, home: await G(([x, z]) => farm.query.insideHouse(x, z), [q.x, q.z]) };
+  };
+  let h = await inHouse(0, 9.5, 0, -1, 3.2);            // up the steps
+  check('the steps lead onto the porch', Math.abs(h.floor - 0.5) < 0.03 && !h.home, `floor ${h.floor.toFixed(2)}`);
+  h = await inHouse(0, 9.5, 0, -1, 6);                  // and on through the front door
+  check('the front door stands open', h.home && h.z < 2.2, `ended ${h.z.toFixed(1)} m from the middle of the house`);
+  h = await inHouse(-9, 0.4, 1, 0, 5);                  // at the west wall, from the lawn
+  check('the walls do not', !h.home && h.x < -4.7, `stopped at x ${h.x.toFixed(2)}`);
+  h = await inHouse(0, 1.0, -1, 0, 1.5);
+  check('hall to dining room', h.x < -1.5, `x ${h.x.toFixed(2)}`);
+  h = await inHouse(-1.6, 0.3, -1, 0, 4);               // at the laid table
+  check('the dining table and chairs are solid', h.x > -2.2, `stopped at x ${h.x.toFixed(2)}`);
+  h = await inHouse(-2.45, -2.2, 0, -1, 2.5);
+  check('dining room to kitchen', h.z < -3.9 && h.home, `z ${h.z.toFixed(2)}`);
+  h = await inHouse(-2.45, -4.2, 0, -1, 4);             // at the sink
+  check('the kitchen counter stops you', h.z > -5.2, `stopped at z ${h.z.toFixed(2)}`);
+  h = await inHouse(0, 1.0, 1, 0, 1.5);
+  check('hall to living room', h.x > 1.5, `x ${h.x.toFixed(2)}`);
+  h = await inHouse(2.4, 0.9, 1, 0, 5);                 // across the room to the east wall
+  check('you cannot leave through a wall', h.home && h.x < 4.1, `stopped at x ${h.x.toFixed(2)}`);
+  h = await inHouse(-0.4, -0.2, 0, -1, 5);              // down the passage to the clock
+  check('the stair door is shut and the passage ends', h.z > -3.1 && h.x < 0.15, `(${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
+
+  // --- indoors is lit the way the reference interiors are: warm, and about
+  // a fifth as bright as the screen will go, never the full glare of a lamp.
+  const face = (fx, fz, dx, dz) => { const [wx, wz] = toWorld(house, fx, fz); return [wx, wz, heading(house, dx, dz)]; };
+  const dining = await shot('dining', ...face(-1.6, 2.6, -0.68, -0.73), -0.1);
+  check('dining room: warm and lamp-lit', dining.hue > 15 && dining.hue < 50 && dining.mean > 0.12 && dining.mean < 0.3, fmt(dining));
+  const tvRoom = await shot('living', ...face(1.5, 1.0, 0.81, 0.59), -0.1);
+  check('living room: lit by the television', tvRoom.hue > 180 && tvRoom.hue < 250 && tvRoom.mean < 0.25, fmt(tvRoom));
+  await shot('hall', ...face(0, 3.0, 0, -1), -0.05);
+  await shot('kitchen', ...face(-2.6, -4.4, 0.98, 0.18), -0.25);
+  await shot('sofa', ...face(3.6, 0.6, -0.81, -0.58), -0.22);
+  let sx, sz;
   [sx, sz] = toWorld(house, -3, 9.5);
-  p = await walk(sx, sz, house.yaw, 6);            // at the railing instead
+  p = await walk(sx, sz, house.yaw, 6);            // at the porch railing
   check('the porch rail keeps you off the deck', p.floor < 0.1, `floor ${p.floor.toFixed(2)}`);
 
   const barnSite = await G(() => ({ ...farm.site.barn }));
@@ -176,10 +211,10 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   check('touch: the thumbstick and buttons appear', after.pad === 'flex' && after.stick);
   const released = await tp.waitForFunction(() => farm.stick.fwd === 0 && document.getElementById('stick').hidden, null, { timeout: 30000 }).then(() => true, () => false);
   check('touch: the stick lets go', released);
-  await tp.screenshot({ path: path.join(SHOTS, 'farm-phone.png') });
-  // The buttons are tapped with the page's own loop stopped. Chrome delivers
-  // touch input in step with frames, and a software renderer's one frame a
-  // second starves a synthetic tap; the buttons themselves do not care.
+  // The buttons are tapped, and the picture taken, with the page's own loop
+  // stopped. Chrome delivers touch input and screenshots in step with frames,
+  // and a software renderer taking seconds over each one starves both; the
+  // buttons themselves do not care.
   await tp.goto(`${BASE}/farm/index.html?manual=1`);
   await tp.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
   await touch('touchStart', [[150, 250, 1]]);
@@ -188,6 +223,8 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   await tp.tap('#run');
   const btn = await tp.evaluate(() => ({ torch: farm.torch, run: farm.running }));
   check('touch: the TORCH and RUN buttons work', btn.torch === true && btn.run === true);
+  await tp.evaluate(() => { farm.torch = false; farm.render(); });
+  await tp.screenshot({ path: path.join(SHOTS, 'farm-phone.png') });
   await phone.close();
 
   check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));

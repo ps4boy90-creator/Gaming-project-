@@ -41,6 +41,17 @@ export const LAYERS = [
   { name: 'tire', tile: 0.26 },
   { name: 'grille', tile: 1 },
   { name: 'plate', tile: 1 },
+  { name: 'wallpaper', tile: 1.0 },
+  { name: 'plaster', tile: 2.0 },
+  { name: 'lino', tile: 0.6 },
+  { name: 'fabric', tile: 0.5 },
+  { name: 'rug', tile: 1 },
+  { name: 'grain', tile: 0.8 },
+  { name: 'static', tile: 1 },
+  { name: 'picture', tile: 1 },
+  { name: 'clockface', tile: 1 },
+  { name: 'tile', tile: 0.6 },
+  { name: 'print', tile: 1 },
 ];
 export const L = Object.fromEntries(LAYERS.map((l, i) => [l.name, i]));
 export const TILES = LAYERS.map((l) => l.tile);
@@ -509,6 +520,208 @@ export function paintLayers(seed = 7) {
       ctx.fillText('4KR 917', 0, 0);
       ctx.restore();
       weather(ctx, 0.35, 0.3, [1.0, 0.96, 0.88]);
+    },
+
+    /* ---- indoors ---- */
+
+    // Papered once, a long time ago: a stripe and a sprig, gone the colour of tea.
+    wallpaper(ctx) {
+      ctx.fillStyle = rgb(196, 186, 150); ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 8; i++) {
+        ctx.fillStyle = i % 2 ? 'rgba(120,128,92,0.34)' : 'rgba(150,120,84,0.16)';
+        ctx.fillRect(i * 64 + 22, 0, i % 2 ? 6 : 20, S);
+      }
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        const cx = x * 64 + 5 + (y % 2) * 32, cy = y * 64 + 32;
+        ctx.fillStyle = 'rgba(132,74,62,0.5)';
+        for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(cx + Math.cos(k * 1.257) * 6, cy + Math.sin(k * 1.257) * 6, 4.5, 3, k * 1.257, 0, 7); ctx.fill(); }
+        ctx.fillStyle = 'rgba(86,104,66,0.55)';
+        ctx.beginPath(); ctx.ellipse(cx - 3, cy + 15, 3, 8, 0.5, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + 5, cy + 16, 3, 7, -0.5, 0, 7); ctx.fill();
+      }
+      weather(ctx, 0.34, 0.14, [1.0, 0.97, 0.9]);
+    },
+
+    plaster(ctx) {
+      ctx.fillStyle = rgb(206, 200, 184); ctx.fillRect(0, 0, S, S);
+      wrapped(ctx, () => {
+        const r2 = makeRng(seed + 71);
+        for (let i = 0; i < 9; i++) {              // hairline cracks
+          let x = r2() * S, y = r2() * S;
+          ctx.strokeStyle = 'rgba(70,62,50,0.16)'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, y);
+          for (let k = 0; k < 9; k++) { x += (r2() - 0.5) * 34; y += 10 + r2() * 26; ctx.lineTo(x, y); }
+          ctx.stroke();
+        }
+      });
+      weather(ctx, 0.26, 0.12);
+    },
+
+    // Kitchen lino: a two-by-two check, worn through where people stand.
+    lino(ctx) {
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+        ctx.fillStyle = (x + y) % 2 ? rgb(196, 188, 162) : rgb(92, 112, 96);
+        ctx.fillRect(x * 256, y * 256, 256, 256);
+      }
+      ctx.strokeStyle = 'rgba(30,30,26,0.5)'; ctx.lineWidth = 3;
+      ctx.strokeRect(0, 0, 256, 256); ctx.strokeRect(256, 256, 256, 256);
+      weather(ctx, 0.4, 0.22, [1.0, 0.96, 0.88]);
+    },
+
+    // Upholstery weave, pale so that each piece of furniture can tint it.
+    fabric(ctx) {
+      ctx.fillStyle = rgb(190, 184, 172); ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < S; i += 4) {
+        ctx.fillStyle = 'rgba(60,54,46,0.2)'; ctx.fillRect(i, 0, 1.5, S);
+        ctx.fillStyle = 'rgba(255,250,240,0.14)'; ctx.fillRect(0, i + 2, S, 1.5);
+      }
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = 'rgba(70,62,54,0.11)';
+        ctx.fillRect(i * 128 + 40, 0, 26, S); ctx.fillRect(0, i * 128 + 40, S, 26);
+      }
+      weather(ctx, 0.2, 0.3);
+    },
+
+    // One whole rug, stretched to fit whatever floor it is put on.
+    rug(ctx) {
+      ctx.fillStyle = rgb(110, 36, 34); ctx.fillRect(0, 0, S, S);
+      const band = (m, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.strokeRect(m, m, S - 2 * m, S - 2 * m); };
+      band(14, rgb(196, 176, 130), 14); band(40, rgb(34, 42, 68), 22); band(66, rgb(196, 176, 130), 5);
+      const r2 = makeRng(seed + 83);
+      for (let i = 0; i < 44; i++) {                // repeat round the border
+        const t = (i / 44) * 4, side = t | 0, f = t - side, e = 40;
+        const [x, y] = [[e + f * (S - 2 * e), e], [S - e, e + f * (S - 2 * e)], [S - e - f * (S - 2 * e), S - e], [e, S - e - f * (S - 2 * e)]][side];
+        ctx.fillStyle = i % 2 ? rgb(170, 62, 46) : rgb(206, 190, 150);
+        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 8, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 8, y); ctx.fill();
+      }
+      // A lozenge medallion in close tones, cut with petals: it should read as
+      // pattern from across the room, not as rings.
+      const loz = (rx, ry, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(S / 2, S / 2 - ry); ctx.lineTo(S / 2 + rx, S / 2); ctx.lineTo(S / 2, S / 2 + ry); ctx.lineTo(S / 2 - rx, S / 2); ctx.fill(); };
+      loz(118, 160, rgb(40, 46, 66)); loz(100, 138, rgb(126, 44, 38)); loz(70, 98, rgb(52, 56, 74)); loz(42, 58, rgb(170, 150, 110));
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        ctx.fillStyle = k % 2 ? rgb(160, 140, 104) : rgb(96, 36, 32);
+        ctx.beginPath(); ctx.ellipse(S / 2 + Math.cos(a) * 52, S / 2 + Math.sin(a) * 72, 9, 15, a, 0, 7); ctx.fill();
+      }
+      for (let i = 0; i < 70; i++) {                // field
+        const x = 90 + r2() * (S - 180), y = 90 + r2() * (S - 180);
+        if (Math.hypot((x - S / 2) / 130, (y - S / 2) / 170) < 1.1) continue;
+        ctx.fillStyle = r2() < 0.5 ? rgb(196, 176, 130) : rgb(40, 50, 80);
+        ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 7); ctx.lineTo(x - 5, y); ctx.fill();
+      }
+      weather(ctx, 0.3, 0.42, [0.94, 0.9, 0.84]);
+    },
+
+    // Furniture timber: one continuous board, long figure, under old varnish.
+    grain(ctx) {
+      ctx.fillStyle = rgb(128, 82, 46); ctx.fillRect(0, 0, S, S);
+      wrapped(ctx, () => {
+        const r2 = makeRng(seed + 89);
+        for (let i = 0; i < 230; i++) {
+          const y = r2() * S, t = r2();
+          ctx.strokeStyle = rgb(60 + t * 90, 34 + t * 60, 16 + t * 36, 0.32);
+          ctx.lineWidth = 0.8 + r2() * 2.4;
+          ctx.beginPath(); ctx.moveTo(-10, y);
+          ctx.bezierCurveTo(S * 0.3, y + (r2() - 0.5) * 22, S * 0.7, y + (r2() - 0.5) * 22, S + 10, y + (r2() - 0.5) * 8);
+          ctx.stroke();
+        }
+      });
+      weather(ctx, 0.24, 0.16);
+    },
+
+    // A television with nothing on it.
+    static(ctx) {
+      const img = ctx.createImageData(S, S), r2 = makeRng(seed + 97);
+      for (let y = 0; y < S; y += 2) for (let x = 0; x < S; x += 2) {
+        const v = Math.pow(r2(), 1.4) * 255;
+        for (const o of [0, 4, S * 4, S * 4 + 4]) {
+          const p = (y * S + x) * 4 + o;
+          img.data[p] = v * 0.86; img.data[p + 1] = v * 0.93; img.data[p + 2] = v; img.data[p + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    },
+
+    // Two pictures side by side, each used through half of the card: a
+    // landscape in oils gone dark, and a studio portrait nobody has dusted.
+    picture(ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, S);
+      g.addColorStop(0, rgb(120, 126, 110)); g.addColorStop(0.5, rgb(170, 150, 104)); g.addColorStop(0.56, rgb(70, 78, 50)); g.addColorStop(1, rgb(40, 44, 28));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S / 2, S);
+      ctx.fillStyle = rgb(52, 62, 44);
+      ctx.beginPath(); ctx.moveTo(0, S * 0.56);
+      for (let x = 0; x <= S / 2; x += 16) ctx.lineTo(x, S * 0.5 - Math.sin(x * 0.021) * 26 - Math.sin(x * 0.06) * 8);
+      ctx.lineTo(S / 2, S * 0.62); ctx.lineTo(0, S * 0.62); ctx.fill();
+      ctx.fillStyle = rgb(92, 40, 30); ctx.fillRect(S * 0.27, S * 0.5, S * 0.09, S * 0.09);       // a barn, far off
+      ctx.beginPath(); ctx.moveTo(S * 0.26, S * 0.5); ctx.lineTo(S * 0.315, S * 0.44); ctx.lineTo(S * 0.37, S * 0.5); ctx.fill();
+      const p = ctx.createRadialGradient(S * 0.75, S * 0.42, 10, S * 0.75, S * 0.5, S * 0.42);
+      p.addColorStop(0, rgb(176, 160, 128)); p.addColorStop(1, rgb(58, 48, 36));
+      ctx.fillStyle = p; ctx.fillRect(S / 2, 0, S / 2, S);
+      ctx.fillStyle = rgb(34, 30, 26);                                                          // sitter
+      ctx.beginPath(); ctx.ellipse(S * 0.75, S * 0.36, S * 0.075, S * 0.105, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(S * 0.56, S); ctx.quadraticCurveTo(S * 0.6, S * 0.5, S * 0.75, S * 0.5);
+      ctx.quadraticCurveTo(S * 0.9, S * 0.5, S * 0.94, S); ctx.fill();
+      ctx.fillStyle = rgb(150, 134, 108);
+      ctx.beginPath(); ctx.ellipse(S * 0.75, S * 0.37, S * 0.05, S * 0.075, 0, 0, 7); ctx.fill();
+      weather(ctx, 0.3, 0.3, [0.92, 0.86, 0.74]);
+    },
+
+    // Twenty to midnight.
+    clockface(ctx) {
+      ctx.fillStyle = rgb(216, 208, 184); ctx.fillRect(0, 0, S, S);
+      ctx.translate(S / 2, S / 2);
+      ctx.strokeStyle = rgb(30, 26, 22); ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(0, 0, S * 0.45, 0, 7); ctx.stroke();
+      ctx.fillStyle = rgb(30, 26, 22); ctx.font = 'bold 54px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let h = 1; h <= 12; h++) {
+        const a = (h / 12) * Math.PI * 2;
+        ctx.fillText(String(h), Math.sin(a) * S * 0.36, -Math.cos(a) * S * 0.36);
+      }
+      for (let i = 0; i < 60; i++) {
+        const a = (i / 60) * Math.PI * 2;
+        ctx.save(); ctx.rotate(a); ctx.fillRect(-1.5, -S * 0.445, 3, i % 5 ? 10 : 20); ctx.restore();
+      }
+      const hand = (a, len, w) => { ctx.save(); ctx.rotate(a); ctx.fillRect(-w / 2, -len, w, len + 18); ctx.restore(); };
+      hand(((11 + 40 / 60) / 12) * Math.PI * 2, S * 0.24, 12);
+      hand((40 / 60) * Math.PI * 2, S * 0.36, 7);
+      ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.fill();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      weather(ctx, 0.22, 0.16, [1.0, 0.96, 0.86]);
+    },
+
+    // Square white wall tile, four to a side, the grout gone grey.
+    tile(ctx) {
+      ctx.fillStyle = rgb(120, 116, 106); ctx.fillRect(0, 0, S, S);
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+        const v = R(0.92, 1.0);
+        ctx.fillStyle = rgb(214 * v, 214 * v, 204 * v);
+        ctx.fillRect(x * 128 + 3, y * 128 + 3, 122, 122);
+        const g = ctx.createLinearGradient(x * 128, y * 128, x * 128 + 128, y * 128 + 128);
+        g.addColorStop(0, 'rgba(255,255,255,0.22)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.fillStyle = g; ctx.fillRect(x * 128 + 3, y * 128 + 3, 122, 122);
+      }
+      weather(ctx, 0.2, 0.12, [1.0, 0.98, 0.92]);
+    },
+
+    // Printed matter, again two to a card: a newspaper and a magazine cover.
+    print(ctx) {
+      ctx.fillStyle = rgb(206, 200, 180); ctx.fillRect(0, 0, S / 2, S);
+      ctx.fillStyle = rgb(30, 28, 26); ctx.fillRect(14, 16, S / 2 - 28, 46);
+      ctx.fillRect(14, 78, S / 2 - 28, 4);
+      ctx.fillStyle = rgb(120, 114, 100); ctx.fillRect(18, 96, 120, 96);
+      ctx.fillStyle = 'rgba(40,38,34,0.6)';
+      for (let col = 0; col < 3; col++) for (let y = 96; y < S - 20; y += 9) {
+        if (col === 0 && y < 200) continue;
+        ctx.fillRect(18 + col * 76 + (col ? 0 : 0), y, 62 + ((y * 7) % 9), 4);
+      }
+      ctx.fillStyle = rgb(150, 44, 36); ctx.fillRect(S / 2, 0, S / 2, S);
+      ctx.fillStyle = rgb(226, 214, 180); ctx.fillRect(S / 2 + 18, 20, S / 2 - 36, 60);
+      ctx.fillStyle = rgb(60, 74, 80); ctx.fillRect(S / 2 + 18, 110, S / 2 - 36, 260);
+      ctx.fillStyle = rgb(196, 170, 120);
+      ctx.beginPath(); ctx.ellipse(S * 0.75, S * 0.47, 50, 76, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(240,230,200,0.85)';
+      for (let y = 396; y < S - 20; y += 22) ctx.fillRect(S / 2 + 18, y, 120 + ((y * 5) % 70), 9);
+      weather(ctx, 0.24, 0.24, [1.0, 0.95, 0.84]);
     },
   };
 

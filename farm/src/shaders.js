@@ -7,12 +7,19 @@
  * what keeps moonlight out of the barn and off the porch ceiling; the warm
  * lights are spots aimed away from the walls they hang on.
  *
+ * Indoors the same trick needs one more piece. With no shadows, a lamp in the
+ * dining room would light the grass outside and the room next door straight
+ * through the walls. So every light has a mode: an outdoor light ignores
+ * anything inside the house, and an indoor one lights only its own room's
+ * rectangle, fading out over a short margin so that it spills a little way
+ * through a doorway and no further.
+ *
  * The scene pass writes square-rooted colour into an 8-bit target. A night
  * scene lives almost entirely in the bottom tenth of the range, and storing it
  * linearly would leave about twenty levels to draw the whole forest with.
  */
 
-export const MAX_LIGHTS = 8;
+export const MAX_LIGHTS = 12;
 export const MAX_PATHS = 6;
 export const MAX_PATCHES = 4;
 export const MAX_OCCLUDERS = 8;
@@ -48,6 +55,11 @@ uniform float uFogK, uDirtLayer;
 uniform vec4 uLPos[${MAX_LIGHTS}];   // xyz, range
 uniform vec4 uLCol[${MAX_LIGHTS}];
 uniform vec4 uLDir[${MAX_LIGHTS}];   // xyz, cos of the cone edge (below -1: a point light)
+uniform vec4 uLRoom[${MAX_LIGHTS}];  // an indoor light's room, in house space: x0, z0, x1, z1
+uniform vec4 uHouse;                // house origin x, z, then cos and sin of its yaw
+uniform vec4 uHouseBox;             // half width, half depth, ceiling height
+uniform vec4 uLean;                 // the kitchen lean-to, in house space: x0, z0, x1, z1
+uniform float uStaticLayer, uTime;
 uniform vec4 uTorch;                // on, cos of the cone edge
 uniform vec3 uTorchPos, uTorchDir;
 uniform vec4 uPath[${MAX_PATHS}];
@@ -99,7 +111,12 @@ float blocked(vec3 p, vec3 dir) {
 
 void main() {
   float kind = vMisc.w;
-  vec4 t = texture(uTex, vec3(vUV, vLayer));
+  vec2 uv = vUV;
+  if (abs(vLayer - uStaticLayer) < 0.5) {      // the television: a new frame of snow, twenty times a second
+    float f = floor(uTime * 20.0);
+    uv = uv * 0.6 + fract(sin(vec2(f, f + 7.0)) * vec2(43758.5, 24634.6));
+  }
+  vec4 t = texture(uTex, vec3(uv, vLayer));
   if (t.a < 0.5) discard;
   vec3 albedo = t.rgb;
   if (kind > 0.5 && kind < 1.5) {
@@ -110,14 +127,24 @@ void main() {
   albedo *= vCol;
 
   bool foliage = kind > 1.5;
+  float gloss = kind < 0.5 ? kind * 2.5 : 0.0;
+  vec3 V = normalize(uCam - vPos);
   vec3 N = normalize(vNor);
-  if (!foliage && !gl_FrontFacing) N = -N;
+  if (!foliage && dot(N, V) < 0.0) N = -N;     // every surface is lit from whichever side is looked at
   float sky = vMisc.x;
+
+  vec2 hd = vPos.xz - uHouse.xy;
+  vec2 hl = vec2(hd.x * uHouse.z - hd.y * uHouse.w, hd.x * uHouse.w + hd.y * uHouse.z);
+  bool indoors = vPos.y < uHouseBox.z && ((abs(hl.x) < uHouseBox.x && abs(hl.y) < uHouseBox.y)
+    || (hl.x > uLean.x && hl.x < uLean.z && hl.y > uLean.y && hl.y < uLean.w));
+  if (indoors) sky = min(sky, 0.05);
+  vec3 spec = vec3(0.0);
 
   // Moon shadows, and the dark under anything parked on the grass. Foliage
   // skips both: the cards overlap too much for the cost to buy anything.
-  float moon = 1.0;
-  if (!foliage) {
+  // Indoors there is no moon to block, so those pixels skip the test too.
+  float moon = indoors ? 0.0 : 1.0;
+  if (!foliage && !indoors) {
     moon = 1.0 - blocked(vPos, uMoonDir);
     sky *= 1.0 - 0.7 * blocked(vPos, vec3(0.0, 1.0, 0.0));
   }
@@ -128,12 +155,25 @@ void main() {
     vec3 d = uLPos[i].xyz - vPos;
     float dist = length(d), range = uLPos[i].w;
     if (dist > range) continue;
+    float mode = uLCol[i].w, w = 1.0;
+    if (mode > 1.5) {
+      if (indoors) continue;
+    } else if (mode > 0.5) {
+      if (!indoors) continue;
+      vec2 q = max(uLRoom[i].xy - hl, hl - uLRoom[i].zw);
+      w = 1.0 - smoothstep(0.0, 0.9, max(q.x, q.y));
+      if (w <= 0.0) continue;
+    }
     vec3 l = d / dist;
     float fall = 1.0 - dist / range;
-    float att = fall * fall / (1.0 + dist * dist * 0.12);
+    float att = fall * fall / (1.0 + dist * dist * 0.12) * w;
     float cone = uLDir[i].w < -1.0 ? 1.0 : smoothstep(uLDir[i].w, uLDir[i].w + 0.4, dot(-l, uLDir[i].xyz));
     float ndl = foliage ? 0.6 : max(dot(N, l) * 0.9 + 0.1, 0.0);
     light += uLCol[i].rgb * att * cone * ndl;
+    // A lit room is never black in its corners: a little of every lamp
+    // arrives from all directions, standing in for light off the walls.
+    if (mode > 0.5 && mode < 1.5) light += uLCol[i].rgb * fall * 0.035 * w;
+    spec += uLCol[i].rgb * att * cone * pow(max(dot(N, normalize(l + V)), 0.0), 48.0);
   }
 
   if (uTorch.x > 0.5) {
@@ -147,10 +187,12 @@ void main() {
     float ring = smoothstep(0.012, 0.0, abs(c - (uTorch.y + 0.028))) * 0.25;
     float ndl = foliage ? 0.7 : max(dot(N, -d / dist) * 0.75 + 0.25, 0.0);
     float att = 1.0 / (1.0 + dist * dist * 0.012) * clamp(1.0 - dist / 60.0, 0.0, 1.0);
-    light += vec3(1.0, 0.93, 0.78) * 2.4 * disc * (0.4 + 0.6 * hot * hot + ring) * att * ndl;
+    vec3 beam = vec3(1.0, 0.93, 0.78) * 2.4 * disc * (0.4 + 0.6 * hot * hot + ring) * att;
+    light += beam * ndl;
+    spec += beam * pow(max(dot(N, normalize(V - d / dist)), 0.0), 48.0);
   }
 
-  vec3 col = albedo * light + t.rgb * vCol * vMisc.y * 1.5;
+  vec3 col = albedo * light + spec * gloss * 0.6 + t.rgb * vCol * vMisc.y * 1.5;
 
   float dist = length(vPos - uCam);
   float fog = 1.0 - exp(-pow(dist * uFogK, 1.5));

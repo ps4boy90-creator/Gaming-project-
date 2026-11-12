@@ -37,6 +37,7 @@ export class Ambience {
     this.trees = loop('bandpass', 2400, 0.6);    // needles hissing
     this.hiss = loop('highpass', 5000, 0.3);     // tape
     this.hiss.gain.value = 0.012;
+    this.snow = loop('bandpass', 3200, 0.4);     // the television, on with nothing tuned
 
     // Crickets: three voices, each a short train of chirps on its own clock.
     this.crickets = ctx.createGain(); this.crickets.gain.value = 0.05;
@@ -64,7 +65,7 @@ export class Ambience {
     this.t = 0; this.nextOwl = 14 + Math.random() * 20;
   }
 
-  /** `s` is { inside, lampDistance }. */
+  /** `s` is { inside, lampDistance, tvDistance }. */
   update(dt, s) {
     const ctx = this.ctx;
     if (!ctx) return;
@@ -76,6 +77,7 @@ export class Ambience {
     this.trees.gain.setTargetAtTime((0.008 + gust * 0.03) * shelter, now, 0.4);
     this.crickets.gain.setTargetAtTime(0.05 * (s.inside ? 0.25 : 1), now, 0.5);
     this.hum.gain.setTargetAtTime(0.03 / (1 + s.lampDistance * s.lampDistance * 0.05), now, 0.2);
+    this.snow.gain.setTargetAtTime(0.11 / (1 + s.tvDistance * s.tvDistance * 0.5), now, 0.25);
     if (this.t > this.nextOwl) {
       this.nextOwl = this.t + 35 + Math.random() * 60;
       this.owl(s.inside ? 0.3 : 1);

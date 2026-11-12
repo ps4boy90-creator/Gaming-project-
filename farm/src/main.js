@@ -8,7 +8,7 @@
  * low-poly edges pass for something photographed.
  */
 import { paintLayers, LAYERS, L, SIZE } from './textures.js';
-import { build, SPAWN, SITE, PATHS, PATCHES, insideBarn, floorHeight, inBounds } from './world.js';
+import { build, SPAWN, SITE, PATHS, PATCHES, insideBarn, insideHouse, floorHeight, inBounds } from './world.js';
 import { STRIDE } from './geom.js';
 import { Player } from './player.js';
 import { Ambience } from './audio.js';
@@ -97,6 +97,7 @@ export class Farm {
     this.player = new Player(startPose(this.opts) || SPAWN);
     this.player.onStep = (surface, run) => this.audio.step(surface, run);
     this.lamp = world.lights.find((l) => l.flicker);
+    this.tv = world.lights.find((l) => l.tv);
 
     this.vao = gl.createVertexArray();
     gl.bindVertexArray(this.vao);
@@ -144,6 +145,16 @@ export class Farm {
     gl.uniform4fv(this.scene.u.uOccB, occB);
     gl.uniform1i(this.scene.u.uOccCount, occ.length);
     this.lightBuf = { pos: new Float32Array(MAX_LIGHTS * 4), col: new Float32Array(MAX_LIGHTS * 4), dir: new Float32Array(MAX_LIGHTS * 4) };
+    // Which room each indoor light belongs to, and where "indoors" is.
+    const rooms = new Float32Array(MAX_LIGHTS * 4);
+    world.lights.slice(0, MAX_LIGHTS).forEach((l, i) => { if (l.room) rooms.set(l.room, i * 4); });
+    gl.uniform4fv(this.scene.u.uLRoom, rooms);
+    const hs = world.house;
+    gl.uniform4f(this.scene.u.uHouse, hs.x, hs.z, Math.cos(hs.yaw), Math.sin(hs.yaw));
+    gl.uniform4f(this.scene.u.uHouseBox, hs.hx, hs.hz, hs.ceiling, 0);
+    gl.uniform4fv(this.scene.u.uLean, hs.lean);
+    gl.uniform1f(this.scene.u.uStaticLayer, L.static);
+
 
     // Drawn multisampled, then resolved into a texture the tape pass can read.
     // Smoothing the polygon edges matters more here than it usually would:
@@ -275,10 +286,12 @@ export class Farm {
   step(dt, move, run) {
     if (this.frozen === undefined) this.time += dt;
     this.player.update(dt, move, run, this.world);
-    const lamp = this.lamp.pos;
+    const lamp = this.lamp.pos, tv = this.tv.pos, p = this.player;
+    const home = insideHouse(p.x, p.z);
     this.audio.update(dt, {
-      inside: insideBarn(this.player.x, this.player.z),
-      lampDistance: Math.hypot(this.player.x - lamp[0], this.player.z - lamp[2]),
+      inside: home || insideBarn(p.x, p.z),
+      lampDistance: Math.hypot(p.x - lamp[0], p.z - lamp[2]),
+      tvDistance: Math.hypot(p.x - tv[0], p.z - tv[2]) * (home ? 1 : 4),   // walls in the way
     });
   }
 
@@ -350,9 +363,10 @@ export class Farm {
     gl.uniform1f(u.uDirtLayer, L.dirt);
     const { pos: lp, col: lc, dir: ld } = this.lightBuf;
     world.lights.slice(0, MAX_LIGHTS).forEach((l, i) => {
-      const k = l.flicker ? lampNow : 1;
+      // The barn lamp stutters; the television jumps with every frame of snow.
+      const k = l.flicker ? lampNow : l.tv ? 0.72 + 0.28 * Math.abs(Math.sin(Math.floor(t * 20) * 12.9898) * 43758.5453 % 1) : 1;
       lp.set([...l.pos, l.range], i * 4);
-      lc.set([l.color[0] * k, l.color[1] * k, l.color[2] * k, 0], i * 4);
+      lc.set([l.color[0] * k, l.color[1] * k, l.color[2] * k, l.mode || 0], i * 4);
       ld.set([...l.dir, l.cos], i * 4);
     });
     gl.uniform4fv(u.uLPos, lp); gl.uniform4fv(u.uLCol, lc); gl.uniform4fv(u.uLDir, ld);
@@ -433,7 +447,7 @@ export class Farm {
     Object.assign(this.player, { x, z, yaw, pitch, vx: 0, vz: 0, floor: floorHeight(x, z) });
   }
   /** World queries, exposed for the console and the tests. */
-  get query() { return { insideBarn, floorHeight, inBounds }; }
+  get query() { return { insideBarn, insideHouse, floorHeight, inBounds }; }
   get site() { return SITE; }
 }
 
