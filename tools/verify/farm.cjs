@@ -142,6 +142,44 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   await page.keyboard.press('KeyF');
   check('F toggles the torch', await G(() => farm.torch) === true);
 
+  // --- a phone: no keyboard, no mouse. The left thumb walks, the right looks.
+  const phone = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const tp = await phone.newPage();
+  tp.on('pageerror', (e) => errors.push('PAGEERROR (touch): ' + e.message));
+  await tp.goto(`${BASE}/farm/index.html`);
+  await tp.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
+  const cdp = await phone.newCDPSession(tp);
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id]) => ({ x, y, id })) });
+  const before = await tp.evaluate(() => ({ z: farm.player.z, yaw: farm.player.yaw }));
+  await touch('touchStart', [[150, 250, 1]]);
+  await touch('touchMove', [[150, 180, 1]]);                       // left thumb pushed up
+  await tp.waitForFunction((z) => farm.player.z < z - 0.2, before.z, { timeout: 60000 }).catch(() => {});
+  await touch('touchStart', [[150, 180, 1], [650, 200, 2]]);
+  await touch('touchMove', [[150, 180, 1], [560, 200, 2]]);        // right thumb dragged left
+  const after = await tp.evaluate(() => ({
+    state: farm.state, z: farm.player.z, yaw: farm.player.yaw,
+    pad: getComputedStyle(document.getElementById('pad')).display, stick: !document.getElementById('stick').hidden,
+  }));
+  await touch('touchEnd', []);
+  check('touch: a tap starts it and the left thumb walks', after.state === 'playing' && after.z < before.z - 0.2, `moved ${(before.z - after.z).toFixed(2)} m`);
+  check('touch: the right thumb turns the view', after.yaw > before.yaw + 0.2, `turned ${(after.yaw - before.yaw).toFixed(2)} rad`);
+  check('touch: the thumbstick and buttons appear', after.pad === 'flex' && after.stick);
+  const released = await tp.waitForFunction(() => farm.stick.fwd === 0 && document.getElementById('stick').hidden, null, { timeout: 30000 }).then(() => true, () => false);
+  check('touch: the stick lets go', released);
+  await tp.screenshot({ path: path.join(SHOTS, 'farm-phone.png') });
+  // The buttons are tapped with the page's own loop stopped. Chrome delivers
+  // touch input in step with frames, and a software renderer's one frame a
+  // second starves a synthetic tap; the buttons themselves do not care.
+  await tp.goto(`${BASE}/farm/index.html?manual=1`);
+  await tp.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
+  await touch('touchStart', [[150, 250, 1]]);
+  await touch('touchEnd', []);
+  await tp.tap('#torch');
+  await tp.tap('#run');
+  const btn = await tp.evaluate(() => ({ torch: farm.torch, run: farm.running }));
+  check('touch: the TORCH and RUN buttons work', btn.torch === true && btn.run === true);
+  await phone.close();
+
   check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();
   console.log(fail.length ? `\n${fail.length} FAILED: ${fail.join(', ')}` : '\nall passed');

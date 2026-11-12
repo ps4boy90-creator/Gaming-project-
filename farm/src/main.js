@@ -71,6 +71,9 @@ export class Farm {
     this.frozen = opts.time;                 // fixed clock, for repeatable captures
     this.time = opts.time || 0;
     this.keys = new Set();
+    this.stick = { fwd: 0, strafe: 0 };      // the on-screen thumbstick
+    this.running = false;                    // the on-screen run toggle
+    this.onStick = null;                     // lets the page draw the thumbstick
     this.audio = new Ambience();
   }
 
@@ -149,10 +152,15 @@ export class Farm {
 
   resize() {
     const { gl, canvas, target } = this;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // The picture is 540 lines of tape; a backbuffer much past 1080 only
+    // makes a phone run the filter over pixels that hold nothing new.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2, 1080 / Math.max(1, canvas.clientHeight));
     const cw = Math.max(2, Math.round(canvas.clientWidth * dpr)), ch = Math.max(2, Math.round(canvas.clientHeight * dpr));
     if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
-    const h = SCENE_HEIGHT, w = Math.round((h * cw) / ch / 2) * 2;
+    // 540 is the short side, so a phone held upright still gets a full picture
+    // across its width instead of a couple of hundred columns.
+    const even = (v) => Math.round(v / 2) * 2;
+    const [w, h] = cw >= ch ? [even((SCENE_HEIGHT * cw) / ch), SCENE_HEIGHT] : [SCENE_HEIGHT, even((SCENE_HEIGHT * ch) / cw)];
     if (target.w === w && target.h === h) return;
     Object.assign(target, { w, h });
     gl.bindTexture(gl.TEXTURE_2D, target.color);
@@ -174,6 +182,7 @@ export class Farm {
   bind() {
     const c = this.canvas;
     window.addEventListener('resize', () => this.resize());
+    if (window.ResizeObserver) new ResizeObserver(() => this.resize()).observe(c);
     window.addEventListener('keydown', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
       if (e.repeat) return;
@@ -183,15 +192,73 @@ export class Farm {
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
+    // Mouse: capture the pointer where the browser allows it. Where it does
+    // not (some embedded views refuse), holding a button and dragging looks
+    // around instead, so the scene is never stuck facing one way.
     c.addEventListener('click', () => {
-      this.audio.start();
-      if (this.state === 'title') this.state = 'playing';
-      if (c.requestPointerLock && document.pointerLockElement !== c) c.requestPointerLock();
+      this.begin();
+      try {
+        const r = document.pointerLockElement !== c && c.requestPointerLock && c.requestPointerLock();
+        if (r && r.catch) r.catch(() => {});
+      } catch { /* drag-to-look still works */ }
     });
+    c.addEventListener('mousedown', () => { this.dragging = true; });
+    window.addEventListener('mouseup', () => { this.dragging = false; });
     document.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement !== c) return;
+      if (document.pointerLockElement !== c && !this.dragging) return;
       this.player.look(-e.movementX * 0.0022, -e.movementY * 0.0022);
     });
+
+    // Touch: the left half of the screen is a thumbstick that appears where
+    // the thumb lands, the right half drags the view.
+    const T = { move: null, look: null }, REACH = 56;
+    const start = (e) => {
+      e.preventDefault();
+      this.begin();
+      const mid = c.getBoundingClientRect().left + c.clientWidth / 2;
+      for (const t of e.changedTouches) {
+        if (t.clientX < mid && !T.move) {
+          T.move = { id: t.identifier, x: t.clientX, y: t.clientY };
+          if (this.onStick) this.onStick(T.move.x, T.move.y, 0, 0);
+        } else if (!T.look) {
+          T.look = { id: t.identifier, x: t.clientX, y: t.clientY };
+        }
+      }
+    };
+    const move = (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (T.move && t.identifier === T.move.id) {
+          let dx = (t.clientX - T.move.x) / REACH, dy = (t.clientY - T.move.y) / REACH;
+          const len = Math.hypot(dx, dy);
+          if (len > 1) { dx /= len; dy /= len; }
+          this.stick = { fwd: -dy, strafe: dx };
+          if (this.onStick) this.onStick(T.move.x, T.move.y, dx * REACH, dy * REACH);
+        } else if (T.look && t.identifier === T.look.id) {
+          this.player.look(-(t.clientX - T.look.x) * 0.0055, -(t.clientY - T.look.y) * 0.0055);
+          T.look.x = t.clientX; T.look.y = t.clientY;
+        }
+      }
+    };
+    const end = (e) => {
+      for (const t of e.changedTouches) {
+        if (T.move && t.identifier === T.move.id) {
+          T.move = null; this.stick = { fwd: 0, strafe: 0 };
+          if (this.onStick) this.onStick(null);
+        }
+        if (T.look && t.identifier === T.look.id) T.look = null;
+      }
+    };
+    c.addEventListener('touchstart', start, { passive: false });
+    c.addEventListener('touchmove', move, { passive: false });
+    c.addEventListener('touchend', end);
+    c.addEventListener('touchcancel', end);
+  }
+
+  /** First click, tap or key: sound may start now, and the title card goes. */
+  begin() {
+    this.audio.start();
+    if (this.state === 'title') this.state = 'playing';
   }
 
   /** Advance the simulation. Split from drawing so tests can step it exactly. */
@@ -212,10 +279,11 @@ export class Farm {
     if (this.state === 'playing') {
       const turn = (has('ArrowLeft') ? 1 : 0) - (has('ArrowRight') ? 1 : 0);
       if (turn) this.player.look(turn * 1.8 * dt, 0);
+      const lim = (v) => Math.max(-1, Math.min(1, v));
       this.step(dt, {
-        fwd: (has('KeyW', 'ArrowUp') ? 1 : 0) - (has('KeyS', 'ArrowDown') ? 1 : 0),
-        strafe: (has('KeyD') ? 1 : 0) - (has('KeyA') ? 1 : 0),
-      }, has('ShiftLeft', 'ShiftRight'));
+        fwd: lim((has('KeyW', 'ArrowUp') ? 1 : 0) - (has('KeyS', 'ArrowDown') ? 1 : 0) + this.stick.fwd),
+        strafe: lim((has('KeyD') ? 1 : 0) - (has('KeyA') ? 1 : 0) + this.stick.strafe),
+      }, has('ShiftLeft', 'ShiftRight') || this.running);
     } else if (this.frozen === undefined) {
       this.time += dt;
     }
@@ -227,10 +295,14 @@ export class Farm {
     const { gl, target, world, player } = this;
     const eye = player.eye, t = this.time;
     const aspect = target.w / target.h;
-    const proj = perspective(FOV, aspect, 0.08, 600);
+    // The field of view is fixed vertically on a wide screen. On a narrow one
+    // that would leave a keyhole, so it opens up until the view is at least
+    // seventy degrees across.
+    const fov = Math.max(FOV, Math.min(1.8, 2 * Math.atan(Math.tan(0.61) / aspect)));
+    const proj = perspective(fov, aspect, 0.08, 600);
     const vp = mul(proj, viewMatrix(eye, player.yaw, player.pitch));
     const cam = cameraBasis(player.yaw, player.pitch);
-    const tan = Math.tan(FOV / 2);
+    const tan = Math.tan(fov / 2);
     const lampNow = flicker(t);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.draw);

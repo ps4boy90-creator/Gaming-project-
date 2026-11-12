@@ -56,7 +56,8 @@ export class Player {
   /** `move` is { fwd, strafe } in -1..1 and `run` a boolean. */
   update(dt, move, run, world) {
     const top = run ? RUN : WALK;
-    const len = Math.hypot(move.fwd, move.strafe) || 1;
+    // Never scale a small input up: a thumbstick held halfway should walk slowly.
+    const len = Math.max(1, Math.hypot(move.fwd, move.strafe));
     const f = (move.fwd / len) * top, s = (move.strafe / len) * top;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const k = 1 - Math.exp(-9 * dt);

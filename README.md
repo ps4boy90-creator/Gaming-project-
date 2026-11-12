@@ -141,6 +141,10 @@ dependencies, no build step, no asset files.
 | Shift | run |
 | F | torch |
 | V | tape filter on / off |
+| Touch | left thumb walks, right thumb looks; TORCH, RUN and TAPE buttons appear |
+
+Where a browser will not capture the mouse, hold a button and drag to look.
+On a phone held upright the view widens so it is never a keyhole.
 
 Walk up the drive through the open gate. The porch steps take you onto the
 deck; the barn's right-hand door has been rolled back far enough to get in, and
@@ -179,18 +183,19 @@ work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
 `farm.measure()` in the console returns those numbers for the current frame.
 
 ```bash
-node tools/verify/farm.cjs       # 26 checks; screenshots in tools/verify/shots/
+node tools/verify/farm.cjs       # 31 checks; screenshots in tools/verify/shots/
 ```
 
 The suite checks the picture against those targets and then walks into things:
 the gate is open and the fence is not, the steps lead onto the porch and the
 rail keeps you off it, one barn door admits you and the other does not, and
-the forest closes in before the map runs out.
+the forest closes in before the map runs out. It finishes on an emulated phone,
+walking and turning by touch alone.
 
 **What it is not.** The textures are procedural, not photographs, so up close
 under the torch they are plainer than the real thing. There are no people in
-it and no house interior — lit windows are painted curtains. Keyboard and
-mouse only. `?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
+it and no house interior — lit windows are painted curtains.
+`?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
 camera, the clock and the filters for repeatable captures.
 
 ## Cutscenes
