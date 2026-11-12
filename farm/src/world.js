@@ -12,7 +12,8 @@
  * floor is at any point. Building and collision share the same site
  * transforms (see math.js) so a wall and its collider cannot drift apart.
  */
-import { Mesh, KIND } from './geom.js';
+import { Mesh, KIND, stick } from './geom.js';
+import { buildTruck, TRUCK_BOXES } from './truck.js';
 import { L, TILES } from './textures.js';
 import {
   rotY, rotX, rotZ, translate, chain, xformPoint, xformDir, normalize,
@@ -76,16 +77,6 @@ export const PATCHES = [[17.3, -6.9, 4.6], [-8.3, 0.7, 1.9], [4, 14, 2.6], [34.5
 
 /* ----------------------------------------------------------- helpers --- */
 
-/** A square-section stick between two points: rails, wires, braces, rungs. */
-function stick(m, a, b, w, h, o) {
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-  const flat = Math.hypot(dx, dz), len = Math.hypot(flat, dy);
-  m.at(chain(
-    translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2),
-    rotY(Math.atan2(-dz, dx)), rotZ(Math.atan2(dy, flat)),
-  ), () => m.box(0, 0, 0, len, h, w, o));
-}
-
 /**
  * A sash window on the wall plane z = 0, facing +Z. No hole is cut: the pane
  * sits just proud of the siding inside a deep frame, which at night reads the
@@ -120,6 +111,18 @@ function roofPlane(m, x0, y0, x1, y1, z0, z1, th, top, under, edge) {
 }
 
 const siteMatrix = (s, y = 0) => chain(translate(s.x, y, s.z), rotY(s.yaw));
+
+/**
+ * Register a box that blocks moonlight, given in a site's own coordinates.
+ * The scene has no shadow maps; the shader instead asks, for each pixel,
+ * whether a ray toward the moon passes through one of a handful of boxes.
+ * Each box must sit just inside the thing it stands for, or that thing's own
+ * sunlit faces would start inside the box and shade themselves.
+ */
+function castShadow(w, site, cx, cz, hx, hz, y0, y1) {
+  const [x, z] = siteToWorld(site, cx, cz);
+  w.occluders.push({ x, z, hx, hz, yaw: site.yaw, y0, y1 });
+}
 
 /* ------------------------------------------------------------- house --- */
 
@@ -269,6 +272,9 @@ function buildHouse(m, w) {
   };
   obb(0, 0, hw + 0.1, hd + 0.1);
   obb(lx, -hd - ld / 2, lw / 2 + 0.1, ld / 2 + 0.1);
+  castShadow(w, S, 0, 0, hw - 0.04, hd - 0.04, 0, T);                  // walls
+  castShadow(w, S, 0, 0, hw - 0.04, hd / 2, T, T + rise / 2 - 0.1);    // the roof, as far as a box fits under it
+  castShadow(w, S, lx, -hd - ld / 2, lw / 2 - 0.04, ld / 2, 0, lt);
   obb(hw + 0.37, -0.8, 0.42, 0.5);
   obb(hw + 0.3, 2.0, 0.32, 1.2);                 // woodpile
   obb(-2.3, -hd - 0.45, 0.8, 0.5);               // back stoop
@@ -403,6 +409,8 @@ function buildBarn(m, w) {
   };
   obb(-hw, 0, 0.14, hl + 0.1);
   obb(hw, 0, 0.14, hl + 0.1);
+  castShadow(w, S, 0, 0, hw - 0.04, hl - 0.04, 0, wall);
+  castShadow(w, S, 0, 0, kneeX - 0.1, hl - 0.04, wall, kneeY - 0.15);
   obb(0, -hl, hw, 0.14);
   obb((-hw - doorW) / 2, hl, (hw - doorW) / 2, 0.14);
   obb((hw + ajar) / 2, hl + 0.05, (hw - ajar) / 2, 0.18);   // wall plus the rolled-back leaf
@@ -510,37 +518,11 @@ function buildProps(m, w) {
     prev = p;
   }
 
-  // An old pickup pulled up off the drive.
+  // An old pickup pulled up off the drive (see truck.js).
   const T = SITE.truck;
-  m.at(siteMatrix(T), () => {
-    const paint = { layer: L.plain, col: [0.085, 0.12, 0.125] };
-    const dark = { layer: L.plain, col: [0.05, 0.05, 0.055] };
-    const glass = { layer: L.windowDark, tile: 3 };
-    const chrome = { layer: L.metal, col: [0.9, 0.92, 0.95], tile: 6 };
-    m.box(0, 0.8, 0, 1.86, 0.5, 5.0, paint);
-    m.box(0, 1.16, -1.8, 1.8, 0.22, 1.4, paint);                 // hood
-    m.box(0, 1.5, -0.4, 1.72, 0.9, 1.5, paint);                  // cab
-    m.box(0, 1.6, -1.16, 1.5, 0.5, 0.02, glass);
-    m.box(0, 1.6, 0.36, 1.4, 0.45, 0.02, glass);
-    for (const sx of [-1, 1]) {
-      m.box(sx * 0.865, 1.6, -0.4, 0.02, 0.48, 1.1, glass);
-      m.box(sx * 0.9, 1.3, 1.5, 0.06, 0.5, 2.0, paint);          // bed sides
-      for (const z of [-1.55, 1.5]) {
-        m.at(chain(translate(sx > 0 ? 0.69 : -0.95, 0.4, z), rotZ(-Math.PI / 2)), () =>
-          m.cyl(0.4, 0.4, 0.26, 10, { ...dark, cap: { layer: L.metal, col: [0.5, 0.5, 0.52], tile: 4 }, capBottom: true }));
-      }
-      for (const z of [-1.55, 1.5]) m.box(sx * 0.94, 0.62, z, 0.03, 0.5, 1.0, dark);                // wheel arches
-      m.box(sx * 0.68, 1.02, -2.52, 0.24, 0.18, 0.03, { layer: L.plain, col: [0.7, 0.7, 0.62] });   // headlights
-      m.box(sx * 0.8, 1.0, 2.52, 0.14, 0.2, 0.03, { layer: L.plain, col: [0.45, 0.05, 0.04] });     // tail lights
-    }
-    m.box(0, 1.3, 2.47, 1.86, 0.5, 0.06, paint);                 // tailgate
-    m.box(0, 1.3, 2.505, 1.5, 0.3, 0.012, { layer: L.plain, col: [0.06, 0.085, 0.09] });
-    m.box(0, 1.07, 1.5, 1.74, 0.04, 2.0, { layer: L.metal, col: [0.3, 0.3, 0.3], tile: 0.5 });   // bed floor
-    m.box(0, 0.62, -2.58, 1.9, 0.14, 0.12, chrome);
-    m.box(0, 0.62, 2.58, 1.9, 0.14, 0.12, chrome);
-    m.box(0, 1.0, -2.51, 0.9, 0.24, 0.02, dark);                 // grille
-  });
-  w.boxes.push({ x: T.x, z: T.z, hx: 1.0, hz: 2.6, yaw: T.yaw });
+  buildTruck(m, siteMatrix(T));
+  w.boxes.push({ x: T.x, z: T.z, hx: 1.03, hz: 2.74, yaw: T.yaw });
+  for (const b of TRUCK_BOXES) castShadow(w, T, ...b);
 
   // Paddock: round bales and a water trough.
   for (const [x, z, a] of [[39, -10, 0.3], [43.5, -12.5, 1.2], [47, -23, 2.2]]) {
@@ -702,7 +684,7 @@ export function inBounds(x, z) {
 }
 
 export function build() {
-  const w = { lights: [], halos: [], boxes: [], trunks: [], tufts: [], treeCount: 0 };
+  const w = { lights: [], halos: [], boxes: [], trunks: [], tufts: [], occluders: [], treeCount: 0 };
   const m = new Mesh(TILES);
   buildTerrain(m);
   buildHouse(m, w);
@@ -712,6 +694,6 @@ export function build() {
   buildForest(m, w);
   return {
     vertices: m.finish(), vertexCount: m.count,
-    lights: w.lights, halos: w.halos, boxes: w.boxes, trunks: w.trunks, treeCount: w.treeCount,
+    lights: w.lights, halos: w.halos, boxes: w.boxes, trunks: w.trunks, occluders: w.occluders, treeCount: w.treeCount,
   };
 }

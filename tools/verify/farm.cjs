@@ -123,6 +123,16 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   p = await walk(sx, sz, barnSite.yaw, 5);         // into the shut leaf
   check('the shut one does not', !p.inside, `(${p.x.toFixed(1)}, ${p.z.toFixed(1)})`);
 
+  const truck = await G(() => ({ ...farm.site.truck }));
+  [sx, sz] = toWorld(truck, 0, 7);
+  p = await walk(sx, sz, truck.yaw, 6);            // straight at the pickup's tailgate
+  const [tx, tz] = toWorld(truck, 0, 0);
+  const fromTruck = Math.hypot(p.x - tx, p.z - tz);
+  check('the pickup is solid', fromTruck > 2.9 && fromTruck < 3.4, `stopped ${fromTruck.toFixed(2)} m from its centre`);
+  const shadows = await G(() => farm.world.occluders.length);
+  check('house, barn and pickup cast moon shadows', shadows >= 6 && shadows <= 8, `${shadows} shadow boxes`);
+  await shot('truck', 3.2, 9.2, 0.62, -0.16, true);
+
   p = await walk(4.6, 20.5, Math.PI, 60, true);    // run south into the trees for a minute
   check('the forest closes in before the map runs out', p.ok && p.z < 60, `stopped at z ${p.z.toFixed(1)}`);
 

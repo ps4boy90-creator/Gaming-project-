@@ -15,12 +15,22 @@
  *   sky occlusion 1 | emission 1 | wind sway 1 | kind 1
  * `kind`: 0 solid, 1 ground (blends grass into dirt tracks), 2 foliage card.
  */
-import { IDENT, mul, xformPoint, xformDir, cross, sub, normalize, dot } from './math.js';
+import { IDENT, mul, xformPoint, xformDir, cross, sub, normalize, dot, chain, translate, rotY, rotZ } from './math.js';
 
 export const STRIDE = 16;
 export const KIND = { SOLID: 0, GROUND: 1, FOLIAGE: 2 };
 
 const pick = (v, i, d) => (v === undefined ? d : Array.isArray(v) ? v[i] : v);
+
+/** A square-section stick between two points: rails, wires, braces, trim. */
+export function stick(m, a, b, w, h, o) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const flat = Math.hypot(dx, dz), len = Math.hypot(flat, dy);
+  m.at(chain(
+    translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2),
+    rotY(Math.atan2(-dz, dx)), rotZ(Math.atan2(dy, flat)),
+  ), () => m.box(0, 0, 0, len, h, w, o));
+}
 
 export class Mesh {
   constructor(tiles) {

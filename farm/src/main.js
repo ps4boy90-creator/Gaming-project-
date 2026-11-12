@@ -14,7 +14,7 @@ import { Player } from './player.js';
 import { Ambience } from './audio.js';
 import {
   SCENE_VS, SCENE_FS, FULLSCREEN_VS, SKY_FS, HALO_VS, HALO_FS, TAPE_FS,
-  MAX_LIGHTS, MAX_PATHS, MAX_PATCHES,
+  MAX_LIGHTS, MAX_PATHS, MAX_PATCHES, MAX_OCCLUDERS,
 } from './shaders.js';
 import { perspective, viewMatrix, cameraBasis, mul, normalize } from './math.js';
 
@@ -133,6 +133,16 @@ export class Farm {
     gl.uniform4fv(this.scene.u.uPath, paths);
     gl.uniform1fv(this.scene.u.uPathW, widths);
     gl.uniform4fv(this.scene.u.uPatch, patches);
+    // Nor do the buildings, so their shadow boxes go up once as well.
+    const occA = new Float32Array(MAX_OCCLUDERS * 4), occB = new Float32Array(MAX_OCCLUDERS * 4);
+    const occ = world.occluders.slice(0, MAX_OCCLUDERS);
+    occ.forEach((o, i) => {
+      occA.set([o.x, o.z, o.hx, o.hz], i * 4);
+      occB.set([Math.cos(o.yaw), Math.sin(o.yaw), o.y0, o.y1], i * 4);
+    });
+    gl.uniform4fv(this.scene.u.uOccA, occA);
+    gl.uniform4fv(this.scene.u.uOccB, occB);
+    gl.uniform1i(this.scene.u.uOccCount, occ.length);
     this.lightBuf = { pos: new Float32Array(MAX_LIGHTS * 4), col: new Float32Array(MAX_LIGHTS * 4), dir: new Float32Array(MAX_LIGHTS * 4) };
 
     // Drawn multisampled, then resolved into a texture the tape pass can read.

@@ -15,6 +15,7 @@
 export const MAX_LIGHTS = 8;
 export const MAX_PATHS = 6;
 export const MAX_PATCHES = 4;
+export const MAX_OCCLUDERS = 8;
 
 export const SCENE_VS = `#version 300 es
 layout(location=0) in vec3 aPos;
@@ -52,6 +53,9 @@ uniform vec3 uTorchPos, uTorchDir;
 uniform vec4 uPath[${MAX_PATHS}];
 uniform float uPathW[${MAX_PATHS}];
 uniform vec4 uPatch[${MAX_PATCHES}];
+uniform vec4 uOccA[${MAX_OCCLUDERS}];   // centre x, centre z, half x, half z
+uniform vec4 uOccB[${MAX_OCCLUDERS}];   // cos yaw, sin yaw, bottom, top
+uniform int uOccCount;
 in vec3 vPos; in vec3 vNor; in vec2 vUV; in float vLayer; in vec3 vCol; in vec4 vMisc;
 out vec4 frag;
 
@@ -75,6 +79,24 @@ float dirtAmount(vec2 p, float n) {
   return m;
 }
 
+// Does a ray from p along dir pass through any of the shadow boxes? Each is
+// turned into its own axes and tested as three pairs of slabs.
+float blocked(vec3 p, vec3 dir) {
+  for (int i = 0; i < ${MAX_OCCLUDERS}; i++) {
+    if (i >= uOccCount) break;
+    vec2 d = p.xz - uOccA[i].xy, cs = uOccB[i].xy;
+    vec3 o = vec3(d.x * cs.x - d.y * cs.y, p.y, d.x * cs.y + d.y * cs.x);
+    vec3 r = vec3(dir.x * cs.x - dir.z * cs.y, dir.y, dir.x * cs.y + dir.z * cs.x);
+    r = mix(vec3(1e-5), r, step(vec3(1e-5), abs(r)));
+    vec3 lo = vec3(-uOccA[i].z, uOccB[i].z, -uOccA[i].w), hi = vec3(uOccA[i].z, uOccB[i].w, uOccA[i].w);
+    vec3 t1 = (lo - o) / r, t2 = (hi - o) / r;
+    vec3 tn = min(t1, t2), tf = min(max(t1, t2), vec3(1e4));
+    float near = max(max(tn.x, tn.y), tn.z), far = min(min(tf.x, tf.y), tf.z);
+    if (far > max(near, 0.03)) return 1.0;
+  }
+  return 0.0;
+}
+
 void main() {
   float kind = vMisc.w;
   vec4 t = texture(uTex, vec3(vUV, vLayer));
@@ -92,8 +114,15 @@ void main() {
   if (!foliage && !gl_FrontFacing) N = -N;
   float sky = vMisc.x;
 
+  // Moon shadows, and the dark under anything parked on the grass. Foliage
+  // skips both: the cards overlap too much for the cost to buy anything.
+  float moon = 1.0;
+  if (!foliage) {
+    moon = 1.0 - blocked(vPos, uMoonDir);
+    sky *= 1.0 - 0.7 * blocked(vPos, vec3(0.0, 1.0, 0.0));
+  }
   vec3 light = uAmbient * sky * (0.65 + 0.35 * N.y);
-  light += uMoonCol * sky * (foliage ? 0.55 : max(dot(N, uMoonDir), 0.0));
+  light += uMoonCol * sky * moon * (foliage ? 0.55 : max(dot(N, uMoonDir), 0.0));
 
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec3 d = uLPos[i].xyz - vPos;

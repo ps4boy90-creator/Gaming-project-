@@ -156,18 +156,25 @@ degraded as if recorded to tape. So:
 
 - *Geometry is primitive on purpose* — boxes, quads and cylinders, hard edges,
   no bevels — but the trim is real: window frames and sills, corner boards,
-  porch balusters, X-braced barn doors. About 136,000 vertices, drawn in one
+  porch balusters, X-braced barn doors. About 140,000 vertices, drawn in one
   call.
-- *Textures are painted at load time*, seventeen 512×512 layers in one texture
+- *Textures are painted at load time*, twenty-two 512×512 layers in one texture
   array, and filtered smoothly. Every face is mapped in metres from its own
   plane, so a clapboard is the same height on the house as on the porch gable.
 - *There are no shadow maps.* Each vertex carries how much sky it can see,
-  which is what keeps moonlight out of the barn and off the porch ceiling. The
+  which is what keeps moonlight out of the barn and off the porch ceiling.
+  Moon shadows come from eight boxes instead — the house, the barn and the
+  pickup, each fitted just inside its walls — and a ray test per pixel. The
   six warm lights fall off within a few metres, and the ones behind windows are
   spots aimed away from the wall, so nothing shines through to the far side.
 - *Night is navy, not black*, and the fog is darker than the horizon it fades
   toward — otherwise a distant tree line dissolves into the sky instead of
   standing against it. That one inequality is most of the forest.
+- *The pickup is where the polygons go.* A wall is recognised by its texture
+  and a vehicle by its outline, so `truck.js` spends on outline: wheel arches
+  cut into the flanks, a crease from nose to tail, a hood that crowns, a cab
+  that leans in, a raked screen. Seams, handles, mirrors and wipers are trim
+  laid over the top, and it has its own paint, glass, tread, grille and plate.
 - *Trees are flat crossed cards*, each mirrored at random, thinned by a slow
   noise into stands and gaps, with a long tail on their heights.
 - *The tape pass* resolves colour far more coarsely than brightness and drags
@@ -183,7 +190,7 @@ work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
 `farm.measure()` in the console returns those numbers for the current frame.
 
 ```bash
-node tools/verify/farm.cjs       # 31 checks; screenshots in tools/verify/shots/
+node tools/verify/farm.cjs       # 33 checks; screenshots in tools/verify/shots/
 ```
 
 The suite checks the picture against those targets and then walks into things:

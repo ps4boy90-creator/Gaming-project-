@@ -36,6 +36,11 @@ export const LAYERS = [
   { name: 'metal', tile: 1.6 },
   { name: 'hay', tile: 1.2 },
   { name: 'plain', tile: 1.0 },
+  { name: 'paint', tile: 1.4 },
+  { name: 'glass', tile: 1 },
+  { name: 'tire', tile: 0.26 },
+  { name: 'grille', tile: 1 },
+  { name: 'plate', tile: 1 },
 ];
 export const L = Object.fromEntries(LAYERS.map((l, i) => [l.name, i]));
 export const TILES = LAYERS.map((l) => l.tile);
@@ -404,6 +409,106 @@ export function paintLayers(seed = 7) {
     plain(ctx) {
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, S, S);
       weather(ctx, 0.12, 0.16);
+    },
+
+    // Forty-year-old enamel: chalked by the sun, scratched, and rusting
+    // through wherever water sits. The rust has a dark core and a bleeding
+    // orange edge, which is what separates it from brown paint.
+    paint(ctx) {
+      ctx.fillStyle = rgb(94, 116, 116); ctx.fillRect(0, 0, S, S);
+      wrapped(ctx, () => {
+        const r2 = makeRng(seed + 61);
+        for (let i = 0; i < 90; i++) {            // scratches, mostly along the body
+          const x = r2() * S, y = r2() * S, len = 20 + r2() * 120, a = (r2() - 0.5) * 0.5;
+          ctx.strokeStyle = r2() < 0.6 ? 'rgba(210,222,220,0.3)' : 'rgba(40,36,30,0.35)';
+          ctx.lineWidth = 0.8 + r2() * 1.2;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); ctx.stroke();
+        }
+        for (let i = 0; i < 26; i++) {            // runs of rust below a chip
+          const x = r2() * S, y = r2() * S, len = 30 + r2() * 90;
+          const g = ctx.createLinearGradient(0, y, 0, y + len);
+          g.addColorStop(0, 'rgba(96,60,36,0.4)'); g.addColorStop(1, 'rgba(96,60,36,0)');
+          ctx.fillStyle = g; ctx.fillRect(x, y, 2 + r2() * 5, len);
+        }
+      });
+      grade(ctx, (r, g, b, a, p) => {
+        // Broad staining decides where the metal is going; fine grain breaks
+        // the patch up, so it reads as scabbed paint and not as a spot.
+        const v = blot[p] * 0.45 + stain[p] * 0.25 + fine[p] * 0.3;
+        const edge = Math.max(0, Math.min(1, (v - 0.585) * 16)), core = Math.max(0, Math.min(1, (v - 0.64) * 16));
+        const chalk = 0.84 + fine[p] * 0.32;
+        let R = r * chalk, G = g * chalk, B = b * chalk;
+        R += (112 - R) * edge * 0.7; G += (72 - G) * edge * 0.7; B += (46 - B) * edge * 0.7;
+        R += (54 - R) * core; G += (36 - G) * core; B += (27 - B) * core;
+        return [R, G, B];
+      });
+      weather(ctx, 0.22, 0.14);
+    },
+
+    // Car glass at night: nearly black, a band of sky across it, and dust.
+    glass(ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, S);
+      g.addColorStop(0, rgb(26, 34, 50)); g.addColorStop(0.45, rgb(9, 12, 19)); g.addColorStop(1, rgb(5, 7, 11));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      ctx.fillStyle = 'rgba(150,170,205,0.07)';
+      ctx.beginPath(); ctx.moveTo(S * 0.05, 0); ctx.lineTo(S * 0.42, 0); ctx.lineTo(S * 0.2, S); ctx.lineTo(-S * 0.1, S); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(S * 0.5, 0); ctx.lineTo(S * 0.58, 0); ctx.lineTo(S * 0.38, S); ctx.lineTo(S * 0.32, S); ctx.fill();
+      grade(ctx, (r, gr, b, a, p) => { const d = 1 + (fine[p] - 0.5) * 0.5 + Math.max(0, stain[p] - 0.6) * 0.9; return [r * d + 3, gr * d + 3, b * d + 3]; });
+    },
+
+    // Tyre tread, wrapped round the wheel: U runs round the circumference and
+    // one tile spans the tread from shoulder to shoulder.
+    tire(ctx) {
+      ctx.fillStyle = rgb(20, 20, 21); ctx.fillRect(0, 0, S, S);
+      const pitch = S / 6;
+      for (let i = 0; i < 6; i++) {
+        for (let row = 0; row < 4; row++) {
+          const y0 = S * (0.14 + row * 0.185), h = S * 0.15;
+          const x0 = i * pitch + (row % 2) * pitch * 0.5;
+          ctx.fillStyle = rgb(46, 45, 44);
+          for (const dx of [0, -S]) ctx.fillRect(x0 + dx + 5, y0, pitch - 16, h);
+        }
+        for (const y0 of [0, S * 0.9]) {            // shoulder lugs
+          ctx.fillStyle = rgb(38, 37, 36);
+          ctx.fillRect(i * pitch + 8, y0, pitch * 0.55, S * 0.1);
+        }
+      }
+      weather(ctx, 0.3, 0.5, [1.08, 1.0, 0.9]);     // road dust
+    },
+
+    // The whole front of the truck on one card: chrome surround, egg-crate
+    // grille, square lamps and the amber lights under them. It is stretched
+    // more than four to one across the nose, so everything is drawn narrow.
+    grille(ctx) {
+      ctx.fillStyle = rgb(150, 154, 160); ctx.fillRect(0, 0, S, S);
+      ctx.fillStyle = rgb(12, 13, 15); ctx.fillRect(S * 0.012, S * 0.06, S * 0.976, S * 0.88);
+      ctx.fillStyle = rgb(96, 100, 106);
+      for (let i = 1; i < 30; i++) ctx.fillRect(S * 0.2 + (S * 0.6 * i) / 30, S * 0.08, 2, S * 0.84);
+      for (let j = 1; j < 7; j++) ctx.fillRect(S * 0.2, S * 0.06 + (S * 0.88 * j) / 7, S * 0.6, 7);
+      ctx.fillStyle = rgb(160, 164, 170); ctx.fillRect(S * 0.2, S * 0.46, S * 0.6, 26);   // centre bar
+      for (const x of [0.03, 0.82]) {
+        ctx.fillStyle = rgb(168, 172, 178); ctx.fillRect(S * x, S * 0.1, S * 0.15, S * 0.56);       // bezel
+        const g = ctx.createLinearGradient(0, S * 0.14, 0, S * 0.62);
+        g.addColorStop(0, rgb(196, 208, 214)); g.addColorStop(0.5, rgb(120, 132, 140)); g.addColorStop(1, rgb(160, 170, 174));
+        ctx.fillStyle = g; ctx.fillRect(S * (x + 0.012), S * 0.15, S * 0.126, S * 0.46);            // lens
+        ctx.fillStyle = 'rgba(30,36,40,0.5)';
+        for (let k = 1; k < 5; k++) ctx.fillRect(S * (x + 0.012) + (S * 0.126 * k) / 5, S * 0.15, 1, S * 0.46);
+        ctx.fillStyle = rgb(190, 112, 26); ctx.fillRect(S * (x + 0.012), S * 0.72, S * 0.126, S * 0.17);  // indicator
+      }
+      weather(ctx, 0.25, 0.3);
+    },
+
+    // A number plate from nowhere in particular.
+    plate(ctx) {
+      ctx.fillStyle = rgb(212, 208, 192); ctx.fillRect(0, 0, S, S);
+      ctx.strokeStyle = rgb(40, 52, 78); ctx.lineWidth = 18; ctx.strokeRect(22, 22, S - 44, S - 44);
+      ctx.fillStyle = rgb(34, 46, 74);
+      ctx.save(); ctx.translate(S / 2, S * 0.6); ctx.scale(0.5, 1.5);
+      ctx.font = 'bold 190px ui-monospace, Menlo, Consolas, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('4KR 917', 0, 0);
+      ctx.restore();
+      weather(ctx, 0.35, 0.3, [1.0, 0.96, 0.88]);
     },
   };
 
