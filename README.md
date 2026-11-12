@@ -29,6 +29,7 @@ Then open:
 
 - <http://localhost:8000/index.html> — the game
 - <http://localhost:8000/editor.html> — the scene editor
+- <http://localhost:8000/farm/index.html> — the farm, a separate 3D night scene (see below)
 
 It deploys to GitHub Pages as-is.
 
@@ -61,6 +62,7 @@ src/game/           physics, player, entities, flags, deductions, dialogue, cuts
 src/scenes/         scene JSON + the manifest
 src/editor/         the editor
 docs/               scene format, art pipeline, how to extend
+farm/               a first-person 3D night scene in WebGL 2, independent of the engine above
 ```
 
 ### The game
@@ -120,6 +122,76 @@ player works more out, the picture degrades in step with the sound.
 
 **Narration.** The story opens and closes on a third-person narrator, in the
 register of a 1960s anthology show.
+
+## The farm (3D)
+
+`farm/` is a different kind of thing from the rest of this repository: a
+first-person 3D scene, not part of the 2D engine or its story. A clapboard
+farmhouse and a gambrel barn in a fenced yard, a paddock, a dirt road, and
+conifer forest on every side, at night. It is a study in a particular look —
+the photo-textured, low-poly, VHS-filtered style of first-person indie horror —
+built to the same rules as everything else here: vanilla JavaScript, no
+dependencies, no build step, no asset files.
+
+| | |
+|---|---|
+| Click | start, capture the mouse |
+| WASD / arrows | walk (left and right arrows turn) |
+| Mouse | look |
+| Shift | run |
+| F | torch |
+| V | tape filter on / off |
+
+Walk up the drive through the open gate. The porch steps take you onto the
+deck; the barn's right-hand door has been rolled back far enough to get in, and
+inside it is black without the torch.
+
+**How the look is made.** The reference style is not pixel art. It is
+recognisably real materials on boxy geometry, lit by almost nothing, then
+degraded as if recorded to tape. So:
+
+- *Geometry is primitive on purpose* — boxes, quads and cylinders, hard edges,
+  no bevels — but the trim is real: window frames and sills, corner boards,
+  porch balusters, X-braced barn doors. About 136,000 vertices, drawn in one
+  call.
+- *Textures are painted at load time*, seventeen 512×512 layers in one texture
+  array, and filtered smoothly. Every face is mapped in metres from its own
+  plane, so a clapboard is the same height on the house as on the porch gable.
+- *There are no shadow maps.* Each vertex carries how much sky it can see,
+  which is what keeps moonlight out of the barn and off the porch ceiling. The
+  six warm lights fall off within a few metres, and the ones behind windows are
+  spots aimed away from the wall, so nothing shines through to the far side.
+- *Night is navy, not black*, and the fog is darker than the horizon it fades
+  toward — otherwise a distant tree line dissolves into the sky instead of
+  standing against it. That one inequality is most of the forest.
+- *Trees are flat crossed cards*, each mirrored at random, thinned by a slow
+  noise into stands and gaps, with a long tail on their heights.
+- *The tape pass* resolves colour far more coarsely than brightness and drags
+  it sideways, adds edge ringing, grain in both channels, a vignette and a
+  wandering band of mistracking. The scene is drawn at 540 lines, multisampled:
+  stair-stepped roof lines are the quickest way for this to read as a render
+  rather than footage.
+
+**It is tuned against measurements, not by eye.** Night exteriors in the
+reference games average 4–8% brightness with 80–99% of the frame under 10%,
+blue overall (hue 190–220°), and orange (20–30°) wherever a lamp is doing the
+work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
+`farm.measure()` in the console returns those numbers for the current frame.
+
+```bash
+node tools/verify/farm.cjs       # 26 checks; screenshots in tools/verify/shots/
+```
+
+The suite checks the picture against those targets and then walks into things:
+the gate is open and the fence is not, the steps lead onto the porch and the
+rail keeps you off it, one barn door admits you and the other does not, and
+the forest closes in before the map runs out.
+
+**What it is not.** The textures are procedural, not photographs, so up close
+under the torch they are plainer than the real thing. There are no people in
+it and no house interior — lit windows are painted curtains. Keyboard and
+mouse only. `?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
+camera, the clock and the filters for repeatable captures.
 
 ## Cutscenes
 

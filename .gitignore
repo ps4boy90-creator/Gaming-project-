@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 tools/audio-preview/
 study/
+tools/verify/shots/

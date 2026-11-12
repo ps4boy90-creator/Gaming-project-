@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Farm</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230a0f1e'/><rect x='5' y='7' width='6' height='6' fill='%23ffb060'/></svg>">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
+    font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c9c4b4; }
+  #view { display: block; width: 100vw; height: 100vh; cursor: pointer; }
+  #title { position: fixed; inset: 0; display: grid; place-items: end start; padding: 7vh 6vw;
+    pointer-events: none; transition: opacity 1.2s ease; text-shadow: 0 0 6px #000; }
+  #title.gone { opacity: 0; }
+  #title h1 { margin: 0 0 .4em; font-size: 22px; letter-spacing: .28em; font-weight: 400; color: #e9e3d2; }
+  #title p { margin: 0; letter-spacing: .08em; opacity: .75; }
+  #error { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 2em; }
+  noscript { position: fixed; inset: 0; display: grid; place-items: center; }
+</style>
+</head>
+<body>
+<canvas id="view" tabindex="0"></canvas>
+<div id="title">
+  <div>
+    <h1>THE FARM</h1>
+    <p>CLICK TO WALK &nbsp;·&nbsp; WASD move &nbsp;·&nbsp; MOUSE look &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; F torch &nbsp;·&nbsp; V tape filter</p>
+  </div>
+</div>
+<div id="error"></div>
+<noscript>This scene needs JavaScript.</noscript>
+<script type="module">
+  import { Farm } from './src/main.js';
+
+  // ?pose=x,z,yaw,pitch  ?time=12  ?torch=1  ?tape=0  ?manual=1 -- for
+  // repeatable captures and for the test harness, which drives frames itself.
+  const q = new URLSearchParams(location.search);
+  const num = (k) => (q.has(k) ? Number(q.get(k)) : undefined);
+  const farm = new Farm(document.getElementById('view'), {
+    pose: q.has('pose') ? q.get('pose').split(',').map(Number) : null,
+    time: num('time'), torch: num('torch'), tape: num('tape'),
+    manual: q.has('manual'), autostart: q.has('pose') || q.has('manual'),
+  });
+  window.farm = farm;
+  try {
+    farm.boot();
+  } catch (e) {
+    farm.state = 'error'; farm.error = String(e.message || e);
+  }
+  const title = document.getElementById('title');
+  if (farm.state === 'error') {
+    title.classList.add('gone');
+    const box = document.getElementById('error');
+    box.style.display = 'grid'; box.textContent = farm.error;
+  }
+  setInterval(() => title.classList.toggle('gone', farm.state !== 'title'), 200);
+</script>
+</body>
+</html>
