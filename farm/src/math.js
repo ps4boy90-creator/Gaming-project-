@@ -56,6 +56,7 @@ export function rotZ(a) {
   const c = Math.cos(a), s = Math.sin(a);
   return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
+export const scaling = (x, y, z) => new Float32Array([x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]);
 /** Chain transforms left to right: the last one is applied to the point first. */
 export const chain = (...ms) => ms.reduce((a, b) => mul(a, b));
 
@@ -69,6 +70,20 @@ export const xformDir = (m, d) => [
   m[1] * d[0] + m[5] * d[1] + m[9] * d[2],
   m[2] * d[0] + m[6] * d[1] + m[10] * d[2],
 ];
+
+/**
+ * A normal carried through a transform. A direction would do if every
+ * transform were a rotation; a bath that is a bowl stretched to twice its
+ * length needs the cofactors, or its sides shade as if it were still round.
+ */
+export function xformNormal(m, n) {
+  const a = m[0], b = m[1], c = m[2], d = m[4], e = m[5], f = m[6], g = m[8], h = m[9], i = m[10];
+  return normalize([
+    (e * i - h * f) * n[0] - (b * i - h * c) * n[1] + (b * f - e * c) * n[2],
+    -(d * i - g * f) * n[0] + (a * i - g * c) * n[1] - (a * f - d * c) * n[2],
+    (d * h - g * e) * n[0] - (a * h - g * b) * n[1] + (a * e - d * b) * n[2],
+  ]);
+}
 
 export function perspective(fovY, aspect, near, far) {
   const f = 1 / Math.tan(fovY / 2);

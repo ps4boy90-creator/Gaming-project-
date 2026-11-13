@@ -15,6 +15,7 @@
  * face is looking at the camera.
  */
 import { stick } from './geom.js';
+import { roundBox, tube } from './detail.js';
 import { L } from './textures.js';
 import { rotX, rotY, rotZ, translate, chain, cross, sub, normalize, dot } from './math.js';
 
@@ -40,7 +41,11 @@ export const TRUCK_BOXES = [
   [0, -0.05, 0.78, 0.55, 0.76, 1.74],               // cab
 ];
 
-export function buildTruck(m, M) {
+/**
+ * `w` collects what can be used and what gets in the way; `site` is where the
+ * truck stands, for the doors' colliders.
+ */
+export function buildTruck(m, M, w, site) {
   const paint = { layer: L.paint };
   const low = { layer: L.paint, col: [0.74, 0.7, 0.64] };            // road dirt below the crease
   const shadeIn = { layer: L.paint, col: [0.6, 0.6, 0.6], occ: 0.55 };
@@ -70,7 +75,11 @@ export function buildTruck(m, M) {
     sides((s, P) => {
       const panel = (z0, y0, z1, y1) => m.quad(P(WIDE, y0, z0), P(WIDE, y1, z1), P(WIDE, CREASE, z1), P(WIDE, CREASE, z0), low);
       panel(FRONT, 0.54, AXLE_F - ARCH_R, SILL);
-      panel(AXLE_F + ARCH_R, SILL, AXLE_R - ARCH_R, SILL);
+      // The stretch between the wheels is three pieces: the middle one is the
+      // door, and is built further down so that it can swing.
+      const d0 = COWL + 0.05, d1 = CAB_BACK - 0.1;
+      panel(AXLE_F + ARCH_R, SILL, d0, SILL);
+      panel(d1, SILL, AXLE_R - ARCH_R, SILL);
       panel(AXLE_R + ARCH_R, SILL, REAR, 0.5);
       for (const cz of [AXLE_F, AXLE_R]) {
         const a = arch(cz);
@@ -83,36 +92,59 @@ export function buildTruck(m, M) {
         m.poly(a.map(([z, y]) => P(WIDE - 0.36, y, z)), pit);                                 // back of the wheel well
       }
 
-      m.quad(P(WIDE, CREASE, FRONT), P(WIDE, CREASE, REAR), P(UPPER, CREASE_TOP, REAR), P(UPPER, CREASE_TOP, FRONT), paint);
+      for (const [z0, z1] of [[FRONT, d0], [d1, REAR]]) m.quad(P(WIDE, CREASE, z0), P(WIDE, CREASE, z1), P(UPPER, CREASE_TOP, z1), P(UPPER, CREASE_TOP, z0), paint);
       // Front fender, rolling over into the hood.
       m.quad(P(UPPER, CREASE_TOP, FRONT), P(UPPER, CREASE_TOP, COWL), P(UPPER, hoodY(COWL) - 0.035, COWL), P(UPPER, hoodY(FRONT) - 0.035, FRONT), paint);
       m.quad(P(UPPER, hoodY(FRONT) - 0.035, FRONT), P(UPPER, hoodY(COWL) - 0.035, COWL), P(HOOD_X, hoodY(COWL), COWL), P(HOOD_X, hoodY(FRONT), FRONT), paint);
       m.quad(P(HOOD_X, hoodY(FRONT), FRONT), P(HOOD_X, hoodY(COWL), COWL), P(0, hoodY(COWL) + 0.022, COWL), P(0, hoodY(FRONT) + 0.022, FRONT), paint);
       // Door skin above the crease, then the bed side.
-      m.quad(P(UPPER, CREASE_TOP, COWL), P(UPPER, CREASE_TOP, CAB_BACK), P(UPPER, BELT, CAB_BACK), P(UPPER, BELT, COWL), paint);
+      for (const [z0, z1] of [[COWL, d0], [d1, CAB_BACK]]) m.quad(P(UPPER, CREASE_TOP, z0), P(UPPER, CREASE_TOP, z1), P(UPPER, BELT, z1), P(UPPER, BELT, z0), paint);
       m.quad(P(UPPER, CREASE_TOP, BED_FRONT), P(UPPER, CREASE_TOP, REAR), P(UPPER, RAIL, REAR), P(UPPER, RAIL, BED_FRONT), paint);
 
-      // Door shut lines, handle, belt moulding, marker lamps.
-      const d0 = COWL + 0.05, d1 = CAB_BACK - 0.1;
-      for (const z of [d0, d1]) {
-        m.box(s * (WIDE + 0.003), (0.5 + CREASE) / 2, z, 0.008, CREASE - 0.5, 0.016, dark);
-        m.box(s * (UPPER + 0.003), (CREASE_TOP + BELT) / 2, z, 0.008, BELT - CREASE_TOP, 0.016, dark);
-      }
-      m.box(s * (WIDE + 0.003), 0.5, (d0 + d1) / 2, 0.008, 0.016, d1 - d0, dark);
-      m.box(s * (UPPER + 0.016), 1.11, d1 - 0.2, 0.03, 0.035, 0.14, chrome);
-      stick(m, P(UPPER + 0.006, BELT, COWL), P(UPPER + 0.006, BELT, CAB_BACK), 0.03, 0.022, chrome);
+      // Marker lamps.
       m.box(s * (WIDE + 0.004), 0.9, FRONT + 0.14, 0.01, 0.05, 0.11, { layer: L.plain, col: [0.75, 0.4, 0.06] });
       m.box(s * (WIDE + 0.004), 0.9, REAR - 0.14, 0.01, 0.05, 0.11, { layer: L.plain, col: [0.42, 0.03, 0.03] });
 
       /* ---- cab: pillars lean in, the screen rakes back ---- */
+      // The cab side is a frame -- two pillars and a header -- round the door.
       const a0 = P(0.93, BELT, COWL), a1 = P(0.8, ROOF, -0.62), b0 = P(0.93, BELT, CAB_BACK), b1 = P(0.8, ROOF, 0.54);
-      m.quad(a0, b0, b1, a1, paint);
-      m.quad(...inset([a0, b0, b1, a1], 0.84, 0.012, [s, 0.2, 0]), glass);
-      stick(m, P(0.928, 1.22, -0.45), P(0.83, 1.73, -0.45), 0.024, 0.022, dark);           // quarter-light divider
+      const top = ROOF - 0.05, tx = 0.8 + (0.13 * 0.05) / (ROOF - BELT);       // where the door stops, just under the roof
+      const c0 = P(0.93, BELT, d0), c1 = P(tx, top, -0.57), e0 = P(0.93, BELT, d1), e1 = P(tx, top, 0.46);
+      m.quad(a0, c0, c1, a1, paint);
+      m.quad(e0, b0, b1, e1, paint);
+      m.quad(c1, e1, b1, a1, paint);
+
+      /* ---- the door: skin, window, handle, mirror, all hung on its front edge ---- */
+      const hinge = [s * WIDE, d0];
+      const shape = () => m.at(chain(rotY(Math.PI / 2), translate(-hinge[0], 0, -hinge[1])), () => {
+        m.quad(P(WIDE, SILL, d0), P(WIDE, SILL, d1), P(WIDE, CREASE, d1), P(WIDE, CREASE, d0), low);
+        m.quad(P(WIDE, CREASE, d0), P(WIDE, CREASE, d1), P(UPPER, CREASE_TOP, d1), P(UPPER, CREASE_TOP, d0), paint);
+        m.quad(P(UPPER, CREASE_TOP, d0), P(UPPER, CREASE_TOP, d1), P(UPPER, BELT, d1), P(UPPER, BELT, d0), paint);
+        m.quad(c0, e0, e1, c1, paint);
+        m.quad(...inset([c0, e0, e1, c1], 0.86, 0.012, [s, 0.2, 0]), glass);
+        stick(m, P(0.928, 1.22, -0.45), P(0.836, 1.7, -0.45), 0.024, 0.022, dark);         // quarter-light divider
+        m.box(s * (UPPER + 0.016), 1.11, d1 - 0.2, 0.03, 0.035, 0.14, chrome);              // handle
+        stick(m, P(UPPER + 0.006, BELT, d0), P(UPPER + 0.006, BELT, d1), 0.03, 0.022, chrome);
+        stick(m, P(0.94, 1.24, -0.96), P(1.1, 1.3, -0.99), 0.018, 0.018, dark);            // mirror arm and head
+        m.box(s * 1.12, 1.33, -0.99, 0.03, 0.22, 0.15, chrome);
+        // Inside: a vinyl card, an armrest, the window winder.
+        m.quad(P(UPPER - 0.03, SILL + 0.08, d0 + 0.03), P(UPPER - 0.03, SILL + 0.08, d1 - 0.03), P(UPPER - 0.03, BELT - 0.02, d1 - 0.03), P(UPPER - 0.03, BELT - 0.02, d0 + 0.03), { layer: L.fabric, col: [0.18, 0.2, 0.2] });
+        roundBox(m, s * (UPPER - 0.07), 0.98, (d0 + d1) / 2 + 0.1, 0.07, 0.05, 0.5, 0.02, 2, { layer: L.plain, col: [0.06, 0.06, 0.065] });
+        tube(m, [P(UPPER - 0.03, 0.86, d0 + 0.4), P(UPPER - 0.07, 0.86, d0 + 0.4), P(UPPER - 0.075, 0.8, d0 + 0.44)], 0.008, 6, chrome);
+      });
+      const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
+      w.boxes.push(box);
+      m.at(translate(hinge[0], 0, hinge[1]), () => w.doors.push({
+        kind: 'swing', noun: 'truck door', site, part: m.part(shape), box, hinge, width: d1 - d0,
+        shut: -Math.PI / 2, open: -Math.PI / 2 + s * 1.15, reach: 2.0,
+      }));
+      // Shut lines stay on the body, where the door meets it.
+      for (const z of [d0, d1]) {
+        m.box(s * (WIDE - 0.002), (0.5 + CREASE) / 2, z, 0.008, CREASE - 0.5, 0.016, dark);
+        m.box(s * (UPPER - 0.002), (CREASE_TOP + BELT) / 2, z, 0.008, BELT - CREASE_TOP, 0.016, dark);
+      }
       stick(m, P(0.81, ROOF + 0.006, -0.64), P(0.81, ROOF + 0.006, 0.56), 0.03, 0.022, dark);   // drip rail
       m.quad(P(0.8, ROOF, -0.62), P(0.8, ROOF, 0.54), P(0, ROOF + 0.028, 0.54), P(0, ROOF + 0.028, -0.62), paint);
-      stick(m, P(0.94, 1.24, -0.96), P(1.1, 1.3, -0.99), 0.018, 0.018, dark);              // mirror arm and head
-      m.box(s * 1.12, 1.33, -0.99, 0.03, 0.22, 0.15, chrome);
 
       /* ---- bed: inner walls, rail tops, corner posts with the lamps ---- */
       m.quad(P(BED_IN, BED_FLOOR, BED_FRONT + 0.05), P(BED_IN, BED_FLOOR, REAR - 0.06), P(BED_IN, RAIL, REAR - 0.06), P(BED_IN, RAIL, BED_FRONT + 0.05), shadeIn);
@@ -124,6 +156,25 @@ export function buildTruck(m, M) {
       m.box(s * 0.875, 0.7, REAR + 0.01, 0.1, 0.06, 0.02, { layer: L.plain, col: [0.6, 0.6, 0.56] });
       m.quad(P(0.66, 0.14, AXLE_R + 0.56), P(0.96, 0.14, AXLE_R + 0.56), P(0.96, 0.52, AXLE_R + 0.56), P(0.66, 0.52, AXLE_R + 0.56), rubber);   // mud flap
     });
+
+    /* ---- inside the cab: a bench, a dashboard, a wheel ---- */
+    {
+      const vinyl = { layer: L.fabric, col: [0.2, 0.17, 0.14] }, trim = { layer: L.plain, col: [0.07, 0.07, 0.075] };
+      m.quad([-0.9, 0.66, COWL], [0.9, 0.66, COWL], [0.9, 0.66, CAB_BACK], [-0.9, 0.66, CAB_BACK], { layer: L.plain, col: [0.04, 0.04, 0.045] });
+      roundBox(m, 0, 0.86, 0.22, 1.66, 0.2, 0.54, 0.07, 3, vinyl);
+      m.at(chain(translate(0, 1.2, 0.5), rotX(0.16)), () => roundBox(m, 0, 0, 0, 1.66, 0.56, 0.15, 0.06, 3, vinyl));
+      roundBox(m, 0, 1.1, -0.86, 1.78, 0.24, 0.3, 0.05, 2, trim);
+      m.box(-0.42, 1.14, -0.705, 0.34, 0.11, 0.01, { layer: L.clockface, fit: [0.1, 0.3, 0.9, 0.7] });       // the dials
+      tube(m, [[-0.42, 1.02, -0.74], [-0.42, 1.2, -0.44]], 0.018, 8, trim);                                // column
+      m.at(chain(translate(-0.42, 1.2, -0.44), rotX(-1.0)), () => {
+        const ring = [];
+        for (let k = 0; k <= 24; k++) ring.push([Math.cos(k * 0.2618) * 0.19, Math.sin(k * 0.2618) * 0.19, 0]);
+        tube(m, ring, 0.014, 8, trim, false);
+        for (const a of [0.4, 2.74, 4.71]) tube(m, [[0, 0, 0], [Math.cos(a) * 0.19, Math.sin(a) * 0.19, 0]], 0.01, 6, trim, false);
+      });
+      tube(m, [[0.05, 0.66, -0.3], [0.08, 0.96, -0.16]], 0.008, 6, chrome);                                // gear lever
+      m.at(translate(0.08, 0.98, -0.15), () => roundBox(m, 0, 0, 0, 0.05, 0.05, 0.05, 0.022, 2, trim));
+    }
 
     /* ---- nose ---- */
     m.quad([-WIDE, 0.54, FRONT], [WIDE, 0.54, FRONT], [WIDE, CREASE, FRONT], [-WIDE, CREASE, FRONT], paint);

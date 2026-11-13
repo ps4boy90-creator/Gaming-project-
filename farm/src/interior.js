@@ -22,7 +22,7 @@
  *     3.4  +----window---+-door-+---window--+
  *                          porch
  */
-import { stick, wall } from './geom.js';
+import { stick, wall, plate as holed } from './geom.js';
 import { lathe, roundBox, tube, drape, sphere } from './detail.js';
 import { L } from './textures.js';
 import { rotX, rotY, rotZ, translate, chain, xformPoint } from './math.js';
@@ -30,12 +30,21 @@ import { makeRng } from '../../src/core/rng.js';
 
 const WARM = [1.0, 0.72, 0.42];
 
-export function buildInterior(m, w, M, H, env) {
+/**
+ * The furnishing kit: materials, and the pieces and helpers both storeys are
+ * built from. Everything it makes lands wherever the mesh builder currently
+ * is, so the same chair can be set down in the dining room or a bedroom.
+ */
+export function makeKit(m, w, M, H, env) {
   const F = H.found, CH = H.room;
   const IW = H.hw - H.wall, ID = H.hd - H.wall;          // inner faces of the outside walls
   const PX = 1.1, PT = 0.12;                             // the two partitions, and how thick
-  const DOOR = [0.3, 1.7];                               // the cased openings off the hall, along Z
-  const { run, obb } = env;
+  const DOOR = [0.42, 1.82];                               // the cased openings off the hall, along Z
+  // Colliders made while furnishing belong to the storey being furnished.
+  let level = 0;
+  const setLevel = (v) => { level = v; };
+  const tag = (fn) => (...a) => { const n = w.boxes.length; fn(...a); for (let i = n; i < w.boxes.length; i++) w.boxes[i].level = level; };
+  const run = tag(env.run), obb = tag(env.obb);
 
   /* ---- materials ---- */
   const white = { layer: L.plain, col: [0.9, 0.88, 0.82] };
@@ -106,8 +115,8 @@ export function buildInterior(m, w, M, H, env) {
    * Hang a door. It sits in the outer face of the wall, so that its outside
    * is lit by the porch and its inside by the hall, and swings into the room.
    */
-  const hang = (x, z, dw, dh, shut, open) => at(x, 0, z, 0, () => {
-    const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
+  const hang = (x, z, dw, dh, shut, open, y = 0) => at(x, y, z, 0, () => {
+    const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0, level };
     w.boxes.push(box);
     w.doors.push({ kind: 'swing', noun: 'door', site: env.site, part: m.part(leaf(dw, dh)), box, hinge: [x, z], width: dw, shut, open });
   });
@@ -140,11 +149,18 @@ export function buildInterior(m, w, M, H, env) {
     lathe(m, [[0.011, 0.195], [0.011, 0.36], [0.004, 0.368], [0, 0.368]], 10, { layer: L.plain, col: [0.86, 0.82, 0.7] });
   };
 
+  return { setLevel, run, obb, F, CH, IW, ID, PX, PT, DOOR, PORTRAIT, white, oak, dark, pine, china, brass, chrome, iron, enamel, black, pit, cloth, glow, light, usable, glows, at, leg, frame, LANDSCAPE, lamp, leaf, hang, chair, plate, bowl, mug, candlestick };
+}
+
+export function buildInterior(m, w, M, H, env) {
+  const K = makeKit(m, w, M, H, env);
+  const { setLevel, run, obb, F, CH, IW, ID, PX, PT, DOOR, PORTRAIT, white, oak, dark, pine, china, brass, chrome, iron, enamel, black, pit, cloth, glow, light, usable, glows, at, leg, frame, LANDSCAPE, lamp, leaf, hang, chair, plate, bowl, mug, candlestick } = K;
+
   m.at(chain(M, translate(0, F, 0)), () => {
     /* =============================================================== shell */
     const boards = { layer: L.wood, col: [0.74, 0.56, 0.4], gloss: 0.3 };
     m.quad([-IW, 0.004, ID], [IW, 0.004, ID], [IW, 0.004, -ID], [-IW, 0.004, -ID], boards);
-    m.quad([-IW, CH, -ID], [IW, CH, -ID], [IW, CH, ID], [-IW, CH, ID], { layer: L.plaster });
+    holed(m, -IW, -ID, IW, ID, CH, [H.stair.x0, -ID, H.stair.x1, H.stair.zs], { layer: L.plaster });
     // Partitions either side of the hall, each with a wide cased opening.
     const opening = [{ x0: DOOR[0], x1: DOOR[1], y0: 0, y1: 2.1 }];
     m.at(chain(translate(-PX - PT / 2, 0, 0), rotY(-Math.PI / 2)), () => wall(m, -ID, ID, 0, CH, opening, env.dining, env.hall, PT, white));
@@ -180,18 +196,18 @@ export function buildInterior(m, w, M, H, env) {
 
     /* ================================================================ hall */
     {
-      // The boxed stair: a door at the foot of it, and it is shut.
-      const sx0 = 0.15, sx1 = PX - PT / 2, sz = -0.7;
-      m.quad([sx0, 0, sz], [sx1, 0, sz], [sx1, CH, sz], [sx0, CH, sz], env.hall);
+      // The boxed stair, behind a door at the foot of it (the flight itself
+      // is built with the upper floor, in upstairs.js).
+      const { x0: sx0, x1: sx1, zd: sz } = H.stair;
+      const sd0 = sx0 + 0.065, sd1 = sx1 - 0.065;                    // the doorway
+      at(0, 0, sz, 0, () => wall(m, sx0, sx1, 0, CH, [{ x0: sd0, x1: sd1, y0: 0, y1: 2.0 }], env.hall, env.hall, 0.06, white));
       m.quad([sx0, 0, -ID], [sx0, 0, sz], [sx0, CH, sz], [sx0, CH, -ID], env.hall);
       at((sx0 + sx1) / 2, 0, sz, 0, () => {
-        m.quad([-0.38, 0, 0.008], [0.38, 0, 0.008], [0.38, 2.0, 0.008], [-0.38, 2.0, 0.008], { layer: L.door, fit: [0, 0, 1, 0.66], col: [0.86, 0.84, 0.78] });
         for (const s of [-1, 1]) m.box(s * 0.42, 1.03, 0.012, 0.08, 2.06, 0.024, white);
         m.box(0, 2.06, 0.014, 0.94, 0.1, 0.028, white);
-        m.at(chain(translate(0.3, 1.0, 0.012), rotX(Math.PI / 2)), () => lathe(m, [[0.028, 0], [0.012, 0.012], [0.012, 0.04], [0.028, 0.052], [0.028, 0.066], [0, 0.078]], 14, brass));
-        usable([0.1, 1.05, 0.05], 2.0, { locked: true, noun: 'door', say: 'It\'s locked.' });
       });
-      run(sx0, sz, sx1, sz); run(sx0, -ID, sx0, sz);
+      hang(sd1, sz - 0.01, sd1 - sd0, 1.98, Math.PI, Math.PI + 1.52);
+      run(sx0, sz, sd0, sz, 0.035); run(sd1, sz, sx1, sz, 0.035); run(sx0, -ID, sx0, sz);
       skirt(sx0, sz + e, sx1, sz + e); skirt(sx0 - e, -ID, sx0 - e, sz);
 
       m.quad([-0.42, 0.008, 2.3], [0.42, 0.008, 2.3], [0.42, 0.008, -2.6], [-0.42, 0.008, -2.6], { layer: L.rug, fit: true, col: [0.62, 0.56, 0.6] });
@@ -570,16 +586,16 @@ export function buildInterior(m, w, M, H, env) {
       });
       at(FX - depth - 0.004, 1.92, FZ, -Math.PI / 2, () => frame(0.96, 0.62, LANDSCAPE));
       obb(FX - depth / 2, FZ, depth / 2, 0.85);
-      at(FX - depth - 0.16, 0, FZ + 0.98, 0, () => {                               // fire irons
+      at(FX - depth - 0.16, 0, FZ - 0.98, 0, () => {                               // fire irons
         lathe(m, [[0.09, 0], [0.095, 0.012], [0.02, 0.03], [0.012, 0.06], [0.012, 0.66], [0.03, 0.68], [0.012, 0.7], [0, 0.72]], 14, iron);
         for (const a of [0, 2.1, 4.2]) tube(m, [[Math.cos(a) * 0.045, 0.64, Math.sin(a) * 0.045], [Math.cos(a) * 0.06, 0.1, Math.sin(a) * 0.06]], 0.006, 6, iron);
       });
-      at(FX - depth - 0.28, 0, FZ - 1.02, 0, () => {                               // log basket
+      at(FX - depth - 0.28, 0, FZ + 1.06, 0, () => {                               // log basket
         lathe(m, [[0, 0.01], [0.2, 0.01], [0.24, 0.04], [0.27, 0.3], [0.255, 0.3], [0.225, 0.05], [0, 0.03]], 18, cloth(0.5, 0.36, 0.2));
         for (const [x, a] of [[-0.08, 0.2], [0.07, -0.3], [0, 1.2]]) m.at(chain(translate(x, 0.2 + Math.abs(a) * 0.05, 0), rotY(a), rotX(Math.PI / 2), translate(0, -0.19, 0)), () =>
           lathe(m, [[0, 0], [0.05, 0], [0.055, 0.02], [0.05, 0.36], [0, 0.38]], 10, { layer: L.bark }));
       });
-      obb(FX - depth - 0.28, FZ - 1.02, 0.26, 0.26);
+      obb(FX - depth - 0.28, FZ + 1.06, 0.26, 0.26);
 
       // Sofa along the hall wall, facing the fire.
       const sofa = cloth(0.3, 0.36, 0.3), cushion = cloth(0.34, 0.4, 0.33);
@@ -613,21 +629,23 @@ export function buildInterior(m, w, M, H, env) {
       obb(LX0 + 0.3, -3.1, 0.27, 0.24);
       light([LX0 + 0.34, 1.0, -2.95], WARM.map((c) => c * 0.7), 6, [LX0, -ID, IW, ID], 'living');
 
-      // Coffee table: a paper, a magazine, an ashtray, the remote.
-      at(2.85, 0, -1.85, 0, () => {
-        roundBox(m, 0, 0.41, 0, 0.6, 0.035, 1.1, 0.014, 2, { ...dark, gloss: 0.6 });
-        roundBox(m, 0, 0.16, 0, 0.5, 0.02, 1.0, 0.008, 1, dark);
-        for (const sx of [-1, 1]) for (const sz of [-1, 1]) at(sx * 0.25, 0, sz * 0.5, 0, () => lathe(m, [[0.014, 0], [0.02, 0.05], [0.026, 0.39]], 10, dark));
-        m.at(chain(translate(0.02, 0.4285, 0.2), rotY(0.3)), () => m.quad([-0.15, 0, 0.21], [0.15, 0, 0.21], [0.15, 0, -0.21], [-0.15, 0, -0.21], { layer: L.print, fit: [0.03, 0.05, 0.47, 0.95] }));
+      // Coffee table: a paper, a magazine, an ashtray, the remote. It stands
+      // well clear of the sofa: the strip between them is the only way from
+      // the hall to the back door, and it has to be wide enough to walk.
+      at(3.22, 0, -1.75, 0, () => {
+        roundBox(m, 0, 0.41, 0, 0.5, 0.035, 1.0, 0.014, 2, { ...dark, gloss: 0.6 });
+        roundBox(m, 0, 0.16, 0, 0.42, 0.02, 0.9, 0.008, 1, dark);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) at(sx * 0.2, 0, sz * 0.44, 0, () => lathe(m, [[0.014, 0], [0.02, 0.05], [0.026, 0.39]], 10, dark));
+        m.at(chain(translate(0.0, 0.4285, 0.2), rotY(0.2)), () => m.quad([-0.15, 0, 0.21], [0.15, 0, 0.21], [0.15, 0, -0.21], [-0.15, 0, -0.21], { layer: L.print, fit: [0.03, 0.05, 0.47, 0.95] }));
         m.at(chain(translate(-0.06, 0.431, -0.24), rotY(-0.5)), () => {
           m.box(0, 0, 0, 0.21, 0.006, 0.28, { layer: L.plain, col: [0.8, 0.78, 0.7] });
           m.quad([-0.105, 0.0035, 0.14], [0.105, 0.0035, 0.14], [0.105, 0.0035, -0.14], [-0.105, 0.0035, -0.14], { layer: L.print, fit: [0.52, 0.02, 0.98, 0.98], gloss: 0.4 });
         });
-        at(0.15, 0.4285, -0.06, 0, () => lathe(m, [[0, 0.003], [0.06, 0.003], [0.07, 0.012], [0.072, 0.03], [0.06, 0.03], [0.052, 0.012], [0, 0.01]], 18, { layer: L.plain, col: [0.36, 0.4, 0.3], gloss: 1 }));
-        m.at(chain(translate(-0.14, 0.44, 0.42), rotY(0.7)), () => roundBox(m, 0, 0, 0, 0.05, 0.022, 0.17, 0.008, 1, black));
-        at(0.18, 0.4285, 0.4, 2, () => mug());
+        at(0.12, 0.4285, -0.06, 0, () => lathe(m, [[0, 0.003], [0.06, 0.003], [0.07, 0.012], [0.072, 0.03], [0.06, 0.03], [0.052, 0.012], [0, 0.01]], 18, { layer: L.plain, col: [0.36, 0.4, 0.3], gloss: 1 }));
+        m.at(chain(translate(-0.12, 0.44, 0.4), rotY(0.7)), () => roundBox(m, 0, 0, 0, 0.05, 0.022, 0.17, 0.008, 1, black));
+        at(0.14, 0.4285, 0.38, 2, () => mug());
       });
-      obb(2.85, -1.85, 0.3, 0.55);
+      obb(3.22, -1.75, 0.25, 0.5);
 
       // Armchair in the corner by the back window, and a standard lamp.
       at(3.62, 0, -2.78, -0.35, () => {

@@ -15,6 +15,7 @@
 import { Mesh, KIND, stick, wall } from './geom.js';
 import { drape, tube } from './detail.js';
 import { buildInterior } from './interior.js';
+import { buildUpstairs } from './upstairs.js';
 import { buildTruck, TRUCK_BOXES } from './truck.js';
 import { L, TILES } from './textures.js';
 import {
@@ -33,10 +34,15 @@ export const SPAWN = { x: 4.6, z: 20.5, yaw: 0.12, pitch: 0.03 };
 // House and barn proportions, shared by the builders, colliders and floor.
 // `split` is where the furnished ground floor stops and the empty shell above it
 // begins; `wall` is the thickness of an outside wall; `lean` is the kitchen.
+// `stair` is the well the staircase climbs through: its footprint, where the
+// flight starts (zb) and where it reaches the upper floor (zt).
 const H = {
   hw: 4.5, hd: 3.5, found: 0.5, top: 6.0, porch: 2.3, wall: 0.14, room: 2.6, split: 3.3,
   lean: { x: -2.4, w: 4.0, d: 2.6, top: 3.0 },
+  stair: { x0: 0.15, x1: 1.04, zd: -0.2, zs: -0.7, zb: -0.28, zt: -2.46 },
 };
+/** A floor height above this means the player is upstairs. */
+export const LEVEL_SPLIT = 2.2;
 const B = { hw: 4.5, hl: 6.5, wall: 4.2, kneeX: 2.7, kneeY: 7.0, ridge: 8.3, doorW: 1.75, doorH: 3.6, ajar: 1.3 };
 
 const TRIM = [0.9, 0.88, 0.82];
@@ -189,12 +195,17 @@ function buildHouse(m, w) {
   const dining = { layer: L.wallpaper }, hall = { layer: L.plaster, col: [0.9, 0.86, 0.76] };
   const living = { layer: L.wallpaper, col: [0.8, 0.88, 0.86] }, kitchen = { layer: L.plaster, col: [0.84, 0.88, 0.76] };
   const sheer = { layer: L.fabric, col: [0.9, 0.84, 0.7], emit: 0.16, glowsWith: w.groups.dining };   // lit from behind
+  // Upstairs: two bedrooms either side of a landing, a bathroom over the front door.
+  const up = { layer: L.siding, occ: 0.8 };
+  const bedW = { layer: L.wallpaper, col: [0.96, 0.84, 0.8] }, bedE = { layer: L.wallpaper, col: [0.78, 0.82, 0.94] };
+  const bath = { layer: L.plaster, col: [0.78, 0.86, 0.86] };
+  const sheerE = { ...sheer, glowsWith: w.groups.bedE };
+  const UW = 4.15;                                    // sill height of the upper windows
   const heavy = { layer: L.fabric, col: [0.36, 0.22, 0.2] };
   const win = (x, y0, wd, hg) => ({ x0: x - wd / 2, x1: x + wd / 2, y0, y1: y0 + hg });
 
   m.at(M, () => {
     m.box(0, F / 2, 0, hw * 2 + 0.14, F, hd * 2 + 0.14, { layer: L.brick, col: [0.66, 0.64, 0.62], skip: 'y' });
-    m.box(0, (SP + T) / 2, 0, hw * 2, T - SP, hd * 2, { ...siding, skip: 'yY' });      // the upper storey is still a shell
     m.tri([hw, T, hd], [hw, T, -hd], [hw, ridge, 0], { layer: L.siding, occ: 0.75 });
     m.tri([-hw, T, -hd], [-hw, T, hd], [-hw, ridge, 0], { layer: L.siding, occ: 0.75 });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {            // corner boards
@@ -223,9 +234,11 @@ function buildHouse(m, w) {
       casing(m, 0, F, 0.95, 2.05);
       fitWindow(m, -2.75, F + 0.85, 1.0, 1.5, WT, sheer);
       fitWindow(m, 2.75, F + 0.85, 1.0, 1.5, WT, heavy);
-      sashWindow(m, -2.75, 4.15, 0.95, 1.3, false);
-      sashWindow(m, 0, 4.15, 0.95, 1.3, false);
-      sashWindow(m, 2.75, 4.15, 0.95, 1.3, true, 0.55);
+      const upper = [win(-2.75, UW, 0.95, 1.3), win(0, UW, 0.95, 1.3), win(2.75, UW, 0.95, 1.3)];
+      for (const [a, b, inner] of [[-hw, -1.1, bedW], [-1.1, 1.1, bath], [1.1, hw, bedE]]) wall(m, a, b, SP, T, upper, up, inner, WT, trim);
+      fitWindow(m, -2.75, UW, 0.95, 1.3, WT, heavy);
+      fitWindow(m, 0, UW, 0.95, 1.3, WT, { layer: L.fabric, col: [0.8, 0.82, 0.8], open: 0.5 });
+      fitWindow(m, 2.75, UW, 0.95, 1.3, WT, sheerE);
       m.box(0.85, 2.72, 0.07, 0.14, 0.2, 0.14, { layer: L.plain, col: [0.1, 0.1, 0.1] });   // porch lamp
       m.box(0.85, 2.58, 0.1, 0.09, 0.11, 0.09, { layer: L.plain, col: WARM, emit: 4 });
       m.quad([-0.55, F + 0.012, 0.8], [0.55, F + 0.012, 0.8], [0.55, F + 0.012, 0.15], [-0.55, F + 0.012, 0.15],
@@ -235,16 +248,18 @@ function buildHouse(m, w) {
       wall(m, -hd, hd, F, SP, [win(1.7, F + 0.85, 1.0, 1.5), win(-1.7, F + 0.85, 1.0, 1.5)], low, dining, WT, trim);
       fitWindow(m, 1.7, F + 0.85, 1.0, 1.5, WT, sheer);
       fitWindow(m, -1.7, F + 0.85, 1.0, 1.5, WT, sheer);
-      sashWindow(m, 1.7, 4.15, 0.95, 1.3, false);
-      sashWindow(m, -1.7, 4.15, 0.95, 1.3, false);
+      wall(m, -hd, hd, SP, T, [win(1.7, UW, 0.95, 1.3), win(-1.7, UW, 0.95, 1.3)], up, bedW, WT, trim);
+      fitWindow(m, 1.7, UW, 0.95, 1.3, WT, heavy);
+      fitWindow(m, -1.7, UW, 0.95, 1.3, WT, heavy);
       sashWindow(m, 0, T + 0.7, 0.6, 0.8, false);
     });
     m.at(chain(translate(hw, 0, 0), rotY(Math.PI / 2)), () => {       // east wall
       wall(m, -hd, hd, F, SP, [win(-2.0, F + 0.85, 1.0, 1.5), win(2.4, F + 0.85, 0.9, 1.5)], low, living, WT, trim);
       fitWindow(m, -2.0, F + 0.85, 1.0, 1.5, WT, heavy);
       fitWindow(m, 2.4, F + 0.85, 0.9, 1.5, WT, heavy);
-      sashWindow(m, -2.0, 4.15, 0.95, 1.3, false);
-      sashWindow(m, 2.4, 4.15, 0.9, 1.3, false);
+      wall(m, -hd, hd, SP, T, [win(-2.0, UW, 0.95, 1.3), win(2.4, UW, 0.9, 1.3)], up, bedE, WT, trim);
+      fitWindow(m, -2.0, UW, 0.95, 1.3, WT, sheerE);
+      fitWindow(m, 2.4, UW, 0.9, 1.3, WT, sheerE);
     });
     m.at(chain(translate(0, 0, -hd), rotY(Math.PI)), () => {          // back wall
       // Seen from behind the house, so left and right are swapped: the living
@@ -257,8 +272,10 @@ function buildHouse(m, w) {
       }
       casing(m, -2.3, F, 0.9, 2.0);
       fitWindow(m, -3.7, F + 0.95, 0.8, 1.3, WT, heavy);
-      sashWindow(m, -2.4, 4.15, 0.95, 1.3, false);
-      sashWindow(m, 2.4, 4.15, 0.95, 1.3, false);
+      const upper = [win(-2.4, UW, 0.95, 1.3), win(2.4, UW, 0.95, 1.3)];
+      for (const [a, b, inner] of [[-hw, -1.1, bedE], [-1.1, 1.1, hall], [1.1, hw, bedW]]) wall(m, a, b, SP, T, upper, up, inner, WT, trim);
+      fitWindow(m, -2.4, UW, 0.95, 1.3, WT, sheerE);
+      fitWindow(m, 2.4, UW, 0.95, 1.3, WT, heavy);
       m.box(-2.3, F / 2, 0.45, 1.5, F, 0.9, { layer: L.brick, col: [0.62, 0.6, 0.58] });   // back stoop
       m.box(-2.3, F / 4, 1.05, 1.2, F / 2, 0.3, { layer: L.brick, col: [0.58, 0.56, 0.54] });  // and a step down from it
     });
@@ -343,7 +360,7 @@ function buildHouse(m, w) {
   lamp([-2.75, 2.2, hd + 0.2], WARM.map((c) => c * 1.4), 7, [0, -0.55, 1], 0.35, w.groups.dining);
   lamp([-hw - 0.2, 2.2, 1.7], WARM.map((c) => c * 2.2), 11, [-1, -0.6, 0], 0.3, w.groups.dining);
   lamp([lx, 2.1, -hd - ld - 0.2], WARM.map((c) => c * 1.8), 10, [0, -0.6, -1], 0.3, w.groups.kitchen);
-  lamp([2.75, 4.8, hd + 0.2], WARM.map((c) => c * 0.8), 6, [0, -0.8, 1], 0.3);
+  lamp([2.75, 4.8, hd + 0.2], WARM.map((c) => c * 0.8), 6, [0, -0.8, 1], 0.3, w.groups.bedE);
   w.halos.push({ pos: xformPoint(M, [0.85, 2.58, hd + 0.18]), color: WARM, size: 1.5 });
 
   const S = SITE.house;
@@ -360,11 +377,17 @@ function buildHouse(m, w) {
   run(-hw + c, -hd, -hw + c, hd); run(hw - c, -hd, hw - c, hd);
   run(lx - lw / 2 + c, -hd - ld, lx - lw / 2 + c, -hd); run(lx + lw / 2 - c, -hd - ld, lx + lw / 2 - c, -hd);
   run(lx - lw / 2, -hd - ld + c, lx + lw / 2, -hd - ld + c);
+  // Upstairs the same four walls, but with no doorways to step out of.
+  const before = w.boxes.length;
+  run(-hw, hd - c, hw, hd - c); run(-hw, -hd + c, hw, -hd + c);
+  for (let i = before; i < w.boxes.length; i++) w.boxes[i].level = 1;
   w.house = {
-    x: S.x, z: S.z, yaw: S.yaw, hx: hw - 0.02, hz: hd - 0.02, ceiling: SP,
+    x: S.x, z: S.z, yaw: S.yaw, hx: hw - 0.02, hz: hd - 0.02, ceiling: T - 0.05, split: SP, leanTop: lt,
     lean: [lx - lw / 2 + 0.02, -hd - ld + 0.02, lx + lw / 2 - 0.02, -hd + 0.02],
   };
-  buildInterior(m, w, M, H, { run, obb, hall, dining, living, kitchen, site: S });
+  const env = { run, obb, hall, dining, living, kitchen, bedW, bedE, bath, site: S };
+  buildInterior(m, w, M, H, env);
+  buildUpstairs(m, w, M, H, env);
   castShadow(w, S, 0, 0, hw - 0.04, hd - 0.04, 0, T);                  // walls
   castShadow(w, S, 0, 0, hw - 0.04, hd / 2, T, T + rise / 2 - 0.1);    // the roof, as far as a box fits under it
   castShadow(w, S, lx, -hd - ld / 2, lw / 2 - 0.04, ld / 2, 0, lt);
@@ -443,16 +466,17 @@ function buildBarn(m, w) {
         stick(m, [0.12, y0 + lh / 2 - 0.12, 0.04], [lw - 0.12, y0 + 0.14, 0.04], 0.025, 0.13, t);
       }
     };
-    m.at(translate(-doorW, 0.06, hl + 0.11), leafShape);
-    // The right-hand leaf is the one that moves: it starts where it was left,
-    // rolled most of the way back, and can be slid shut or right open.
-    const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
-    w.boxes.push(box);
-    w.doors.push({
-      kind: 'slide', noun: 'barn door', site: SITE.barn, part: m.part(leafShape), box,
-      shutX: 0, openX: doorW, start: ajar / doorW, y: 0.06, z: hl + 0.11, width: doorW, reach: 2.8,
-    });
-    m.box(0.65, doorH + 0.26, hl + 0.13, doorW * 2 + ajar + 0.4, 0.07, 0.07, { layer: L.plain, col: [0.12, 0.12, 0.13] });
+    // Both leaves roll on the rail. The right-hand one starts where it was
+    // left, most of the way back; the left-hand one starts shut.
+    for (const [shutX, openX, start] of [[-doorW, -2 * doorW, 0], [0, doorW, ajar / doorW]]) {
+      const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
+      w.boxes.push(box);
+      w.doors.push({
+        kind: 'slide', noun: 'barn door', site: SITE.barn, part: m.part(leafShape), box,
+        shutX, openX, start, y: 0.06, z: hl + 0.11, width: doorW, reach: 2.8,
+      });
+    }
+    m.box(0, doorH + 0.26, hl + 0.13, doorW * 4 + 0.3, 0.07, 0.07, { layer: L.plain, col: [0.12, 0.12, 0.13] });
 
     // Hayloft door and hoist beam in the gable.
     m.box(0, 5.5, hl + 0.03, 1.3, 1.6, 0.05, { layer: L.barn, col: [0.8, 0.8, 0.8] });
@@ -513,7 +537,6 @@ function buildBarn(m, w) {
   obb(0, -hl, hw, 0.14);
   obb((-hw - doorW) / 2, hl, (hw - doorW) / 2, 0.14);
   obb((hw + doorW) / 2, hl, (hw - doorW) / 2, 0.14);        // the sliding leaf brings its own
-  obb(-doorW / 2, hl + 0.1, doorW / 2, 0.1);                // the shut leaf
   for (const sx of [-1, 1]) for (const z of [-3.5, 0, 3.5]) obb(sx * 1.9, z, 0.13, 0.13);
   obb(-3.2, -5.4, 1.0, 0.7);
   obb(3.65, -5.1, 0.45, 0.8);
@@ -619,9 +642,8 @@ function buildProps(m, w) {
 
   // An old pickup pulled up off the drive (see truck.js).
   const T = SITE.truck;
-  buildTruck(m, siteMatrix(T));
+  buildTruck(m, siteMatrix(T), w, T);
   w.boxes.push({ x: T.x, z: T.z, hx: 1.03, hz: 2.74, yaw: T.yaw });
-  w.things.push({ pos: xformPoint(siteMatrix(T), [-1.0, 1.15, -0.25]), reach: 1.9, locked: true, noun: 'truck', say: 'It\'s locked.' });
   for (const b of TRUCK_BOXES) castShadow(w, T, ...b);
 
   // Paddock: round bales and a water trough.
@@ -750,10 +772,22 @@ function buildTerrain(m) {
 /* -------------------------------------------------------------- floor --- */
 
 /** Height of whatever the player is standing on: ground, porch deck or steps. */
-export function floorHeight(x, z) {
+export function floorHeight(x, z, current = 0) {
   const [lx, lz] = worldToSite(SITE.house, x, z);
-  const { hw, hd, porch, found, lean } = H;
-  if (Math.abs(lx) < hw && lz > -hd && lz <= hd + porch) return found;          // the rooms and the porch
+  const { hw, hd, porch, found, lean, stair, split } = H;
+  if (Math.abs(lx) < hw && Math.abs(lz) < hd) {
+    // On the stairs the floor is a ramp. Everywhere else in the house there
+    // are two floors at the same spot, and the one you are on is the one
+    // you were already nearest.
+    // The flight starts at the door (zd) but the hole in the floor above only
+    // starts at zs, once there is a head's height of climb under it -- so
+    // upstairs you can stand over the first few steps.
+    if (lx > stair.x0 && lx < stair.x1 && lz < (current > LEVEL_SPLIT ? stair.zs : stair.zd)) {
+      return found + Math.max(0, Math.min(1, (stair.zb - lz) / (stair.zb - stair.zt))) * (split - found);
+    }
+    return current > LEVEL_SPLIT ? split : found;
+  }
+  if (Math.abs(lx) < hw && lz >= hd && lz <= hd + porch) return found;          // the porch
   if (Math.abs(lx - lean.x) < lean.w / 2 && lz > -hd - lean.d && lz <= -hd) return found;   // the kitchen
   if (Math.abs(lx - 2.3) < 0.75 && lz > -hd - 0.9 && lz <= -hd) return found;               // the back step
   if (Math.abs(lx - 2.3) < 0.6 && lz > -hd - 1.2 && lz <= -hd - 0.9) return found / 2;
@@ -795,11 +829,15 @@ export function inBounds(x, z) {
 }
 
 export function build() {
-  const room = () => ({ on: true, lights: [], parts: [] });
+  const room = (on = true) => ({ on, lights: [], parts: [] });
   const w = {
     lights: [], halos: [], boxes: [], trunks: [], tufts: [], occluders: [], treeCount: 0,
     doors: [], things: [],                                   // what can be used
-    groups: { hall: room(), dining: room(), kitchen: room(), living: room(), tv: room() },   // what a switch works
+    // What a switch works. Two of the upstairs rooms start in the dark.
+    groups: {
+      hall: room(), dining: room(), kitchen: room(), living: room(), tv: room(),
+      landing: room(), bedE: room(), bedW: room(false), bath: room(false),
+    },
   };
   const m = new Mesh(TILES);
   buildTerrain(m);

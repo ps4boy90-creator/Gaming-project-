@@ -69,6 +69,7 @@ export class Interactions {
         use: () => { d.toggle(); audio.door(d.kind, d.isOpen); },
       });
     }
+    for (const name of Object.keys(this.groups)) if (!this.groups[name].on) this.setGroup(name, false);
     for (const t of world.things) {
       if (t.group) {
         const g = this.groups[t.group];

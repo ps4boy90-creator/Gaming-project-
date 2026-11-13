@@ -154,7 +154,8 @@ export class Farm {
     gl.uniform4fv(this.scene.u.uLRoom, rooms);
     const hs = world.house;
     gl.uniform4f(this.scene.u.uHouse, hs.x, hs.z, Math.cos(hs.yaw), Math.sin(hs.yaw));
-    gl.uniform4f(this.scene.u.uHouseBox, hs.hx, hs.hz, hs.ceiling, 0);
+    gl.uniform4f(this.scene.u.uHouseBox, hs.hx, hs.hz, hs.ceiling, hs.split);
+    gl.uniform1f(this.scene.u.uLeanTop, hs.leanTop);
     gl.uniform4fv(this.scene.u.uLean, hs.lean);
     gl.uniform1f(this.scene.u.uStaticLayer, L.static);
 
@@ -478,8 +479,8 @@ export class Farm {
   say(text) { this.message = { text, until: (this.clock || 0) + 2.6 }; }
 
   /** Put the camera somewhere exactly: used by ?pose= and by the test harness. */
-  setPose(x, z, yaw, pitch = 0) {
-    Object.assign(this.player, { x, z, yaw, pitch, vx: 0, vz: 0, floor: floorHeight(x, z) });
+  setPose(x, z, yaw, pitch = 0, upstairs = false) {
+    Object.assign(this.player, { x, z, yaw, pitch, vx: 0, vz: 0, floor: floorHeight(x, z, upstairs ? 9 : 0) });
   }
   /** World queries, exposed for the console and the tests. */
   get query() { return { insideBarn, insideHouse, floorHeight, inBounds }; }

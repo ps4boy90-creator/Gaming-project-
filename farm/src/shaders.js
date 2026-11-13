@@ -19,7 +19,7 @@
  * linearly would leave about twenty levels to draw the whole forest with.
  */
 
-export const MAX_LIGHTS = 12;
+export const MAX_LIGHTS = 16;
 export const MAX_PATHS = 6;
 export const MAX_PATCHES = 4;
 export const MAX_OCCLUDERS = 8;
@@ -58,8 +58,9 @@ uniform vec4 uLCol[${MAX_LIGHTS}];
 uniform vec4 uLDir[${MAX_LIGHTS}];   // xyz, cos of the cone edge (below -1: a point light)
 uniform vec4 uLRoom[${MAX_LIGHTS}];  // an indoor light's room, in house space: x0, z0, x1, z1
 uniform vec4 uHouse;                // house origin x, z, then cos and sin of its yaw
-uniform vec4 uHouseBox;             // half width, half depth, ceiling height
+uniform vec4 uHouseBox;             // half width, half depth, top of the upper ceiling, height of the upper floor
 uniform vec4 uLean;                 // the kitchen lean-to, in house space: x0, z0, x1, z1
+uniform float uLeanTop;
 uniform float uStaticLayer, uTime, uEmit;   // uEmit: a part's glow, 0 when it is switched off
 uniform vec3 uTint;
 uniform vec4 uTorch;                // on, cos of the cone edge
@@ -137,8 +138,9 @@ void main() {
 
   vec2 hd = vPos.xz - uHouse.xy;
   vec2 hl = vec2(hd.x * uHouse.z - hd.y * uHouse.w, hd.x * uHouse.w + hd.y * uHouse.z);
-  bool indoors = vPos.y < uHouseBox.z && ((abs(hl.x) < uHouseBox.x && abs(hl.y) < uHouseBox.y)
-    || (hl.x > uLean.x && hl.x < uLean.z && hl.y > uLean.y && hl.y < uLean.w));
+  bool indoors = (vPos.y < uHouseBox.z && abs(hl.x) < uHouseBox.x && abs(hl.y) < uHouseBox.y)
+    || (vPos.y < uLeanTop && hl.x > uLean.x && hl.x < uLean.z && hl.y > uLean.y && hl.y < uLean.w);
+  bool upstairs = vPos.y > uHouseBox.w;
   if (indoors) sky = min(sky, 0.05);
   vec3 spec = vec3(0.0);
 
@@ -161,7 +163,8 @@ void main() {
     if (mode > 1.5) {
       if (indoors) continue;
     } else if (mode > 0.5) {
-      if (!indoors) continue;
+      // A room's light stays in its room, and on its own floor.
+      if (!indoors || upstairs != (uLPos[i].y > uHouseBox.w)) continue;
       vec2 q = max(uLRoom[i].xy - hl, hl - uLRoom[i].zw);
       w = 1.0 - smoothstep(0.0, 0.9, max(q.x, q.y));
       if (w <= 0.0) continue;

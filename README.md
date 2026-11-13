@@ -150,17 +150,21 @@ On a phone held upright the view widens so it is never a keyhole.
 Walk up the drive through the open gate. The porch steps take you onto the
 deck, and the front door is shut but not locked. Inside are a hall, a dining
 room laid for a meal, a kitchen in the lean-to at the back, and a living room
-where the television has been left on with nothing on it. The barn's
-right-hand door has been rolled back far enough to get in, and inside it is
-black without the torch.
+where the television has been left on with nothing on it. A door in the hall
+opens on a steep boxed stair; at the top are a landing, two bedrooms — one
+with a lamp left on, one a child's and dark — and a bathroom over the porch.
+The barn's right-hand door has been rolled back far enough to get in, and
+inside it is black without the torch.
 
 **Using things.** There is no cursor. Whatever is nearest the middle of the
 screen and within arm's reach is the thing, and a line of text says what will
-happen if you use it. Doors open and close — the front door, the back door
-onto its step, the barn's sliding leaf — and the door to the stairs is locked.
-Each lamp, the ceiling lights and the television switch off and on, taking
-with them the glow in the windows and the light they throw on the grass
-outside. The telephone, the clock and the truck answer back.
+happen if you use it. Every door opens and closes, all ten of them: front,
+back, the one to the stairs, both bedrooms and the bathroom, both sliding
+leaves of the barn, and both doors of the pickup, which show a bench seat, a
+dashboard and a steering wheel. Each lamp, the ceiling lights and the
+television switch off and on, taking with them the glow in the windows and the
+light they throw on the grass outside. The telephone and the clock answer
+back.
 
 **How the look is made.** The reference style is not pixel art. It is
 recognisably real materials on boxy geometry, lit by almost nothing, then
@@ -168,8 +172,8 @@ degraded as if recorded to tape. So:
 
 - *Geometry is primitive on purpose* — boxes, quads and cylinders, hard edges,
   no bevels — but the trim is real: window frames and sills, corner boards,
-  porch balusters, X-braced barn doors. About 430,000 vertices, drawn in one
-  call; two thirds of them are furniture.
+  porch balusters, X-braced barn doors. About 590,000 vertices, drawn in one
+  call; three quarters of them are furniture.
 - *Textures are painted at load time*, thirty-three 512×512 layers in one
   texture array, and filtered smoothly. Every face is mapped in metres from its own
   plane, so a clapboard is the same height on the house as on the porch gable.
@@ -179,10 +183,16 @@ degraded as if recorded to tape. So:
   pickup, each fitted just inside its walls — and a ray test per pixel.
 - *Every light knows where it is allowed to fall.* With no shadows, a lamp in
   the dining room would light the lawn and the room next door straight through
-  the walls. So the six outdoor lights ignore anything inside the house, and
-  each of the five indoor ones lights only its own room's rectangle, fading
+  the walls. So the outdoor lights ignore anything inside the house, and each
+  indoor one lights only its own room's rectangle on its own storey, fading
   out over a short margin so that it spills a little way through a doorway and
-  no further.
+  no further. Fifteen lights in all, of the sixteen the shader will take.
+- *Two floors share one footprint.* The player is on whichever floor they were
+  already nearest, the stair is a ramp between the two, and every collider
+  says which storey it belongs to — so the dining table is not in the way of
+  somebody crossing the bedroom above it. The hole in the upper floor starts
+  three steps up the flight, where there is first a head's height to spare,
+  which is what leaves room for a landing at the top.
 - *The house is cut open for real.* Outside walls are built round their door
   and window openings, with the thickness of the wall showing in the reveals,
   so the lit rooms are visible from the yard through the curtains. There is no
@@ -206,7 +216,7 @@ degraded as if recorded to tape. So:
 - *A door is a part, not a prop.* Almost everything is one fixed mesh in one
   draw call. Anything that moves or switches — a door leaf, a lampshade, the
   television screen, curtains lit from behind — is built apart, after it, with
-  its own transform, glow and tint, and drawn in one more call each: sixteen in
+  its own transform, glow and tint, and drawn in one more call each: thirty-five in
   all. A door also owns a collider that swings with it, so shut stops you and
   open does not; it hangs in the outer face of its wall, which is what lets
   the porch light fall on one side of it and the hall lamp on the other.
@@ -225,7 +235,7 @@ work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
 `farm.measure()` in the console returns those numbers for the current frame.
 
 ```bash
-node tools/verify/farm.cjs       # 59 checks; screenshots in tools/verify/shots/
+node tools/verify/farm.cjs       # 72 checks; screenshots in tools/verify/shots/
 ```
 
 The suite checks the picture against those targets and then walks into things:
@@ -234,15 +244,20 @@ rail keeps you off it, one barn door admits you and the other does not, and
 the forest closes in before the map runs out. Indoors it goes room to room —
 hall to dining room to kitchen, hall to living room — and checks that the
 table, the counter and the walls are solid. Then it uses things: the front
-door is shut until it is opened, the stair door is locked, the back door leads
-out onto its step, the barn can be slid shut, and switching off a light makes
-its room measurably dark. It finishes on an emulated phone,
-walking and turning by touch alone.
+door is shut until it is opened, the back door leads out onto its step, the
+barn can be slid shut, and switching off a light makes its room measurably
+dark. Routes that matter are walked from waypoint to waypoint rather than
+teleported to: from the hall round the sofa and out of the back door, up the
+stairs to the landing, into each upstairs room once its door has been opened,
+and down again. Every one of the ten doors is operated the way a player would
+— stand within reach, look at the handle, use it — and has to move. It
+finishes on an emulated phone, walking and turning by touch alone.
 
 **What it is not.** The textures are procedural, not photographs, so up close
 under the torch they are plainer than the real thing. There are no people in
-it. Only the ground floor of the house is built: the stair is boxed in behind
-a door that is shut, and the upstairs windows are still painted on.
+it. You cannot climb into the pickup or up the barn's ladder. The stair is
+steeper than a modern one would be allowed to be, because the house is only
+seven metres deep and the flight has to fit in it.
 `?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
 camera, the clock and the filters for repeatable captures, and `?lines=270`
 draws at half the usual 540 lines for a machine that is struggling.

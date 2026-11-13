@@ -17,7 +17,7 @@
  * A solid can also carry a gloss from 0 to 1 -- glazed china, a TV screen, a
  * varnished table -- which rides in the same slot as a fraction below 0.5.
  */
-import { IDENT, mul, xformPoint, xformDir, cross, sub, normalize, dot, chain, translate, rotY, rotZ } from './math.js';
+import { IDENT, mul, xformPoint, xformNormal, cross, sub, normalize, dot, chain, translate, rotY, rotZ } from './math.js';
 
 export const STRIDE = 16;
 export const KIND = { SOLID: 0, GROUND: 1, FOLIAGE: 2 };
@@ -58,6 +58,17 @@ export function wall(m, x0, x1, y0, y1, holes, outer, inner, t, reveal) {
     if (h.x1 <= x1) m.quad([b, h.y0, -t], [b, h.y0, 0], [b, h.y1, 0], [b, h.y1, -t], reveal);
     m.quad([a, h.y1, 0], [b, h.y1, 0], [b, h.y1, -t], [a, h.y1, -t], reveal);
     if (h.y0 > y0 + 1e-6) m.quad([a, h.y0, -t], [b, h.y0, -t], [b, h.y0, 0], [a, h.y0, 0], reveal);
+  }
+}
+
+/**
+ * A level slab from (x0, z0) to (x1, z1) at height y, with a rectangular
+ * hole [hx0, hz0, hx1, hz1] left in it: a ceiling round a stairwell.
+ */
+export function plate(m, x0, z0, x1, z1, y, hole, o) {
+  const [a, b, c, d] = hole;
+  for (const [p, q, r, s] of [[x0, z0, a, z1], [c, z0, x1, z1], [a, z0, c, b], [a, d, c, z1]]) {
+    if (r - p > 1e-6 && s - q > 1e-6) m.quad([p, y, s], [r, y, s], [r, y, q], [p, y, q], o);
   }
 }
 
@@ -105,7 +116,7 @@ export class Mesh {
    * the facets it is made of.
    */
   smooth(pts, nrms, uvs, o = {}) {
-    const wn = nrms.map((n) => normalize(xformDir(this.m, n)));
+    const wn = nrms.map((n) => xformNormal(this.m, n));
     for (const k of pts.length === 4 ? [0, 1, 2, 0, 2, 3] : [0, 1, 2]) {
       this._vert(pts[k], wn[k], uvs[k][0], uvs[k][1], o, 0);
     }
@@ -120,7 +131,7 @@ export class Mesh {
 
   _poly(pts, o, fitUV) {
     const nLocal = normalize(cross(sub(pts[1], pts[0]), sub(pts[pts.length - 1], pts[0])));
-    const n = o.normal || normalize(xformDir(this.m, nLocal));
+    const n = o.normal || xformNormal(this.m, nLocal);
     let uvs;
     if (fitUV) {
       uvs = fitUV;

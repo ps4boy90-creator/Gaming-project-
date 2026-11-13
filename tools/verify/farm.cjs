@@ -49,7 +49,7 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
     boxes: farm.world.boxes.length, trunks: farm.world.trunks.length,
   }));
   check('the forest is a forest', world.trees > 1200, `${world.trees} trees, ${world.verts} vertices`);
-  check('lights fit the shader', world.lights > 3 && world.lights <= 12, `${world.lights} lights`);
+  check('lights fit the shader', world.lights > 3 && world.lights <= 16, `${world.lights} lights`);
 
   /** Stand somewhere, look somewhere, measure the frame and keep a picture of it. */
   const shot = async (name, x, z, yaw, pitch = 0, torch = false) => {
@@ -97,6 +97,66 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
     const p = farm.player;
     return { x: p.x, z: p.z, floor: p.floor, inside: farm.query.insideBarn(p.x, p.z), ok: farm.query.inBounds(p.x, p.z) };
   }, [x, z, yaw, seconds, run]);
+
+  /**
+   * Walk a path of waypoints given in a site's own coordinates, with the real
+   * simulation and no teleporting after the start -- the only honest way to
+   * show that a route through the furniture exists.
+   */
+  const route = (site, pts, up = false) => G(([s, pts, up]) => {
+    const c = Math.cos(s.yaw), sn = Math.sin(s.yaw);
+    const W = ([lx, lz]) => [s.x + lx * c + lz * sn, s.z - lx * sn + lz * c];
+    const [x0, z0] = W(pts[0]);
+    farm.setPose(x0, z0, 0, 0, up);
+    let stuck = 0;
+    for (let k = 1; k < pts.length && !stuck; k++) {
+      const [tx, tz] = W(pts[k]);
+      for (let n = 0; Math.hypot(tx - farm.player.x, tz - farm.player.z) > 0.18; n++) {
+        farm.player.yaw = Math.atan2(-(tx - farm.player.x), -(tz - farm.player.z));
+        farm.step(1 / 60, { fwd: 1, strafe: 0 }, false);
+        if (n > 60 * 12) { stuck = k; break; }
+      }
+    }
+    const q = farm.player, dx = q.x - s.x, dz = q.z - s.z;
+    return { stuck, x: dx * c - dz * sn, z: dx * sn + dz * c, floor: q.floor, home: farm.query.insideHouse(q.x, q.z) };
+  }, [site, pts, up]);
+
+  /**
+   * Operate a door the way a player does: find somewhere within reach to
+   * stand that is not inside anything, look at the handle, and use it.
+   * Returns what the screen offered and whether the door then moved.
+   */
+  await G(() => {
+    window.tryDoor = (d) => {
+      const was = d.isOpen, h = d.handle, up = h[1] > 3;
+      for (let k = 0; k < 16; k++) {
+        const a = (k * Math.PI) / 8, x = h[0] + Math.sin(a) * 1.1, z = h[2] + Math.cos(a) * 1.1;
+        farm.setPose(x, z, 0, 0, up);
+        farm.step(1 / 60, { fwd: 0, strafe: 0 }, false);
+        if (Math.hypot(farm.player.x - x, farm.player.z - z) > 0.02) continue;
+        const e = farm.player.eye, dx = h[0] - e[0], dy = h[1] - e[1], dz = h[2] - e[2];
+        farm.player.yaw = Math.atan2(-dx, -dz); farm.player.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        const t = farm.looking();
+        if (!t || t.door !== d) continue;
+        const label = t.label();
+        farm.use();
+        for (let n = 0; n < 110; n++) farm.step(1 / 60, { fwd: 0, strafe: 0 }, false);
+        return { label, moved: d.isOpen !== was && d.t === d.goal };
+      }
+      return { label: null, moved: false };
+    };
+  });
+  /** The door whose handle is nearest a point in a site's coordinates, operated. */
+  const operate = (site, lx, lz, up = false) => G(([s, lx, lz, up]) => {
+    const c = Math.cos(s.yaw), sn = Math.sin(s.yaw), wx = s.x + lx * c + lz * sn, wz = s.z - lx * sn + lz * c;
+    let door = null, best = 1.5;
+    for (const d of farm.interact.doors) {
+      if ((d.handle[1] > 3) !== up) continue;
+      const r = Math.hypot(d.handle[0] - wx, d.handle[2] - wz);
+      if (r < best) { best = r; door = d; }
+    }
+    return door ? window.tryDoor(door) : { label: 'no door there', moved: false };
+  }, [site, lx, lz, up]);
 
   let p = await walk(4, 20, 0, 8);
   check('the gate is open', p.z < 10, `ended at z ${p.z.toFixed(1)}`);
@@ -148,10 +208,35 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   h = await inHouse(2.4, 0.9, 1, 0, 5);                 // across the room to the east wall
   check('you cannot leave through a wall', h.home && h.x < 4.1, `stopped at x ${h.x.toFixed(2)}`);
   h = await inHouse(-0.4, -0.2, 0, -1, 5);              // down the passage to the clock
-  check('the stair door is shut and the passage ends', h.z > -3.1 && h.x < 0.15, `(${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
-  check('the stair door can be tried', await look(house, 0.4, 0.6, 0.15, -1, -0.15) === 'Open door');
-  await use();
-  check('and is locked', await G(() => farm.message && farm.message.text) === "It's locked.");
+  check('the passage ends at the clock', h.z > -3.1 && h.x < 0.15 && h.floor < 0.6, `(${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
+
+  // --- upstairs. The door at the foot of the stairs opens like any other,
+  // and everything past it is walked, not teleported to.
+  const CLIMB = [[0.6, 0.9], [0.6, -2.9], [-0.4, -2.95], [-0.4, 0.6]];
+  h = await route(house, CLIMB.slice(0, 2));
+  check('the stair door is shut', h.stuck === 1 && h.z > -0.2 && h.floor < 0.6, `stopped at z ${h.z.toFixed(2)}`);
+  let d = await operate(house, 0.56, -0.2);
+  check('the stair door opens', d.label === 'Open door' && d.moved, JSON.stringify(d));
+  h = await route(house, CLIMB);
+  check('the stairs climb to the landing', !h.stuck && Math.abs(h.floor - 3.3) < 0.03 && h.home, `stuck at ${h.stuck}, floor ${h.floor.toFixed(2)}`);
+  h = await route(house, [[-0.4, -1.6], [0.9, -1.6]], true);
+  check('the balustrade keeps you out of the stairwell', h.stuck === 1 && h.x < 0.15 && Math.abs(h.floor - 3.3) < 0.03, `x ${h.x.toFixed(2)}, floor ${h.floor.toFixed(2)}`);
+  for (const [name, hx, hz, path, there] of [
+    ['east bedroom', 1.1, -0.27, [[-0.4, 0.6], [0.5, -0.25], [2.0, -0.25]], (q) => q.x > 1.7],
+    ['west bedroom', -1.1, -0.27, [[-0.4, 0.6], [-0.5, -0.25], [-2.0, -0.25]], (q) => q.x < -1.7],
+    ['bathroom', -0.04, 1.59, [[-0.4, 0.6], [0, 1.2], [0.1, 2.05]], (q) => q.z > 1.8],
+  ]) {
+    h = await route(house, path, true);
+    const shut = h.stuck > 0;
+    d = await operate(house, hx, hz, true);
+    h = await route(house, path, true);
+    check(`upstairs: the ${name} door is shut, opens, and lets you in`, shut && d.label === 'Open door' && d.moved && !h.stuck && there(h) && Math.abs(h.floor - 3.3) < 0.03,
+      `shut ${shut}, ${JSON.stringify(d)}, ended (${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
+  }
+  h = await route(house, [[2.0, -0.25], [2.6, -2.1], [5.5, -2.1]], true);      // across the bedroom at its outside wall
+  check('upstairs: the walls are solid and a long way up', h.stuck === 2 && h.x > 3.5 && h.x < 4.1 && h.home && Math.abs(h.floor - 3.3) < 0.03, `x ${h.x.toFixed(2)}, floor ${h.floor.toFixed(2)}`);
+  h = await route(house, [...CLIMB].reverse(), true);
+  check('and the stairs go back down', !h.stuck && Math.abs(h.floor - 0.5) < 0.03, `stuck at ${h.stuck}, floor ${h.floor.toFixed(2)}`);
 
   h = await inHouse(2.3, -2.0, 0, -1, 4);               // at the back door
   check('the back door is shut', h.home && h.z > -3.3, `stopped at z ${h.z.toFixed(2)}`);
@@ -159,6 +244,10 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   await use(); await settle(1.2);
   h = await inHouse(2.3, -2.0, 0, -1, 4);
   check('and leads out onto the back step', !h.home && h.z < -3.7, `ended at z ${h.z.toFixed(2)}, floor ${h.floor.toFixed(2)}`);
+  // The whole trip, walked: in from the hall, round the sofa, past the coffee
+  // table and out. Furniture once stood across this.
+  h = await route(house, [[0, 1.12], [1.6, 1.12], [2.5, 0.2], [2.5, -2.6], [2.3, -3.2], [2.3, -5.2]]);
+  check('nothing stands between the hall and the back door', !h.stuck && !h.home && h.z < -4.8, `stuck at ${h.stuck}, ended (${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
 
   // --- indoors is lit the way the reference interiors are: warm, and about
   // a fifth as bright as the screen will go, never the full glare of a lamp.
@@ -182,6 +271,23 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   await shot('hall', ...face(0, 3.0, 0, -1), -0.05);
   await shot('kitchen', ...face(-2.6, -4.4, 0.98, 0.18), -0.25);
   await shot('sofa', ...face(3.6, 0.6, -0.81, -0.58), -0.22);
+  const upShot = async (name, fx, fz, dx, dz, pitch) => {
+    const [x, z, yaw] = face(fx, fz, dx, dz);
+    const m = await G(([x, z, yaw, pitch]) => { farm.torch = false; farm.setPose(x, z, yaw, pitch, true); return farm.measure(); }, [x, z, yaw, pitch]);
+    await G(() => new Promise((r) => requestAnimationFrame(() => { farm.render(); requestAnimationFrame(r); })));
+    await page.screenshot({ path: path.join(SHOTS, `farm-${name}.png`) });
+    return m;
+  };
+  await shot('stairs', ...face(0.6, 0.9, 0, -1), 0.3);
+  const bedE = await upShot('bedroom', 1.5, -0.3, 1, 0.5, -0.15);
+  check('upstairs: the bedroom is lit by its own lamp, and warm', bedE.hue > 15 && bedE.hue < 55 && bedE.mean > 0.06 && bedE.mean < 0.3, fmt(bedE));
+  const bathDark = await upShot('bathroom-dark', 0.05, 1.8, -0.1, 1, -0.3);
+  await G(() => farm.interact.setGroup('bath', true));
+  const bath = await upShot('bathroom', 0.05, 1.8, -0.1, 1, -0.3);
+  check('upstairs: the bathroom starts dark and its light works', bath.mean > bathDark.mean * 1.6, `${fmt(bathDark)}  ->  ${fmt(bath)}`);
+  await G(() => farm.interact.setGroup('bedW', true));
+  await upShot('childs-room', -1.5, -0.3, -1, 0.35, -0.12);
+  await upShot('landing', -0.55, 1.2, 0.3, -1, -0.3);
   let sx, sz;
   [sx, sz] = toWorld(house, -3, 9.5);
   p = await walk(sx, sz, house.yaw, 6);            // at the porch railing
@@ -200,6 +306,11 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   p = await walk(sx, sz, barnSite.yaw, 5);
   check('and then the barn is shut', !p.inside, `(${p.x.toFixed(1)}, ${p.z.toFixed(1)})`);
   await look(barnSite, 1.0, 8.6, 0, -1, 0); await use(); await settle(1.6);
+  const leaves = await G(() => farm.interact.doors.filter((d) => d.noun === 'barn door').map((d) => window.tryDoor(d)));
+  [sx, sz] = toWorld(barnSite, -1, 11);
+  p = await walk(sx, sz, barnSite.yaw, 5);         // where the shut leaf was
+  check('both barn leaves slide, and the other one lets you in too', leaves.length === 2 && leaves.every((l) => l.moved) && p.inside, JSON.stringify(leaves));
+  await G(() => farm.interact.doors.filter((d) => d.noun === 'barn door').forEach((d) => window.tryDoor(d)));
 
   const truck = await G(() => ({ ...farm.site.truck }));
   [sx, sz] = toWorld(truck, 0, 7);
@@ -210,6 +321,15 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   const shadows = await G(() => farm.world.occluders.length);
   check('house, barn and pickup cast moon shadows', shadows >= 6 && shadows <= 8, `${shadows} shadow boxes`);
   await shot('truck', 3.2, 9.2, 0.62, -0.16, true);
+  const cab = await G(() => farm.interact.doors.filter((d) => d.noun === 'truck door').map((d) => window.tryDoor(d)));
+  check('both truck doors open', cab.length === 2 && cab.every((c) => c.label === 'Open truck door' && c.moved), JSON.stringify(cab));
+  {
+    const [x, z] = toWorld(truck, -2.6, 1.9);
+    await shot('truck-open', x, z, heading(truck, 1.5, -1.6), -0.14, true);
+  }
+  // Every door in the place, one after another: none is scenery.
+  const all = await G(() => farm.interact.doors.map((d) => ({ noun: d.noun, ...window.tryDoor(d) })));
+  check('every door opens', all.length === 10 && all.every((a) => a.moved), all.filter((a) => !a.moved).map((a) => a.noun + ': ' + a.label).join(', ') || `${all.length} doors`);
 
   p = await walk(4.6, 20.5, Math.PI, 60, true);    // run south into the trees for a minute
   check('the forest closes in before the map runs out', p.ok && p.z < 60, `stopped at z ${p.z.toFixed(1)}`);
