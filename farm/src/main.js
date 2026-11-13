@@ -12,11 +12,12 @@ import { build, SPAWN, SITE, PATHS, PATCHES, insideBarn, insideHouse, floorHeigh
 import { STRIDE } from './geom.js';
 import { Player } from './player.js';
 import { Ambience } from './audio.js';
+import { Interactions } from './interact.js';
 import {
   SCENE_VS, SCENE_FS, FULLSCREEN_VS, SKY_FS, HALO_VS, HALO_FS, TAPE_FS,
   MAX_LIGHTS, MAX_PATHS, MAX_PATCHES, MAX_OCCLUDERS,
 } from './shaders.js';
-import { perspective, viewMatrix, cameraBasis, mul, normalize } from './math.js';
+import { perspective, viewMatrix, cameraBasis, mul, normalize, IDENT } from './math.js';
 
 const SCENE_HEIGHT = 540;
 const FOV = (64 * Math.PI) / 180;
@@ -68,6 +69,7 @@ export class Farm {
     this.state = 'loading';
     this.torch = !!opts.torch;
     this.tape = opts.tape === undefined ? 1 : opts.tape;
+    this.lines = Math.max(90, Math.min(1080, opts.lines || SCENE_HEIGHT));   // ?lines= trades picture for speed
     this.frozen = opts.time;                 // fixed clock, for repeatable captures
     this.time = opts.time || 0;
     this.keys = new Set();
@@ -96,6 +98,7 @@ export class Farm {
     const world = (this.world = build());
     this.player = new Player(startPose(this.opts) || SPAWN);
     this.player.onStep = (surface, run) => this.audio.step(surface, run);
+    this.interact = new Interactions(world, this.audio, (text) => this.say(text));
     this.lamp = world.lights.find((l) => l.flicker);
     this.tv = world.lights.find((l) => l.tv);
 
@@ -181,7 +184,8 @@ export class Farm {
     // 540 is the short side, so a phone held upright still gets a full picture
     // across its width instead of a couple of hundred columns.
     const even = (v) => Math.round(v / 2) * 2;
-    const [w, h] = cw >= ch ? [even((SCENE_HEIGHT * cw) / ch), SCENE_HEIGHT] : [SCENE_HEIGHT, even((SCENE_HEIGHT * ch) / cw)];
+    const n = this.lines;
+    const [w, h] = cw >= ch ? [even((n * cw) / ch), n] : [n, even((n * ch) / cw)];
     if (target.w === w && target.h === h) return;
     Object.assign(target, { w, h });
     gl.bindTexture(gl.TEXTURE_2D, target.color);
@@ -210,6 +214,7 @@ export class Farm {
       this.keys.add(e.code);
       if (e.code === 'KeyF') this.torch = !this.torch;
       if (e.code === 'KeyV') this.tape = this.tape ? 0 : 1;
+      if (e.code === 'KeyE' && this.state === 'playing') this.use();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
@@ -217,6 +222,9 @@ export class Farm {
     // not (some embedded views refuse), holding a button and dragging looks
     // around instead, so the scene is never stuck facing one way.
     c.addEventListener('click', () => {
+      // Once the mouse is captured there is nothing left for a click to aim
+      // at, so it means "use what I am looking at".
+      if (this.state === 'playing' && document.pointerLockElement === c) { this.use(); return; }
       this.begin();
       try {
         const r = document.pointerLockElement !== c && c.requestPointerLock && c.requestPointerLock();
@@ -285,14 +293,18 @@ export class Farm {
   /** Advance the simulation. Split from drawing so tests can step it exactly. */
   step(dt, move, run) {
     if (this.frozen === undefined) this.time += dt;
+    this.clock = (this.clock || 0) + dt;
+    this.interact.update(dt);
     this.player.update(dt, move, run, this.world);
     const lamp = this.lamp.pos, tv = this.tv.pos, p = this.player;
     const home = insideHouse(p.x, p.z);
     this.audio.update(dt, {
       inside: home || insideBarn(p.x, p.z),
       lampDistance: Math.hypot(p.x - lamp[0], p.z - lamp[2]),
-      tvDistance: Math.hypot(p.x - tv[0], p.z - tv[2]) * (home ? 1 : 4),   // walls in the way
+      tvDistance: this.world.groups.tv.on ? Math.hypot(p.x - tv[0], p.z - tv[2]) * (home ? 1 : 4) : 1e3,   // walls in the way
     });
+    const t = this.looking();
+    this.prompt = t ? t.label() : null;
   }
 
   frame(now) {
@@ -364,7 +376,7 @@ export class Farm {
     const { pos: lp, col: lc, dir: ld } = this.lightBuf;
     world.lights.slice(0, MAX_LIGHTS).forEach((l, i) => {
       // The barn lamp stutters; the television jumps with every frame of snow.
-      const k = l.flicker ? lampNow : l.tv ? 0.72 + 0.28 * Math.abs(Math.sin(Math.floor(t * 20) * 12.9898) * 43758.5453 % 1) : 1;
+      const k = l.on === false ? 0 : l.flicker ? lampNow : l.tv ? 0.72 + 0.28 * Math.abs(Math.sin(Math.floor(t * 20) * 12.9898) * 43758.5453 % 1) : 1;
       lp.set([...l.pos, l.range], i * 4);
       lc.set([l.color[0] * k, l.color[1] * k, l.color[2] * k, l.mode || 0], i * 4);
       ld.set([...l.dir, l.cos], i * 4);
@@ -374,7 +386,17 @@ export class Farm {
     const hand = [eye[0] + cam.right[0] * 0.22 - cam.up[0] * 0.2, eye[1] + cam.right[1] * 0.22 - cam.up[1] * 0.2, eye[2] + cam.right[2] * 0.22 - cam.up[2] * 0.2];
     gl.uniform4f(u.uTorch, this.torch ? 1 : 0, Math.cos(0.3), 0, 0);
     gl.uniform3fv(u.uTorchPos, hand); gl.uniform3fv(u.uTorchDir, cam.fwd);
-    gl.drawArrays(gl.TRIANGLES, 0, world.vertexCount);
+    // Everything fixed in one call, then each moving or switchable part.
+    gl.uniformMatrix4fv(u.uModel, false, IDENT);
+    gl.uniform1f(u.uEmit, 1);
+    gl.uniform3f(u.uTint, 1, 1, 1);
+    gl.drawArrays(gl.TRIANGLES, 0, world.fixedCount);
+    for (const part of world.parts) {
+      gl.uniformMatrix4fv(u.uModel, false, part.matrix);
+      gl.uniform1f(u.uEmit, part.emit);
+      gl.uniform3fv(u.uTint, part.tint);
+      gl.drawArrays(gl.TRIANGLES, part.first, part.count);
+    }
 
     // Glows.
     const hv = [];
@@ -441,6 +463,19 @@ export class Farm {
     hue = (hue * 60 + 360) % 360;
     return { mean: sum / n / 255, dark: dark / n, p95: p95 / 255, hue };
   }
+
+  /** What the player is looking at and could use, if anything. */
+  looking() {
+    return this.interact.target(this.player.eye, cameraBasis(this.player.yaw, this.player.pitch).fwd);
+  }
+  /** The action button: E, a click with the mouse captured, or USE on a touch screen. */
+  use() {
+    const t = this.looking();
+    if (t) t.use();
+    return !!t;
+  }
+  /** A line of text across the bottom of the picture for a couple of seconds. */
+  say(text) { this.message = { text, until: (this.clock || 0) + 2.6 }; }
 
   /** Put the camera somewhere exactly: used by ?pose= and by the test harness. */
   setPose(x, z, yaw, pitch = 0) {

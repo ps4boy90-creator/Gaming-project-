@@ -31,7 +31,7 @@ layout(location=2) in vec2 aUV;
 layout(location=3) in float aLayer;
 layout(location=4) in vec3 aCol;
 layout(location=5) in vec4 aMisc;   // sky occlusion, emission, sway, kind
-uniform mat4 uVP;
+uniform mat4 uVP, uModel;         // uModel is identity for the fixed scene, a door's swing for a door
 uniform float uTime;
 out vec3 vPos; out vec3 vNor; out vec2 vUV; out float vLayer; out vec3 vCol; out vec4 vMisc;
 void main() {
@@ -42,8 +42,9 @@ void main() {
     p.x += s * (sin(ph) * 0.22 + sin(ph * 2.7 + 1.7) * 0.07);
     p.z += s * (cos(ph * 0.83) * 0.18);
   }
-  vPos = p; vNor = aNor; vUV = aUV; vLayer = aLayer; vCol = aCol; vMisc = aMisc;
-  gl_Position = uVP * vec4(p, 1.0);
+  vec4 world = uModel * vec4(p, 1.0);
+  vPos = world.xyz; vNor = mat3(uModel) * aNor; vUV = aUV; vLayer = aLayer; vCol = aCol; vMisc = aMisc;
+  gl_Position = uVP * world;
 }`;
 
 export const SCENE_FS = `#version 300 es
@@ -59,7 +60,8 @@ uniform vec4 uLRoom[${MAX_LIGHTS}];  // an indoor light's room, in house space: 
 uniform vec4 uHouse;                // house origin x, z, then cos and sin of its yaw
 uniform vec4 uHouseBox;             // half width, half depth, ceiling height
 uniform vec4 uLean;                 // the kitchen lean-to, in house space: x0, z0, x1, z1
-uniform float uStaticLayer, uTime;
+uniform float uStaticLayer, uTime, uEmit;   // uEmit: a part's glow, 0 when it is switched off
+uniform vec3 uTint;
 uniform vec4 uTorch;                // on, cos of the cone edge
 uniform vec3 uTorchPos, uTorchDir;
 uniform vec4 uPath[${MAX_PATHS}];
@@ -124,7 +126,7 @@ void main() {
     vec3 dirt = texture(uTex, vec3(vPos.xz / 2.5, uDirtLayer)).rgb;
     albedo = mix(albedo, dirt, dirtAmount(vPos.xz, n));
   }
-  albedo *= vCol;
+  albedo *= vCol * uTint;
 
   bool foliage = kind > 1.5;
   float gloss = kind < 0.5 ? kind * 2.5 : 0.0;
@@ -192,7 +194,7 @@ void main() {
     spec += beam * pow(max(dot(N, normalize(V - d / dist)), 0.0), 48.0);
   }
 
-  vec3 col = albedo * light + spec * gloss * 0.6 + t.rgb * vCol * vMisc.y * 1.5;
+  vec3 col = albedo * light + spec * gloss * 0.6 + t.rgb * vCol * vMisc.y * 1.5 * uEmit;
 
   float dist = length(vPos - uCam);
   float fog = 1.0 - exp(-pow(dist * uFogK, 1.5));

@@ -116,8 +116,23 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   };
   let h = await inHouse(0, 9.5, 0, -1, 3.2);            // up the steps
   check('the steps lead onto the porch', Math.abs(h.floor - 0.5) < 0.03 && !h.home, `floor ${h.floor.toFixed(2)}`);
-  h = await inHouse(0, 9.5, 0, -1, 6);                  // and on through the front door
-  check('the front door stands open', h.home && h.z < 2.2, `ended ${h.z.toFixed(1)} m from the middle of the house`);
+  // Using things. `look` stands somewhere in house space facing a direction
+  // and reports what the game says can be done; `use` does it; `settle` lets
+  // a door finish swinging.
+  const look = async (site, fx, fz, dx, dz, pitch = 0) => {
+    const [wx, wz] = toWorld(site, fx, fz);
+    return G(([x, z, yaw, pitch]) => { farm.setPose(x, z, yaw, pitch); const t = farm.looking(); return t ? t.label() : null; }, [wx, wz, heading(site, dx, dz), pitch]);
+  };
+  const use = () => G(() => farm.use());
+  const settle = (s) => G((s) => { for (let i = 0; i < s * 60; i++) farm.step(1 / 60, { fwd: 0, strafe: 0 }, false); }, s);
+
+  h = await inHouse(0, 9.5, 0, -1, 6);                  // and on, at the front door
+  check('the front door is shut', !h.home && h.z > 3.6, `stopped ${h.z.toFixed(2)} m out`);
+  check('looking at it offers to open it', await look(house, 0, 5.0, 0, -1, -0.1) === 'Open door');
+  await use(); await settle(1.2);
+  check('and then to close it', await look(house, 0, 5.0, 0, -1, -0.1) === 'Close door');
+  h = await inHouse(0, 9.5, 0, -1, 6);
+  check('an open door lets you in', h.home && h.z < 2.2, `ended ${h.z.toFixed(1)} m from the middle of the house`);
   h = await inHouse(-9, 0.4, 1, 0, 5);                  // at the west wall, from the lawn
   check('the walls do not', !h.home && h.x < -4.7, `stopped at x ${h.x.toFixed(2)}`);
   h = await inHouse(0, 1.0, -1, 0, 1.5);
@@ -134,6 +149,16 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   check('you cannot leave through a wall', h.home && h.x < 4.1, `stopped at x ${h.x.toFixed(2)}`);
   h = await inHouse(-0.4, -0.2, 0, -1, 5);              // down the passage to the clock
   check('the stair door is shut and the passage ends', h.z > -3.1 && h.x < 0.15, `(${h.x.toFixed(2)}, ${h.z.toFixed(2)})`);
+  check('the stair door can be tried', await look(house, 0.4, 0.6, 0.15, -1, -0.15) === 'Open door');
+  await use();
+  check('and is locked', await G(() => farm.message && farm.message.text) === "It's locked.");
+
+  h = await inHouse(2.3, -2.0, 0, -1, 4);               // at the back door
+  check('the back door is shut', h.home && h.z > -3.3, `stopped at z ${h.z.toFixed(2)}`);
+  check('it opens too', await look(house, 2.3, -2.0, 0, -1, -0.15) === 'Open door');
+  await use(); await settle(1.2);
+  h = await inHouse(2.3, -2.0, 0, -1, 4);
+  check('and leads out onto the back step', !h.home && h.z < -3.7, `ended at z ${h.z.toFixed(2)}, floor ${h.floor.toFixed(2)}`);
 
   // --- indoors is lit the way the reference interiors are: warm, and about
   // a fifth as bright as the screen will go, never the full glare of a lamp.
@@ -142,6 +167,18 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   check('dining room: warm and lamp-lit', dining.hue > 15 && dining.hue < 50 && dining.mean > 0.12 && dining.mean < 0.3, fmt(dining));
   const tvRoom = await shot('living', ...face(1.5, 1.0, 0.81, 0.59), -0.1);
   check('living room: lit by the television', tvRoom.hue > 180 && tvRoom.hue < 250 && tvRoom.mean < 0.25, fmt(tvRoom));
+  // Switches. The dining light takes the room down with it, and the glow in
+  // its windows; the television takes the blue out of the living room.
+  check('the dining light has a switch', await look(house, -1.7, 0.3, -1, 0, 0.1) === 'Switch off the light');
+  await use();
+  const unlit = await shot('dining-dark', ...face(-1.6, 2.6, -0.68, -0.73), -0.1);
+  check('off, the dining room is dark', unlit.mean < dining.mean * 0.45, fmt(unlit));
+  await look(house, -1.7, 0.3, -1, 0, 0.1); await use();
+  check('the television has one', await look(house, 2.7, 1.8, 0.7, 0.7, -0.3) === 'Switch off the television');
+  await use();
+  const tvOff = await G(([x, z, yaw]) => { farm.setPose(x, z, yaw, -0.1); return farm.measure(); }, face(1.5, 1.0, 0.81, 0.59));
+  check('off, the living room loses its glow', tvOff.mean < tvRoom.mean * 0.8 && !(await G(() => farm.world.groups.tv.on)), fmt(tvOff));
+  await look(house, 2.7, 1.8, 0.7, 0.7, -0.3); await use();
   await shot('hall', ...face(0, 3.0, 0, -1), -0.05);
   await shot('kitchen', ...face(-2.6, -4.4, 0.98, 0.18), -0.25);
   await shot('sofa', ...face(3.6, 0.6, -0.81, -0.58), -0.22);
@@ -157,6 +194,12 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   [sx, sz] = toWorld(barnSite, -1, 11);
   p = await walk(sx, sz, barnSite.yaw, 5);         // into the shut leaf
   check('the shut one does not', !p.inside, `(${p.x.toFixed(1)}, ${p.z.toFixed(1)})`);
+  check('the open leaf can be slid shut', await look(barnSite, 1.6, 8.6, 0.25, -1, 0) === 'Close barn door');
+  await use(); await settle(1.6);
+  [sx, sz] = toWorld(barnSite, 0.65, 11);
+  p = await walk(sx, sz, barnSite.yaw, 5);
+  check('and then the barn is shut', !p.inside, `(${p.x.toFixed(1)}, ${p.z.toFixed(1)})`);
+  await look(barnSite, 1.0, 8.6, 0, -1, 0); await use(); await settle(1.6);
 
   const truck = await G(() => ({ ...farm.site.truck }));
   [sx, sz] = toWorld(truck, 0, 7);
@@ -172,7 +215,12 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   check('the forest closes in before the map runs out', p.ok && p.z < 60, `stopped at z ${p.z.toFixed(1)}`);
 
   // --- the page as a player meets it: a title card, then click and walk.
-  await page.goto(`${BASE}/farm/index.html`);
+  // These steps need real frames to go by, and this suite usually runs on a
+  // software renderer that takes seconds over a full one. So the live page is
+  // asked for a small picture; it is the controls being tested here, not it.
+  page.setDefaultTimeout(90000);
+  await page.setViewportSize({ width: 480, height: 270 });
+  await page.goto(`${BASE}/farm/index.html?lines=120`);
   await page.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
   check('opens on the title card', await G(() => farm.state) === 'title');
   await page.click('#view');
@@ -186,21 +234,29 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   check('a click starts it and W walks', live.state === 'playing' && live.z < z0 - 0.25 && live.hidden, `moved ${(z0 - live.z).toFixed(2)} m`);
   await page.keyboard.press('KeyF');
   check('F toggles the torch', await G(() => farm.torch) === true);
+  // E uses whatever is in front of you. Stand at the front door and press it.
+  await G(() => { const s = farm.site.house, c = Math.cos(s.yaw), n = Math.sin(s.yaw); farm.setPose(s.x + 5.0 * n, s.z + 5.0 * c, s.yaw, -0.1); });
+  await page.waitForFunction(() => farm.prompt === 'Open door', null, { timeout: 60000 }).catch(() => {});
+  const hud = await G(() => ({ prompt: farm.prompt, shown: !document.getElementById('prompt').hidden && document.getElementById('what').textContent }));
+  await page.keyboard.press('KeyE');
+  const opened = await page.waitForFunction(() => farm.interact.doors[0].isOpen, null, { timeout: 30000 }).then(() => true, () => false);
+  check('the screen says what E will do, and E does it', hud.prompt === 'Open door' && opened, JSON.stringify(hud));
 
   // --- a phone: no keyboard, no mouse. The left thumb walks, the right looks.
-  const phone = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  const phone = await browser.newContext({ viewport: { width: 422, height: 195 }, hasTouch: true, isMobile: true });
   const tp = await phone.newPage();
   tp.on('pageerror', (e) => errors.push('PAGEERROR (touch): ' + e.message));
-  await tp.goto(`${BASE}/farm/index.html`);
+  tp.setDefaultTimeout(90000);
+  await tp.goto(`${BASE}/farm/index.html?lines=120`);
   await tp.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
   const cdp = await phone.newCDPSession(tp);
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id]) => ({ x, y, id })) });
   const before = await tp.evaluate(() => ({ z: farm.player.z, yaw: farm.player.yaw }));
-  await touch('touchStart', [[150, 250, 1]]);
-  await touch('touchMove', [[150, 180, 1]]);                       // left thumb pushed up
+  await touch('touchStart', [[80, 130, 1]]);
+  await touch('touchMove', [[80, 60, 1]]);                         // left thumb pushed up
   await tp.waitForFunction((z) => farm.player.z < z - 0.2, before.z, { timeout: 60000 }).catch(() => {});
-  await touch('touchStart', [[150, 180, 1], [650, 200, 2]]);
-  await touch('touchMove', [[150, 180, 1], [560, 200, 2]]);        // right thumb dragged left
+  await touch('touchStart', [[80, 60, 1], [330, 100, 2]]);
+  await touch('touchMove', [[80, 60, 1], [240, 100, 2]]);          // right thumb dragged left
   const after = await tp.evaluate(() => ({
     state: farm.state, z: farm.player.z, yaw: farm.player.yaw,
     pad: getComputedStyle(document.getElementById('pad')).display, stick: !document.getElementById('stick').hidden,
@@ -217,12 +273,17 @@ const fmt = (m) => `mean ${m.mean.toFixed(3)}  under-10% ${(m.dark * 100).toFixe
   // buttons themselves do not care.
   await tp.goto(`${BASE}/farm/index.html?manual=1`);
   await tp.waitForFunction(() => window.farm && window.farm.state !== 'loading', null, { timeout: 60000 });
+  await tp.setViewportSize({ width: 844, height: 390 });
   await touch('touchStart', [[150, 250, 1]]);
   await touch('touchEnd', []);
   await tp.tap('#torch');
   await tp.tap('#run');
   const btn = await tp.evaluate(() => ({ torch: farm.torch, run: farm.running }));
   check('touch: the TORCH and RUN buttons work', btn.torch === true && btn.run === true);
+  await tp.evaluate(() => { const s = farm.site.house, c = Math.cos(s.yaw), n = Math.sin(s.yaw); farm.setPose(s.x + 5.0 * n, s.z + 5.0 * c, s.yaw, -0.1); farm.step(1 / 60, { fwd: 0, strafe: 0 }, false); });
+  await tp.waitForFunction(() => !document.getElementById('use').disabled, null, { timeout: 10000 }).catch(() => {});
+  await tp.tap('#use');
+  check('touch: the USE button opens the door in front of you', await tp.evaluate(() => farm.interact.doors[0].isOpen));
   await tp.evaluate(() => { farm.torch = false; farm.render(); });
   await tp.screenshot({ path: path.join(SHOTS, 'farm-phone.png') });
   await phone.close();

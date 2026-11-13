@@ -69,6 +69,7 @@ export class Mesh {
     this.buf = new Float32Array(1 << 20);
     this.used = 0;
     this.count = 0;
+    this.parts = [];
     this.stack = [IDENT];
     /** metres covered by one repeat of each texture layer */
     this.tiles = tiles;
@@ -201,5 +202,30 @@ export class Mesh {
     if (cap && o.capBottom) this.poly(lo.slice().reverse(), o.cap || o);
   }
 
-  finish() { return this.buf.subarray(0, this.used); }
+  /**
+   * Geometry that will move, or switch on and off, after the scene is built:
+   * a door leaf, a lampshade, a television screen. `fn` builds it in its own
+   * space; the transform in force right now is remembered as its resting
+   * place. The vertices go in after everything fixed (see finish), so the
+   * fixed scene stays one draw call and each part is one more.
+   */
+  part(fn) {
+    const handle = { base: new Float32Array(this.m), matrix: new Float32Array(this.m), first: 0, count: 0, emit: 1, tint: [1, 1, 1], fn };
+    this.parts.push(handle);
+    return handle;
+  }
+
+  finish() {
+    this.fixed = this.count;
+    const stack = this.stack;
+    for (const p of this.parts) {
+      this.stack = [IDENT];
+      p.first = this.count;
+      p.fn();
+      p.count = this.count - p.first;
+      delete p.fn;
+    }
+    this.stack = stack;
+    return this.buf.subarray(0, this.used);
+  }
 }

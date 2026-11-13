@@ -99,6 +99,50 @@ export class Ambience {
     });
   }
 
+  /** A burst of filtered noise: the raw material of every knock, click and scrape here. */
+  burst(type, freq, q, level, len, at = 0) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = ctx.currentTime + at;
+    const src = ctx.createBufferSource(); src.buffer = this.noise;
+    const f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(level, t0);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0 + len);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t0, Math.random() * 3, len + 0.02);
+  }
+
+  /** A hinge that wants oil, or a barn door grinding along its rail. */
+  door(kind, opening) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = ctx.currentTime, len = kind === 'slide' ? 1.1 : 0.7;
+    if (kind === 'slide') {
+      this.burst('bandpass', 260, 0.8, 0.22, len);
+      this.burst('bandpass', 1900, 2.5, 0.05, len);
+      return;
+    }
+    if (opening) this.burst('highpass', 1800, 0.5, 0.12, 0.05);        // the latch letting go
+    const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(opening ? 170 : 240, t0);
+    o.frequency.linearRampToValueAtTime(opening ? 250 : 150, t0 + len);
+    f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 6;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.12);
+    g.gain.linearRampToValueAtTime(0.02, t0 + len * 0.7);
+    g.gain.linearRampToValueAtTime(0, t0 + len);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t0); o.stop(t0 + len + 0.05);
+  }
+  /** A door meeting its frame. */
+  latch() { this.burst('lowpass', 240, 1.2, 0.5, 0.12); this.burst('highpass', 1500, 0.5, 0.14, 0.04, 0.02); }
+  /** A switch. */
+  click() { this.burst('highpass', 2400, 0.7, 0.12, 0.03); }
+  /** A handle that turns and a door that does not open. */
+  rattle() { for (const at of [0, 0.11, 0.2]) { this.burst('bandpass', 700, 2, 0.2, 0.06, at); this.burst('lowpass', 200, 1, 0.25, 0.07, at); } }
+
   step(surface, run) {
     const ctx = this.ctx;
     if (!ctx) return;

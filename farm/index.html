@@ -43,12 +43,25 @@
   .for-touch { display: none; }
   @media (pointer: coarse) { .for-touch { display: inline; } .for-keys { display: none; } }
 
+  /* The middle of the picture: a dot to aim with, what it is aimed at, and
+     whatever that thing has to say for itself. */
+  #dot { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px;
+    border-radius: 50%; background: var(--osd); opacity: .5; pointer-events: none; }
+  #centre { align-self: end; justify-self: center; text-align: center; padding-bottom: 9vh;
+    text-shadow: 0 0 6px #000, 0 1px 0 #000; letter-spacing: .08em; }
+  #prompt .key { display: inline-block; min-width: 1.5em; padding: 0 .35em; margin-right: .6em;
+    border: 1px solid var(--edge); border-radius: 3px; background: var(--plate); color: var(--lamp); }
+  #say { margin-top: .5em; color: var(--osd); font-size: 1.1em; }
+  #title, #centre { grid-row: 2; grid-column: 1; }
+  .touch #prompt .key { display: none; }
   #pad { display: none; justify-content: flex-end; gap: 10px; }
   .touch #pad { display: flex; }
   #pad button { pointer-events: auto; font: inherit; letter-spacing: .1em; color: var(--osd);
     background: var(--plate); border: 1px solid var(--edge); border-radius: 3px;
     min-width: 76px; min-height: 48px; padding: 0 14px; }
   #pad button[aria-pressed="true"] { color: var(--lamp); border-color: var(--lamp); }
+  #pad #use { color: var(--lamp); border-color: var(--lamp); min-width: 96px; }
+  #pad #use:disabled { color: var(--osd-dim); border-color: var(--edge); opacity: .45; }
   #pad button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 
   #stick { position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%;
@@ -66,15 +79,21 @@
   <div id="osd"><span>PLAY &#9658;</span><span id="counter">0:00:00</span></div>
   <div id="title">
     <h1>THE FARM</h1>
-    <p class="for-keys"><span class="go">CLICK TO WALK</span> &nbsp;·&nbsp; WASD move &nbsp;·&nbsp; MOUSE look &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; F torch &nbsp;·&nbsp; V tape filter</p>
-    <p class="for-touch"><span class="go">TAP TO WALK</span> &nbsp;·&nbsp; left thumb moves &nbsp;·&nbsp; right thumb looks</p>
+    <p class="for-keys"><span class="go">CLICK TO WALK</span> &nbsp;·&nbsp; WASD move &nbsp;·&nbsp; MOUSE look &nbsp;·&nbsp; E or click to use &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; F torch &nbsp;·&nbsp; V tape filter</p>
+    <p class="for-touch"><span class="go">TAP TO WALK</span> &nbsp;·&nbsp; left thumb moves &nbsp;·&nbsp; right thumb looks &nbsp;·&nbsp; USE opens doors</p>
+  </div>
+  <div id="centre">
+    <div id="prompt" hidden><span class="key">E</span><span id="what"></span></div>
+    <div id="say" hidden></div>
   </div>
   <div id="pad">
+    <button id="use" type="button" disabled>USE</button>
     <button id="tape" type="button" aria-pressed="true">TAPE</button>
     <button id="run" type="button" aria-pressed="false">RUN</button>
     <button id="torch" type="button" aria-pressed="false">TORCH</button>
   </div>
 </div>
+<div id="dot" hidden></div>
 <div id="stick" hidden><div id="knob"></div></div>
 <div id="error" hidden></div>
 <noscript>This scene needs JavaScript.</noscript>

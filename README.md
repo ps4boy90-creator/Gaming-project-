@@ -139,19 +139,28 @@ dependencies, no build step, no asset files.
 | WASD / arrows | walk (left and right arrows turn) |
 | Mouse | look |
 | Shift | run |
+| E, or click | use what you are looking at |
 | F | torch |
 | V | tape filter on / off |
-| Touch | left thumb walks, right thumb looks; TORCH, RUN and TAPE buttons appear |
+| Touch | left thumb walks, right thumb looks; USE, TORCH, RUN and TAPE buttons appear |
 
 Where a browser will not capture the mouse, hold a button and drag to look.
 On a phone held upright the view widens so it is never a keyhole.
 
 Walk up the drive through the open gate. The porch steps take you onto the
-deck, and the front door is standing open: inside are a hall, a dining room
-laid for a meal, a kitchen in the lean-to at the back, and a living room where
-the television has been left on with nothing on it. The barn's right-hand door
-has been rolled back far enough to get in, and inside it is black without the
-torch.
+deck, and the front door is shut but not locked. Inside are a hall, a dining
+room laid for a meal, a kitchen in the lean-to at the back, and a living room
+where the television has been left on with nothing on it. The barn's
+right-hand door has been rolled back far enough to get in, and inside it is
+black without the torch.
+
+**Using things.** There is no cursor. Whatever is nearest the middle of the
+screen and within arm's reach is the thing, and a line of text says what will
+happen if you use it. Doors open and close — the front door, the back door
+onto its step, the barn's sliding leaf — and the door to the stairs is locked.
+Each lamp, the ceiling lights and the television switch off and on, taking
+with them the glow in the windows and the light they throw on the grass
+outside. The telephone, the clock and the truck answer back.
 
 **How the look is made.** The reference style is not pixel art. It is
 recognisably real materials on boxy geometry, lit by almost nothing, then
@@ -194,6 +203,13 @@ degraded as if recorded to tape. So:
   cut into the flanks, a crease from nose to tail, a hood that crowns, a cab
   that leans in, a raked screen. Seams, handles, mirrors and wipers are trim
   laid over the top, and it has its own paint, glass, tread, grille and plate.
+- *A door is a part, not a prop.* Almost everything is one fixed mesh in one
+  draw call. Anything that moves or switches — a door leaf, a lampshade, the
+  television screen, curtains lit from behind — is built apart, after it, with
+  its own transform, glow and tint, and drawn in one more call each: sixteen in
+  all. A door also owns a collider that swings with it, so shut stops you and
+  open does not; it hangs in the outer face of its wall, which is what lets
+  the porch light fall on one side of it and the hall lamp on the other.
 - *Trees are flat crossed cards*, each mirrored at random, thinned by a slow
   noise into stands and gaps, with a long tail on their heights.
 - *The tape pass* resolves colour far more coarsely than brightness and drags
@@ -209,7 +225,7 @@ work. The arrival view here measures 7.9%, 85%, hue 215°; the porch, 29°.
 `farm.measure()` in the console returns those numbers for the current frame.
 
 ```bash
-node tools/verify/farm.cjs       # 43 checks; screenshots in tools/verify/shots/
+node tools/verify/farm.cjs       # 59 checks; screenshots in tools/verify/shots/
 ```
 
 The suite checks the picture against those targets and then walks into things:
@@ -217,7 +233,10 @@ the gate is open and the fence is not, the steps lead onto the porch and the
 rail keeps you off it, one barn door admits you and the other does not, and
 the forest closes in before the map runs out. Indoors it goes room to room —
 hall to dining room to kitchen, hall to living room — and checks that the
-table, the counter and the walls are solid and the stair door is shut. It finishes on an emulated phone,
+table, the counter and the walls are solid. Then it uses things: the front
+door is shut until it is opened, the stair door is locked, the back door leads
+out onto its step, the barn can be slid shut, and switching off a light makes
+its room measurably dark. It finishes on an emulated phone,
 walking and turning by touch alone.
 
 **What it is not.** The textures are procedural, not photographs, so up close
@@ -225,7 +244,8 @@ under the torch they are plainer than the real thing. There are no people in
 it. Only the ground floor of the house is built: the stair is boxed in behind
 a door that is shut, and the upstairs windows are still painted on.
 `?pose=x,z,yaw,pitch`, `?time=`, `?torch=1` and `?tape=0` pin the
-camera, the clock and the filters for repeatable captures.
+camera, the clock and the filters for repeatable captures, and `?lines=270`
+draws at half the usual 540 lines for a machine that is struggling.
 
 ## Cutscenes
 

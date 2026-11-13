@@ -11,13 +11,14 @@ const $ = (id) => document.getElementById(id);
 
 // ?pose=x,z,yaw,pitch  ?time=12  ?torch=1  ?tape=0  ?manual=1 -- for
 // repeatable captures and for the test harness, which drives frames itself.
+// ?lines=270 draws the scene at half the usual 540 lines, for a slow machine.
 const q = new URLSearchParams(location.search);
 const num = (k) => (q.has(k) ? Number(q.get(k)) : undefined);
 
 function start(saved = {}) {
   const farm = new Farm($('view'), {
     pose: q.has('pose') ? q.get('pose').split(',').map(Number) : saved.pose || null,
-    time: num('time'), torch: num('torch') || saved.torch, tape: num('tape'),
+    time: num('time'), torch: num('torch') || saved.torch, tape: num('tape'), lines: num('lines'),
     manual: q.has('manual'), autostart: q.has('pose') || q.has('manual'),
   });
   window.farm = farm;
@@ -40,6 +41,7 @@ function start(saved = {}) {
   $('torch').addEventListener('click', () => { farm.begin(); farm.torch = !farm.torch; });
   $('run').addEventListener('click', () => { farm.begin(); farm.running = !farm.running; });
   $('tape').addEventListener('click', () => { farm.begin(); farm.tape = farm.tape ? 0 : 1; });
+  $('use').addEventListener('click', () => { farm.begin(); farm.use(); });
 
   const stick = $('stick'), knob = $('knob');
   farm.onStick = (x, y, dx, dy) => {
@@ -63,6 +65,23 @@ function start(saved = {}) {
     $('run').setAttribute('aria-pressed', String(!!farm.running));
     $('tape').setAttribute('aria-pressed', String(!!farm.tape));
   }, 200);
+
+  // What you are looking at and could use, and anything it has to say back.
+  // Polled faster than the counter: a prompt that lags the view feels broken.
+  let shown = null, said = null;
+  setInterval(() => {
+    const playing = farm.state === 'playing';
+    const prompt = playing ? farm.prompt : null;
+    if (prompt !== shown) {
+      shown = prompt;
+      $('prompt').hidden = !prompt;
+      if (prompt) $('what').textContent = prompt;
+      $('use').disabled = !prompt;
+    }
+    const msg = farm.message && farm.message.until > (farm.clock || 0) ? farm.message.text : null;
+    if (msg !== said) { said = msg; $('say').hidden = !msg; $('say').textContent = msg || ''; }
+    $('dot').hidden = !playing;
+  }, 80);
 
   // Where the page is hosted somewhere that can swap in a new version under a
   // running game, hand it where the player is standing so they stay there.

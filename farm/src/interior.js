@@ -52,9 +52,16 @@ export function buildInterior(m, w, M, H, env) {
   const cloth = (r, g, b, more = {}) => ({ layer: L.fabric, col: [r, g, b], ...more });
   const glow = (col, emit) => ({ layer: L.plain, col, emit });
 
-  const light = (p, color, range, room, more = {}) => w.lights.push({
-    pos: xformPoint(M, [p[0], p[1] + F, p[2]]), color, range, dir: [0, -1, 0], cos: -2, mode: 1, room, ...more,
-  });
+  // `group` names the switch a light answers to (see world.js: groups).
+  const light = (p, color, range, room, group, more = {}) => {
+    const l = { pos: xformPoint(M, [p[0], p[1] + F, p[2]]), color, range, dir: [0, -1, 0], cos: -2, mode: 1, room, ...more };
+    w.lights.push(l);
+    w.groups[group].lights.push(l);
+  };
+  /** Something that can be used, placed wherever the builder currently is. */
+  const usable = (local, reach, what) => w.things.push({ pos: xformPoint(m.m, local), reach, ...what });
+  /** A glowing piece that a switch turns off: built apart so it can be dimmed. */
+  const glows = (group, fn, more = {}) => w.groups[group].parts.push(Object.assign(m.part(fn), more));
   const at = (x, y, z, yaw, fn) => m.at(chain(translate(x, y, z), rotY(yaw || 0)), fn);
 
   /* ---- pieces used in more than one room ---- */
@@ -76,12 +83,34 @@ export function buildInterior(m, w, M, H, env) {
   const LANDSCAPE = [0.02, 0.05, 0.48, 0.95], PORTRAIT = [0.56, 0.08, 0.94, 0.96];
 
   /** A lamp: turned base, a shade, and a bulb that is either on or not. */
-  const lamp = (h, shadeR, on, base = china) => {
+  const lamp = (h, shadeR, group, base = china) => {
     lathe(m, [[0.07, 0], [0.075, 0.012], [0.03, 0.03], [0.05, h * 0.2], [0.062, h * 0.34], [0.03, h * 0.5], [0.012, h * 0.56], [0.012, h * 0.74]], 16, base);
     const s0 = h * 0.62, s1 = h;
-    lathe(m, [[shadeR, s0], [shadeR * 0.62, s1]], 20, cloth(0.92, 0.82, 0.6, on ? { emit: 0.85 } : {}));
-    if (on) m.at(translate(0, h * 0.8, 0), () => sphere(m, 0.03, 8, glow(WARM, 3)));
+    glows(group, () => {
+      lathe(m, [[shadeR, s0], [shadeR * 0.62, s1]], 20, cloth(0.92, 0.82, 0.6, { emit: 0.85 }));
+      m.at(translate(0, h * 0.8, 0), () => sphere(m, 0.03, 8, glow(WARM, 3)));
+    });
+    usable([0, h * 0.8, 0], 1.9, { group, noun: 'the lamp' });
   };
+
+  /** A panelled door leaf: hinge on the local Y axis, running along +X. */
+  const leaf = (dw, dh) => () => {
+    const half = dw / 2;
+    roundBox(m, half, dh / 2, 0, dw, dh, 0.045, 0.006, 1, { layer: L.plain, col: [0.72, 0.7, 0.62] });
+    for (const z of [-0.026, 0.026]) for (const [fx, fy, ph] of [[-1, 0.79, 0.26], [1, 0.79, 0.26], [-1, 0.485, 0.23], [1, 0.485, 0.23], [-1, 0.2, 0.25], [1, 0.2, 0.25]]) {
+      roundBox(m, half + fx * dw * 0.223, dh * fy, z, dw * 0.32, dh * ph, 0.012, 0.005, 1, { layer: L.plain, col: [0.64, 0.62, 0.55] });
+    }
+    for (const z of [-1, 1]) m.at(chain(translate(dw - 0.07, 1.0, z * 0.022), rotX(z * Math.PI / 2)), () => lathe(m, [[0.03, 0], [0.03, 0.008], [0.012, 0.014], [0.012, 0.04], [0.03, 0.052], [0.032, 0.066], [0.02, 0.08], [0, 0.082]], 14, brass));
+  };
+  /**
+   * Hang a door. It sits in the outer face of the wall, so that its outside
+   * is lit by the porch and its inside by the hall, and swings into the room.
+   */
+  const hang = (x, z, dw, dh, shut, open) => at(x, 0, z, 0, () => {
+    const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
+    w.boxes.push(box);
+    w.doors.push({ kind: 'swing', noun: 'door', site: env.site, part: m.part(leaf(dw, dh)), box, hinge: [x, z], width: dw, shut, open });
+  });
 
   /** A dining chair, facing +Z, with its origin on the floor under the seat. */
   const chair = (seat) => {
@@ -138,24 +167,15 @@ export function buildInterior(m, w, M, H, env) {
       skirt(x, -ID, x, DOOR[0] - 0.09); skirt(x, DOOR[1] + 0.09, x, ID);
     }
 
-    // The front door, standing open into the hall.
-    at(-0.475, 0, ID + 0.03, 0, () => m.at(rotY(1.75), () => {
-      const dw = 0.94, dh = 2.03;
-      roundBox(m, dw / 2, dh / 2, 0, dw, dh, 0.045, 0.006, 1, { layer: L.plain, col: [0.72, 0.7, 0.62] });
-      for (const z of [-0.026, 0.026]) for (const [px, py, pw, ph] of [[0.26, 1.6, 0.3, 0.52], [0.68, 1.6, 0.3, 0.52], [0.26, 0.98, 0.3, 0.46], [0.68, 0.98, 0.3, 0.46], [0.26, 0.4, 0.3, 0.5], [0.68, 0.4, 0.3, 0.5]]) {
-        roundBox(m, px, py, z, pw, ph, 0.012, 0.005, 1, { layer: L.plain, col: [0.64, 0.62, 0.55] });
-      }
-      for (const z of [-1, 1]) m.at(chain(translate(0.87, 1.0, z * 0.022), rotX(z * Math.PI / 2)), () => lathe(m, [[0.03, 0], [0.03, 0.008], [0.012, 0.014], [0.012, 0.04], [0.03, 0.052], [0.032, 0.066], [0.02, 0.08], [0, 0.082]], 14, brass));
-    }));
-    run(-0.475, ID, -0.64, ID - 0.9, 0.04);
+    // Front and back doors, both shut and neither locked.
+    hang(-0.47, H.hd - 0.02, 0.94, 2.03, 0, 1.75);
+    hang(2.75, -H.hd + 0.02, 0.9, 1.98, Math.PI, Math.PI + 1.75);
     m.quad([-0.5, 0.01, ID - 0.15], [0.5, 0.01, ID - 0.15], [0.5, 0.01, ID - 0.85], [-0.5, 0.01, ID - 0.85], cloth(0.3, 0.26, 0.2));   // mat
 
-    // The back door, shut, seen from inside.
+    // Casing round the back doorway, inside.
     at(2.3, 0, -ID, 0, () => {
-      m.quad([-0.45, 0, 0.006], [0.45, 0, 0.006], [0.45, 2.0, 0.006], [-0.45, 2.0, 0.006], { layer: L.door, fit: true });
       for (const s of [-1, 1]) m.box(s * 0.5, 1.03, 0.012, 0.1, 2.06, 0.024, white);
       m.box(0, 2.06, 0.014, 1.2, 0.11, 0.028, white);
-      m.at(chain(translate(0.36, 1.0, 0.012), rotX(Math.PI / 2)), () => lathe(m, [[0.03, 0], [0.012, 0.012], [0.012, 0.04], [0.03, 0.052], [0.03, 0.068], [0, 0.08]], 14, brass));
     });
 
     /* ================================================================ hall */
@@ -169,6 +189,7 @@ export function buildInterior(m, w, M, H, env) {
         for (const s of [-1, 1]) m.box(s * 0.42, 1.03, 0.012, 0.08, 2.06, 0.024, white);
         m.box(0, 2.06, 0.014, 0.94, 0.1, 0.028, white);
         m.at(chain(translate(0.3, 1.0, 0.012), rotX(Math.PI / 2)), () => lathe(m, [[0.028, 0], [0.012, 0.012], [0.012, 0.04], [0.028, 0.052], [0.028, 0.066], [0, 0.078]], 14, brass));
+        usable([0.1, 1.05, 0.05], 2.0, { locked: true, noun: 'door', say: 'It\'s locked.' });
       });
       run(sx0, sz, sx1, sz); run(sx0, -ID, sx0, sz);
       skirt(sx0, sz + e, sx1, sz + e); skirt(sx0 - e, -ID, sx0 - e, sz);
@@ -181,10 +202,11 @@ export function buildInterior(m, w, M, H, env) {
         m.box(0, 0.72, 0, 0.3, 0.12, 0.92, oak);
         for (const z of [-0.22, 0.22]) m.at(chain(translate(-0.15, 0.72, z), rotZ(Math.PI / 2)), () => lathe(m, [[0.014, 0], [0.006, 0.008], [0.006, 0.02], [0.015, 0.028], [0.012, 0.038], [0, 0.04]], 10, brass));
         for (const [x, z] of [[-0.14, -0.45], [0.14, -0.45], [-0.14, 0.45], [0.14, 0.45]]) leg(x, z, 0.66, 0.022, oak, 10);
-        at(0.02, 0.815, 0.3, 0, () => lamp(0.46, 0.15, true, { layer: L.plain, col: [0.3, 0.42, 0.36], gloss: 0.9 }));
+        at(0.02, 0.815, 0.3, 0, () => lamp(0.46, 0.15, 'hall', { layer: L.plain, col: [0.3, 0.42, 0.36], gloss: 0.9 }));
         at(-0.04, 0.815, 0.0, 0.2, () => bowl(0.07, 0.035, brass));
         // A rotary telephone: body, cradle, handset, dial, and a coiled cord.
         at(0, 0.815, -0.26, -0.25, () => {
+          usable([0, 0.1, 0], 1.7, { label: 'Pick up the telephone', say: 'The line is dead.' });
           roundBox(m, 0, 0.045, 0, 0.2, 0.09, 0.22, 0.035, 3, black);
           m.at(chain(translate(0, 0.07, 0.04), rotX(-0.5)), () => {
             lathe(m, [[0.062, 0], [0.066, 0.006], [0.062, 0.012], [0.03, 0.012]], 20, { layer: L.plain, col: [0.6, 0.6, 0.56], gloss: 0.8 });
@@ -226,6 +248,7 @@ export function buildInterior(m, w, M, H, env) {
 
       // The clock at the end of the passage.
       at(-0.45, 0, -ID + 0.17, 0, () => {
+        usable([0, 1.6, 0.2], 1.9, { label: 'Look at the clock', say: 'Twenty to midnight. It has stopped.' });
         roundBox(m, 0, 0.26, 0, 0.5, 0.52, 0.3, 0.012, 1, dark);
         roundBox(m, 0, 1.05, 0, 0.38, 1.1, 0.24, 0.01, 1, dark);
         m.quad([-0.13, 0.62, 0.122], [0.13, 0.62, 0.122], [0.13, 1.5, 0.122], [-0.13, 1.5, 0.122], pit);
@@ -243,7 +266,7 @@ export function buildInterior(m, w, M, H, env) {
 
       at(sx0 - 0.004, 1.5, -1.6, -Math.PI / 2, () => frame(0.3, 0.4, PORTRAIT));
       at(sx0 - 0.004, 1.52, -2.3, -Math.PI / 2, () => frame(0.26, 0.34, PORTRAIT, oak));
-      light([0.72, 1.2, 2.8], WARM.map((c) => c * 0.62), 6.5, [-PX + 0.06, -ID, PX - 0.06, ID]);
+      light([0.72, 1.2, 2.8], WARM.map((c) => c * 0.62), 6.5, [-PX + 0.06, -ID, PX - 0.06, ID], 'hall');
     }
 
     /* ======================================================== dining room */
@@ -286,10 +309,13 @@ export function buildInterior(m, w, M, H, env) {
         tube(m, [[0, CH, 0], [0, 1.95, 0]], 0.006, 6, pit, false);
         lathe(m, [[0.03, CH - 0.03], [0.05, CH - 0.03], [0.05, CH], [0, CH]], 14, brass);
         lathe(m, [[0.03, 1.98], [0.045, 1.93], [0.24, 1.76], [0.25, 1.74], [0.236, 1.74], [0.04, 1.9]], 24, { layer: L.plain, col: [0.16, 0.3, 0.24], gloss: 0.9 });
-        lathe(m, [[0.228, 1.746], [0.04, 1.895]], 24, glow([1, 0.86, 0.6], 1.2));
-        m.at(translate(0, 1.8, 0), () => sphere(m, 0.04, 12, glow(WARM, 4)));
+        glows('dining', () => {
+          lathe(m, [[0.228, 1.746], [0.04, 1.895]], 24, glow([1, 0.86, 0.6], 1.2));
+          m.at(translate(0, 1.8, 0), () => sphere(m, 0.04, 12, glow(WARM, 4)));
+        });
+        usable([0, 1.8, 0], 2.4, { group: 'dining', noun: 'the light' });
       });
-      light([TX, 1.72, TZ], WARM.map((c) => c * 0.95), 8, [-IW, -ID, -PX - 0.06, ID]);
+      light([TX, 1.72, TZ], WARM.map((c) => c * 0.95), 8, [-IW, -ID, -PX - 0.06, ID], 'dining');
 
       // Sideboard on the kitchen wall.
       at(-3.66, 0, -ID + 0.25, 0, () => {
@@ -502,9 +528,10 @@ export function buildInterior(m, w, M, H, env) {
       // A globe on the ceiling, left on.
       at(H.lean.x, KH, -4.75, 0, () => {
         lathe(m, [[0.07, 0], [0.07, -0.03], [0.04, -0.045]], 16, enamel);
-        m.at(translate(0, -0.14, 0), () => sphere(m, 0.11, 18, glow([1, 0.94, 0.76], 1.5)));
+        glows('kitchen', () => m.at(translate(0, -0.14, 0), () => sphere(m, 0.11, 18, glow([1, 0.94, 0.76], 1.5))));
+        usable([0, -0.14, 0], 2.6, { group: 'kitchen', noun: 'the light' });
       });
-      light([H.lean.x, KH - 0.2, -4.75], [0.6, 0.56, 0.43], 6.5, [KX0, KN, KX1, KS + 0.2]);
+      light([H.lean.x, KH - 0.2, -4.75], [0.6, 0.56, 0.43], 6.5, [KX0, KN, KX1, KS + 0.2], 'kitchen');
     }
 
     /* ======================================================== living room */
@@ -580,11 +607,11 @@ export function buildInterior(m, w, M, H, env) {
         lathe(m, [[0.23, 0.56], [0.24, 0.575], [0.22, 0.59], [0, 0.592]], 24, { ...oak, gloss: 0.5 });
         lathe(m, [[0, 0.56], [0.23, 0.56]], 24, oak);
         lathe(m, [[0.16, 0], [0.17, 0.014], [0.04, 0.04], [0.03, 0.1], [0.045, 0.28], [0.03, 0.42], [0.06, 0.52], [0.1, 0.56]], 16, oak);
-        at(0.02, 0.592, 0, 0, () => lamp(0.5, 0.17, true, { layer: L.plain, col: [0.5, 0.26, 0.16], gloss: 0.9 }));
+        at(0.02, 0.592, 0, 0, () => lamp(0.5, 0.17, 'living', { layer: L.plain, col: [0.5, 0.26, 0.16], gloss: 0.9 }));
         at(-0.13, 0.592, 0.12, 0.6, () => mug({ layer: L.plain, col: [0.3, 0.4, 0.5], gloss: 0.9 }));
       });
       obb(LX0 + 0.3, -3.1, 0.27, 0.24);
-      light([LX0 + 0.34, 1.0, -2.95], WARM.map((c) => c * 0.7), 6, [LX0, -ID, IW, ID]);
+      light([LX0 + 0.34, 1.0, -2.95], WARM.map((c) => c * 0.7), 6, [LX0, -ID, IW, ID], 'living');
 
       // Coffee table: a paper, a magazine, an ashtray, the remote.
       at(2.85, 0, -1.85, 0, () => {
@@ -666,7 +693,9 @@ export function buildInterior(m, w, M, H, env) {
         });
         roundBox(m, 0, 0.82, 0, 0.74, 0.58, 0.5, 0.045, 3, { layer: L.grain, col: [0.62, 0.5, 0.42], gloss: 0.6 });
         roundBox(m, -0.07, 0.83, 0.246, 0.52, 0.44, 0.02, 0.03, 3, black);
-        roundBox(m, -0.07, 0.83, 0.256, 0.46, 0.38, 0.012, 0.045, 3, { layer: L.static, emit: 1.7, gloss: 1, tile: 0.7 });
+        // The screen goes dark when the set is switched off, not merely unlit.
+        glows('tv', () => roundBox(m, -0.07, 0.83, 0.256, 0.46, 0.38, 0.012, 0.045, 3, { layer: L.static, emit: 1.7, gloss: 1, tile: 0.7 }), { offTint: [0.02, 0.022, 0.026] });
+        usable([-0.07, 0.83, 0.3], 2.3, { group: 'tv', noun: 'the television' });
         for (const y of [0.98, 0.9]) m.at(chain(translate(0.27, y, 0.25), rotX(Math.PI / 2)), () => lathe(m, [[0.03, 0], [0.03, 0.008], [0.022, 0.012], [0.022, 0.03], [0, 0.032]], 14, { layer: L.plain, col: [0.5, 0.5, 0.48], gloss: 0.9 }));
         m.quad([0.215, 0.6, 0.252], [0.325, 0.6, 0.252], [0.325, 0.82, 0.252], [0.215, 0.82, 0.252], { layer: L.metal, col: [0.12, 0.12, 0.12], tile: 0.12 });
         at(0.06, 1.11, -0.05, 0, () => {                                            // the aerial
@@ -675,7 +704,7 @@ export function buildInterior(m, w, M, H, env) {
         });
       });
       obb(3.82, 2.82, 0.5, 0.5);
-      light([3.44, 0.86, 2.44], [0.26, 0.36, 0.62], 5.5, [LX0, -ID, IW, ID], { tv: true });
+      light([3.44, 0.86, 2.44], [0.26, 0.36, 0.62], 5.5, [LX0, -ID, IW, ID], 'tv', { tv: true });
 
       at(LX0 + 0.004, 1.6, -1.85, Math.PI / 2, () => frame(0.8, 0.56, LANDSCAPE));
     }

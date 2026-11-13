@@ -135,14 +135,18 @@ function fitWindow(m, x, y, w, h, t, cloth) {
   for (const s of [-1, 1]) tube(m, [[x + s * (w / 2 + 0.12), rod, zi], [x + s * (w / 2 + 0.12), rod, zr]], 0.007, 6, { layer: L.plain, col: [0.3, 0.22, 0.12] }, false);
   for (const s of [-1, 1]) {
     const left = s < 0 ? x - w / 2 - 0.1 : x + w / 2 + 0.1 - pw;
-    m.at(translate(left, y - 0.2, zr), () => drape(m, pw, h + 0.32, Math.max(2, Math.round(pw / 0.11)), 0.022, cloth));
+    m.at(translate(left, y - 0.2, zr), () => {
+      const hang = () => drape(m, pw, h + 0.32, Math.max(2, Math.round(pw / 0.11)), 0.022, cloth);
+      // Curtains lit from behind belong to their room's switch: when the lamp
+      // goes off they stop glowing, so they are kept as a separate part.
+      if (cloth.glowsWith) cloth.glowsWith.parts.push(m.part(hang)); else hang();
+    });
   }
 }
 
-/** A shut door, as a panelled face inside a casing. */
-function door(m, x, y, w, h) {
+/** The casing round a doorway, outside. The door itself is hung separately. */
+function casing(m, x, y, w, h) {
   const trim = { layer: L.plain, col: TRIM };
-  m.quad([x - w / 2, y, 0.03], [x + w / 2, y, 0.03], [x + w / 2, y + h, 0.03], [x - w / 2, y + h, 0.03], { layer: L.door, fit: true });
   m.box(x - w / 2 - 0.06, y + h / 2, 0.04, 0.12, h + 0.12, 0.08, trim);
   m.box(x + w / 2 + 0.06, y + h / 2, 0.04, 0.12, h + 0.12, 0.08, trim);
   m.box(x, y + h + 0.07, 0.05, w + 0.34, 0.14, 0.1, trim);
@@ -184,7 +188,7 @@ function buildHouse(m, w) {
   // What the inside of each outside wall is finished in, room by room.
   const dining = { layer: L.wallpaper }, hall = { layer: L.plaster, col: [0.9, 0.86, 0.76] };
   const living = { layer: L.wallpaper, col: [0.8, 0.88, 0.86] }, kitchen = { layer: L.plaster, col: [0.84, 0.88, 0.76] };
-  const sheer = { layer: L.fabric, col: [0.9, 0.84, 0.7], emit: 0.16 };       // lit from behind
+  const sheer = { layer: L.fabric, col: [0.9, 0.84, 0.7], emit: 0.16, glowsWith: w.groups.dining };   // lit from behind
   const heavy = { layer: L.fabric, col: [0.36, 0.22, 0.2] };
   const win = (x, y0, wd, hg) => ({ x0: x - wd / 2, x1: x + wd / 2, y0, y1: y0 + hg });
 
@@ -216,9 +220,7 @@ function buildHouse(m, w) {
     m.at(translate(0, 0, hd), () => {
       const holes = [{ x0: -0.475, x1: 0.475, y0: F, y1: F + 2.05 }, win(-2.75, F + 0.85, 1.0, 1.5), win(2.75, F + 0.85, 1.0, 1.5)];
       for (const [a, b, inner] of [[-hw, -1.1, dining], [-1.1, 1.1, hall], [1.1, hw, living]]) wall(m, a, b, F, SP, holes, low, inner, WT, trim);
-      m.box(-0.535, F + 1.085, 0.04, 0.12, 2.17, 0.08, trim);                               // front door casing
-      m.box(0.535, F + 1.085, 0.04, 0.12, 2.17, 0.08, trim);
-      m.box(0, F + 2.12, 0.05, 1.29, 0.14, 0.1, trim);
+      casing(m, 0, F, 0.95, 2.05);
       fitWindow(m, -2.75, F + 0.85, 1.0, 1.5, WT, sheer);
       fitWindow(m, 2.75, F + 0.85, 1.0, 1.5, WT, heavy);
       sashWindow(m, -2.75, 4.15, 0.95, 1.3, false);
@@ -248,16 +250,17 @@ function buildHouse(m, w) {
       // Seen from behind the house, so left and right are swapped: the living
       // room is on the low side, and the stretch the lean-to covers is a
       // kitchen wall on its outer face, with the doorway through to it.
-      const holes = [win(-3.7, F + 0.95, 0.8, 1.3), { x0: 1.95, x1: 2.95, y0: F, y1: F + 2.05 }];
+      const holes = [win(-3.7, F + 0.95, 0.8, 1.3), { x0: 1.95, x1: 2.95, y0: F, y1: F + 2.05 }, { x0: -2.75, x1: -1.85, y0: F, y1: F + 2.0 }];
       const out = (a) => (a >= 0.4 && a < 4.4 ? kitchen : low);
       for (const [a, b, inner] of [[-hw, -1.1, living], [-1.1, 0.4, hall], [0.4, 1.1, hall], [1.1, 4.4, dining], [4.4, hw, dining]]) {
         wall(m, a, b, F, SP, holes, out(a), inner, WT, trim);
       }
-      door(m, -2.3, F, 0.9, 2.0);
+      casing(m, -2.3, F, 0.9, 2.0);
       fitWindow(m, -3.7, F + 0.95, 0.8, 1.3, WT, heavy);
       sashWindow(m, -2.4, 4.15, 0.95, 1.3, false);
       sashWindow(m, 2.4, 4.15, 0.95, 1.3, false);
       m.box(-2.3, F / 2, 0.45, 1.5, F, 0.9, { layer: L.brick, col: [0.62, 0.6, 0.58] });   // back stoop
+      m.box(-2.3, F / 4, 1.05, 1.2, F / 2, 0.3, { layer: L.brick, col: [0.58, 0.56, 0.54] });  // and a step down from it
     });
 
     // Kitchen lean-to off the back.
@@ -266,7 +269,7 @@ function buildHouse(m, w) {
     m.at(chain(translate(lx + lw / 2, 0, -hd - ld / 2), rotY(Math.PI / 2)), () => wall(m, -ld / 2, ld / 2, F, lt, [], low, kitchen, WT, trim));
     m.at(chain(translate(lx, 0, -hd - ld), rotY(Math.PI)), () => {
       wall(m, -lw / 2, lw / 2, F, lt, [win(0, F + 1.0, 1.3, 1.1)], low, kitchen, WT, trim);
-      fitWindow(m, 0, F + 1.0, 1.3, 1.1, WT, { layer: L.fabric, col: [0.86, 0.8, 0.62], emit: 0.14, open: 0.3 });
+      fitWindow(m, 0, F + 1.0, 1.3, 1.1, WT, { layer: L.fabric, col: [0.86, 0.8, 0.62], emit: 0.14, open: 0.3, glowsWith: w.groups.kitchen });
     });
     m.slab([lx + lw / 2 + 0.3, lt - 0.1, -hd - ld - 0.4], [lx - lw / 2 - 0.3, lt - 0.1, -hd - ld - 0.4],
       [lx - lw / 2 - 0.3, lt + 0.75, -hd], [lx + lw / 2 + 0.3, lt + 0.75, -hd], 0.12, top, shade, edge);
@@ -326,14 +329,20 @@ function buildHouse(m, w) {
   // so each is a spot aimed away from the wall to keep it off the far side.
   // These are the outdoor ones (mode 2): the rooms have their own, and a porch
   // light that reached through the front wall would undo every one of them.
-  const lamp = (p, color, range, dir, cos) => w.lights.push({
-    pos: xformPoint(M, p), color, range, mode: 2,
-    dir: dir ? normalize(xformDir(M, dir)) : [0, -1, 0], cos: dir ? cos : -2,
-  });
+  // The ones standing in for light spilling out of a window go off with the
+  // room behind it, so each is handed to that room's switch.
+  const lamp = (p, color, range, dir, cos, room) => {
+    const light = {
+      pos: xformPoint(M, p), color, range, mode: 2,
+      dir: dir ? normalize(xformDir(M, dir)) : [0, -1, 0], cos: dir ? cos : -2,
+    };
+    w.lights.push(light);
+    if (room) room.lights.push(light);
+  };
   lamp([0.85, 2.55, hd + 0.3], WARM.map((c) => c * 2.6), 12);
-  lamp([-2.75, 2.2, hd + 0.2], WARM.map((c) => c * 1.4), 7, [0, -0.55, 1], 0.35);
-  lamp([-hw - 0.2, 2.2, 1.7], WARM.map((c) => c * 2.2), 11, [-1, -0.6, 0], 0.3);
-  lamp([lx, 2.1, -hd - ld - 0.2], WARM.map((c) => c * 1.8), 10, [0, -0.6, -1], 0.3);
+  lamp([-2.75, 2.2, hd + 0.2], WARM.map((c) => c * 1.4), 7, [0, -0.55, 1], 0.35, w.groups.dining);
+  lamp([-hw - 0.2, 2.2, 1.7], WARM.map((c) => c * 2.2), 11, [-1, -0.6, 0], 0.3, w.groups.dining);
+  lamp([lx, 2.1, -hd - ld - 0.2], WARM.map((c) => c * 1.8), 10, [0, -0.6, -1], 0.3, w.groups.kitchen);
   lamp([2.75, 4.8, hd + 0.2], WARM.map((c) => c * 0.8), 6, [0, -0.8, 1], 0.3);
   w.halos.push({ pos: xformPoint(M, [0.85, 2.58, hd + 0.18]), color: WARM, size: 1.5 });
 
@@ -347,7 +356,7 @@ function buildHouse(m, w) {
   const run = (x0, z0, x1, z1, th = 0.07) => obb((x0 + x1) / 2, (z0 + z1) / 2, Math.abs(x1 - x0) / 2 + th, Math.abs(z1 - z0) / 2 + th);
   const c = WT / 2;
   run(-hw, hd - c, -0.475, hd - c); run(0.475, hd - c, hw, hd - c);
-  run(-hw, -hd + c, -2.95, -hd + c); run(-1.95, -hd + c, hw, -hd + c);
+  run(-hw, -hd + c, -2.95, -hd + c); run(-1.95, -hd + c, 1.85, -hd + c); run(2.75, -hd + c, hw, -hd + c);
   run(-hw + c, -hd, -hw + c, hd); run(hw - c, -hd, hw - c, hd);
   run(lx - lw / 2 + c, -hd - ld, lx - lw / 2 + c, -hd); run(lx + lw / 2 - c, -hd - ld, lx + lw / 2 - c, -hd);
   run(lx - lw / 2, -hd - ld + c, lx + lw / 2, -hd - ld + c);
@@ -355,13 +364,12 @@ function buildHouse(m, w) {
     x: S.x, z: S.z, yaw: S.yaw, hx: hw - 0.02, hz: hd - 0.02, ceiling: SP,
     lean: [lx - lw / 2 + 0.02, -hd - ld + 0.02, lx + lw / 2 - 0.02, -hd + 0.02],
   };
-  buildInterior(m, w, M, H, { run, obb, hall, dining, living, kitchen });
+  buildInterior(m, w, M, H, { run, obb, hall, dining, living, kitchen, site: S });
   castShadow(w, S, 0, 0, hw - 0.04, hd - 0.04, 0, T);                  // walls
   castShadow(w, S, 0, 0, hw - 0.04, hd / 2, T, T + rise / 2 - 0.1);    // the roof, as far as a box fits under it
   castShadow(w, S, lx, -hd - ld / 2, lw / 2 - 0.04, ld / 2, 0, lt);
   obb(hw + 0.37, -0.8, 0.42, 0.5);
   obb(hw + 0.3, 2.0, 0.32, 1.2);                 // woodpile
-  obb(2.3, -hd - 0.45, 0.8, 0.5);                // back stoop
   obb(-2.725, hd + pd - 0.1, 1.775, 0.08);       // porch rails either side of the steps
   obb(2.725, hd + pd - 0.1, 1.775, 0.08);
   obb(-4.4, hd + pd / 2, 0.08, pd / 2);
@@ -424,7 +432,7 @@ function buildBarn(m, w) {
 
     // Sliding doors on a rail. The left leaf is shut; the right has been
     // rolled back just far enough to walk through.
-    const leaf = (x0) => m.at(translate(x0, 0.06, hl + 0.11), () => {
+    const leafShape = () => {
       const lw = doorW, lh = doorH;
       m.box(lw / 2, lh / 2, 0, lw, lh, 0.06, { layer: L.barn, col: [0.86, 0.84, 0.84] });
       const t = { layer: L.plain, col: TRIM };
@@ -434,9 +442,16 @@ function buildBarn(m, w) {
         stick(m, [0.12, y0 + 0.14, 0.04], [lw - 0.12, y0 + lh / 2 - 0.12, 0.04], 0.025, 0.13, t);
         stick(m, [0.12, y0 + lh / 2 - 0.12, 0.04], [lw - 0.12, y0 + 0.14, 0.04], 0.025, 0.13, t);
       }
+    };
+    m.at(translate(-doorW, 0.06, hl + 0.11), leafShape);
+    // The right-hand leaf is the one that moves: it starts where it was left,
+    // rolled most of the way back, and can be slid shut or right open.
+    const box = { x: 0, z: 0, hx: 0, hz: 0, yaw: 0 };
+    w.boxes.push(box);
+    w.doors.push({
+      kind: 'slide', noun: 'barn door', site: SITE.barn, part: m.part(leafShape), box,
+      shutX: 0, openX: doorW, start: ajar / doorW, y: 0.06, z: hl + 0.11, width: doorW, reach: 2.8,
     });
-    leaf(-doorW);
-    leaf(ajar);
     m.box(0.65, doorH + 0.26, hl + 0.13, doorW * 2 + ajar + 0.4, 0.07, 0.07, { layer: L.plain, col: [0.12, 0.12, 0.13] });
 
     // Hayloft door and hoist beam in the gable.
@@ -497,7 +512,7 @@ function buildBarn(m, w) {
   castShadow(w, S, 0, 0, kneeX - 0.1, hl - 0.04, wall, kneeY - 0.15);
   obb(0, -hl, hw, 0.14);
   obb((-hw - doorW) / 2, hl, (hw - doorW) / 2, 0.14);
-  obb((hw + ajar) / 2, hl + 0.05, (hw - ajar) / 2, 0.18);   // wall plus the rolled-back leaf
+  obb((hw + doorW) / 2, hl, (hw - doorW) / 2, 0.14);        // the sliding leaf brings its own
   obb(-doorW / 2, hl + 0.1, doorW / 2, 0.1);                // the shut leaf
   for (const sx of [-1, 1]) for (const z of [-3.5, 0, 3.5]) obb(sx * 1.9, z, 0.13, 0.13);
   obb(-3.2, -5.4, 1.0, 0.7);
@@ -606,6 +621,7 @@ function buildProps(m, w) {
   const T = SITE.truck;
   buildTruck(m, siteMatrix(T));
   w.boxes.push({ x: T.x, z: T.z, hx: 1.03, hz: 2.74, yaw: T.yaw });
+  w.things.push({ pos: xformPoint(siteMatrix(T), [-1.0, 1.15, -0.25]), reach: 1.9, locked: true, noun: 'truck', say: 'It\'s locked.' });
   for (const b of TRUCK_BOXES) castShadow(w, T, ...b);
 
   // Paddock: round bales and a water trough.
@@ -739,6 +755,8 @@ export function floorHeight(x, z) {
   const { hw, hd, porch, found, lean } = H;
   if (Math.abs(lx) < hw && lz > -hd && lz <= hd + porch) return found;          // the rooms and the porch
   if (Math.abs(lx - lean.x) < lean.w / 2 && lz > -hd - lean.d && lz <= -hd) return found;   // the kitchen
+  if (Math.abs(lx - 2.3) < 0.75 && lz > -hd - 0.9 && lz <= -hd) return found;               // the back step
+  if (Math.abs(lx - 2.3) < 0.6 && lz > -hd - 1.2 && lz <= -hd - 0.9) return found / 2;
   if (Math.abs(lx) < 0.95 && lz > hd + porch && lz < hd + porch + 0.6) return found * (1 - (lz - hd - porch) / 0.6);
   return groundHeight(x, z);
 }
@@ -777,7 +795,12 @@ export function inBounds(x, z) {
 }
 
 export function build() {
-  const w = { lights: [], halos: [], boxes: [], trunks: [], tufts: [], occluders: [], treeCount: 0 };
+  const room = () => ({ on: true, lights: [], parts: [] });
+  const w = {
+    lights: [], halos: [], boxes: [], trunks: [], tufts: [], occluders: [], treeCount: 0,
+    doors: [], things: [],                                   // what can be used
+    groups: { hall: room(), dining: room(), kitchen: room(), living: room(), tv: room() },   // what a switch works
+  };
   const m = new Mesh(TILES);
   buildTerrain(m);
   buildHouse(m, w);
@@ -786,7 +809,8 @@ export function build() {
   buildProps(m, w);
   buildForest(m, w);
   return {
-    vertices: m.finish(), vertexCount: m.count,
+    vertices: m.finish(), vertexCount: m.count, fixedCount: m.fixed, parts: m.parts,
+    doors: w.doors, things: w.things, groups: w.groups,
     lights: w.lights, halos: w.halos, boxes: w.boxes, trunks: w.trunks, occluders: w.occluders, treeCount: w.treeCount,
     house: w.house,
   };
