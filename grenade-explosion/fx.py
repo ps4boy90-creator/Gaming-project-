@@ -66,6 +66,7 @@ def streak_mesh(name, p, v, size, shutter, shape=None, min_len=1.0, width_scale=
 
 class Blast:
     """Owns the non-fluid blast elements and updates them for a given time since detonation."""
+    SPARKS = False   # glowing fragment streaks: stylised, not something a real camera sees, so off by default
     def __init__(self, col, seed=5):
         rng = np.random.default_rng(seed)
         self.col = col
@@ -103,7 +104,7 @@ class Blast:
         p, v, air = self.frags.state(td)
         life = self.frag_life * frag_reach
         fade = np.clip(1.0 - td / life, 0, 1) * air
-        keep = fade > 0.02
+        keep = (fade > 0.02) & self.SPARKS
         if keep.any():
             me = streak_mesh("frags", p[keep], v[keep], (self.frags.size * (0.35 + 0.65 * fade))[keep], shutter, width_scale=frag_width)
         else:
