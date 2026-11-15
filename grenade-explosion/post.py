@@ -13,6 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 W, H, FPS = 1920, 1080, 24
 SR = 48000
 ORDER = ["card", "throw", "follow", "macro", "flash", "blast", "top"]
+TRIM_HEAD = {"macro": 8}          # frames dropped from the start of a shot in the edit
 FLASH = [(255, 252, 244), (255, 246, 226), (255, 232, 196)]
 AMBER = (255, 176, 46); RED = (255, 58, 40); INK = (240, 238, 232); DIM = (168, 170, 172); PANEL = (17, 19, 22)
 
@@ -332,6 +333,7 @@ def main():
             continue
         d = os.path.join(root, shot)
         files = sorted(f for f in os.listdir(d) if f.startswith("f") and f.endswith(".png"))
+        files = files[TRIM_HEAD.get(shot, 0):]
         n = len(files); starts[shot] = g
         meta = json.load(open(os.path.join(d, "meta.json"))) if shot != "card" else {}
         idx = [int(f[1:5]) for f in files]
@@ -359,9 +361,10 @@ def main():
     total = g / FPS
     wav = os.path.join(root, "mix.wav")
     build_audio(wav, starts, metas, t_det, total)
-    vf = "unsharp=5:5:0.55:5:5:0.0,vignette=PI/5.5,noise=alls=7:allf=t+u,format=yuv420p"
+    vf = "unsharp=5:5:0.55:5:5:0.0,vignette=PI/7,noise=alls=4:allf=t+u,format=yuv420p"
     cmd = ["ffmpeg", "-y", "-v", "error", "-framerate", str(FPS), "-i", os.path.join(stage, "m%05d.png"), "-i", wav,
-           "-vf", vf, "-c:v", "libx264", "-preset", "medium" if draft else "slow", "-crf", "20" if draft else "16",
+           "-vf", vf, "-c:v", "libx264", "-preset", "medium" if draft else "slow", "-crf", "21" if draft else "18",
+           "-maxrate", "14M", "-bufsize", "28M", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", "-shortest", out]
     subprocess.check_call(cmd)
     print("wrote", out, "%.2fs" % total, starts)

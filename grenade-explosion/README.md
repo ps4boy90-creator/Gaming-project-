@@ -6,6 +6,11 @@ glass-silhouette figure throws an M67; the camera follows the grenade through th
 watches it land and settle, replays the detonation in slow motion, and finishes on a
 top-down view of the 5 m kill radius and 15 m casualty radius.
 
+**Finished video:** [`renders/grenade_m67.mp4`](renders/grenade_m67.mp4) (1920×1080, 24 fps, 19.6 s, with sound).
+
+![Detonation](renders/still_blast.jpg)
+![Top view](renders/still_top.jpg)
+
 | # | Shot | What the camera does | Speed |
 |---|------|----------------------|-------|
 | 1 | `card`   | Studio turntable of the grenade + spec panel | — |
