@@ -32,7 +32,7 @@ top-down view of the 5 m kill radius and 15 m casualty radius.
 - **Detonation** (`sim_bake.py`, `smoke_mat.py`) — Mantaflow gas sim (128³ + wavelet
   up-res): a fuel core that burns out in a few frames, a ground dust skirt, and ~22
   ballistic "dirt jet" emitters that give the spiky high-explosive silhouette.
-- **Extras** (`fx.py`) — analytic dirt clods and glowing fragments (drag + gravity,
+- **Extras** (`fx.py`) — analytic dirt clods (drag + gravity,
   stretched along velocity as cheap motion blur), flash light, landing dust puffs, scorch
   mark + crater, and the emissive radius rings that sit *in* the scene.
 - **Finishing** (`post.py`) — 1080p master, title card, fuze countdown / callouts, grade,
