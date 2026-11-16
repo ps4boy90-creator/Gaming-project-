@@ -27,6 +27,7 @@ earlier segments.
 |------|-------|--------|
 | M777 | 155 mm, 4.2 t, crew 8 (5 minimum), split trail, titanium structure, loading tray | Wikipedia "M777 howitzer" (BAE / US Army data) |
 | Muzzle velocity | 827 m/s at top charge | same |
+| Carriage layout | cradle of four extruded titanium tubes with an accumulator, two recoil cylinders and balancing gear; body with two forward stabilisers and two split trails with self-digging spades and dampers; a hydrogas suspension unit with a road wheel on each side | Army Guide, "M777 (towed howitzer)" |
 | M795 projectile | 103 lb (46.7 kg), 33.2 in (843 mm) with fuze, 23.8 lb (10.8 kg) TNT, max range 22.5 km | General Dynamics OTS brochure |
 | Crew drill | cannoneer 1 opens the loading tray; cannoneer 2 opens the breech; cannoneers 4 and 5 load and ram the round; cannoneer 2 loads the charge and closes the breech; on the section chief's order cannoneer 1 hooks the lanyard and fires; gunner and assistant gunner lay the piece | DVIDS, "On the gun line with cannon cockers" (US Marine Corps) |
 | **Effect radii** | expected **lethal radius 50–150 m**, expected **casualty radius 100–300 m** for a 155 mm HE projectile | Human Rights Watch (2007, 2009), repeated in UN reporting |
@@ -35,10 +36,12 @@ earlier segments.
 
 The rings in the aerial shot are drawn at the **lower bounds** (50 m and 100 m) of those ranges.
 
-Shapes (rear trunnions, four recuperator/buffer cylinders, double-baffle muzzle brake with towing
-eye, swing-up screw breech, loading tray, stabilisers, trails with spades, raised road wheels,
-sight and handwheels; boat-tailed shell with its rotating band, yellow markings and fuze) are
-modelled from public photos.
+Shapes and proportions (low body, A-frame saddle, the four cradle tubes and their yokes, muzzle
+brake with towing eye, swing-up breech, loading tray, flat stabilisers with pads, splayed trails
+with their spades, the raised road wheels, sight and handwheels; the boat-tailed shell with its
+rotating band, yellow markings and fuze) are modelled from six public photos of the gun in US
+service. Where a part cannot be seen in them (the breech mechanism, the tray's mounting, the far
+side of the carriage) it is a plausible stand-in, not a measured copy.
 
 **Not from sources (illustration)**
 
