@@ -253,11 +253,11 @@ def render_card(out_dir, res, spp, frames, n=72):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     pivot = bpy.data.objects.new("Pivot", None); sc.collection.objects.link(pivot)
-    G = h777.build_gun(elev=D(30.0)); G["root"].parent = pivot; G["root"].location = (-0.6, 0, 0)
+    G = h777.build_gun(elev=D(30.0)); G["root"].parent = pivot; G["root"].location = (-0.9, 0, 0)
     G["tray"].rotation_mode = 'QUATERNION'; G["tray"].rotation_quaternion = Quaternion((1, 0, 0), h777.TRAY_STOW)
-    S = h777.Shell(); S.root.parent = pivot; S.root.location = (-1.6, -2.6, 0.0); S.root.rotation_quaternion = aim_quat((0.0, 0.0, 1.0))
-    prof = [(-16.0, 0.0), (6.5, 0.0)] + [(6.5 + 2.4 * math.sin(a), 2.4 * (1 - math.cos(a))) for a in np.linspace(0, math.pi / 2, 12)[1:]] + [(8.9, 16.0)]
-    V = np.array([[x, y, z] for (y, z) in prof for x in (-26.0, 26.0)])
+    S = h777.Shell(); S.root.parent = pivot; S.root.location = (1.2, -2.4, 0.0); S.root.rotation_quaternion = aim_quat((0.0, 0.0, 1.0))
+    prof = [(-80.0, 0.0), (7.5, 0.0)] + [(7.5 + 2.4 * math.sin(a), 2.4 * (1 - math.cos(a))) for a in np.linspace(0, math.pi / 2, 12)[1:]] + [(9.9, 40.0)]
+    V = np.array([[x, y, z] for (y, z) in prof for x in (-60.0, 60.0)])
     new_obj("Backdrop", new_mesh("bd", V, [grid_faces(len(prof), 2)]), None, simple_mat("BackdropMat", (0.64, 0.61, 0.56), rough=0.85))
     w = bpy.data.worlds.new("Studio"); sc.world = w; w.use_nodes = True
     w.node_tree.nodes["Background"].inputs[0].default_value = (0.75, 0.78, 0.82, 1); w.node_tree.nodes["Background"].inputs[1].default_value = 0.30
@@ -265,10 +265,10 @@ def render_card(out_dir, res, spp, frames, n=72):
         L_ = bpy.data.lights.new("a", 'AREA'); L_.size = size; L_.energy = power; L_.color = color
         o = bpy.data.objects.new("a", L_); sc.collection.objects.link(o); o.location = loc
         o.rotation_euler = (Vector((0, 0, 1.4)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
-    area((8.0, -9.0, 9.5), 8.0, 5200, (1.0, 0.96, 0.9)); area((-10.0, -6.0, 3.5), 9.0, 1700, (0.8, 0.9, 1.0)); area((-3.0, 8.0, 8.0), 7.0, 5600)
+    area((8.0, -9.0, 9.5), 8.0, 2500, (1.0, 0.96, 0.9)); area((-10.0, -6.0, 3.5), 9.0, 800, (0.8, 0.9, 1.0)); area((-3.0, 8.0, 8.0), 7.0, 2700)
     cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam")); sc.collection.objects.link(cam); sc.camera = cam
     cam.data.lens = 85; cam.data.clip_start = 0.05; cam.data.sensor_width = 36
-    cam.location = (0.0, -33.0, 2.4); cam.rotation_euler = (math.radians(88.6), 0, 0)
+    cam.location = (0.0, -54.0, 2.6); cam.rotation_euler = (math.radians(88.6), 0, 0)
     cam.data.shift_x = 0.25
     sc.render.engine = 'CYCLES'; c = sc.cycles; c.samples = spp or 20; c.use_denoising = True; c.denoising_quality = 'HIGH'; c.max_bounces = 6
     sc.render.resolution_x, sc.render.resolution_y = res
@@ -279,7 +279,7 @@ def render_card(out_dir, res, spp, frames, n=72):
     os.makedirs(out_dir, exist_ok=True)
     for i in (frames if frames is not None else range(n)):
         u = i / n
-        pivot.rotation_euler = (0, 0, math.radians(128) + math.radians(22) * math.sin(2 * math.pi * u))
+        pivot.rotation_euler = (0, 0, math.radians(125) + math.radians(20) * math.sin(2 * math.pi * u))
         sc.render.filepath = os.path.join(out_dir, "f%04d.png" % i)
         t = time.time(); bpy.ops.render.render(write_still=True)
         print("FRAME card %d %.1fs" % (i, time.time() - t)); sys.stdout.flush()
