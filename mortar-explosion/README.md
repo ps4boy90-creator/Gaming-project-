@@ -6,6 +6,15 @@ down beside a group of old, broken-down masonry buildings 2,000 m away. Everythi
 (Blender as a Python module, Cycles) and shares the terrain, figure, render setup and post tools with
 [`../grenade-explosion`](../grenade-explosion) and [`../rpg7-explosion`](../rpg7-explosion).
 
+**Finished video:** [`renders/mortar120.mp4`](renders/mortar120.mp4) — 1920×1080, 24 fps, 26.5 s, with sound.
+
+| | | |
+|---|---|---|
+| ![card](renders/still_card.jpg) | ![load](renders/still_load.jpg) | ![fire](renders/still_fire.jpg) |
+| ![fall](renders/still_fall.jpg) | ![impact](renders/still_impact.jpg) | ![radius](renders/still_radius.jpg) |
+
+![after](renders/still_after.jpg)
+
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
 | 1 | `card`   | The mortar and a round on a studio backdrop + spec panel | – |

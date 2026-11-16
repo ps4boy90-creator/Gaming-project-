@@ -80,7 +80,7 @@ def overlay_for(shot, i, n, m, info):
             readout(d, "FRAGMENTS REACH", "%d m" % round(rf), 1.0, AMBER, "T + %03d ms" % max(0, round(td * 1000)))
         else:
             a = ease((td - 0.10) / 0.10)
-            callout(d, an["edge"][0] * W, an["edge"][1] * H, "75 m", "BURSTING RADIUS  ·  FM 23-90", RED, a, dx=110, dy=-120)
+            callout(d, an["edge"][0] * W, an["edge"][1] * H, "75 m", "BURSTING RADIUS  ·  FM 23-90", RED, a, dx=-560, dy=-190)
             a2 = ease((td - 0.50) / 0.15)
             if a2 > 0:
                 callout(d, an["m67"][0] * W, an["m67"][1] * H, "15 m", "M67 HAND GRENADE, FOR SCALE", AMBER, a2, dx=-520, dy=110)
@@ -89,7 +89,7 @@ def overlay_for(shot, i, n, m, info):
     elif shot == "after":
         a1 = ease((i - 8) / 8.0) * (1 - ease((i - 40) / 8.0)); a2 = ease((i - 30) / 8.0) * (1 - ease((i - 62) / 8.0))
         if a1 > 0:
-            callout(d, an["crater"][0] * W, an["crater"][1] * H, "IMPACT", "SHALLOW CRATER  ·  SOIL THROWN OUT IN RAYS", RED, a1, dx=170, dy=120)
+            callout(d, an["crater"][0] * W, an["crater"][1] * H, "IMPACT", "SHALLOW CRATER  ·  SOIL THROWN IN RAYS", RED, a1, dx=70, dy=130)
         if a2 > 0:
             callout(d, an["wall"][0] * W, an["wall"][1] * H, "2.7 m AWAY", "FREE-STANDING WALL KNOCKED DOWN", AMBER, a2, dx=-560, dy=-170)
         lower(d, "WHAT IT CAN DO", "One 120 mm HE round  ·  fragments dangerous out to 75 m", ease((i - 46) / 12.0))
