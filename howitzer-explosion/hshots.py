@@ -279,6 +279,8 @@ def render_card(out_dir, res, spp, frames, n=72):
     os.makedirs(out_dir, exist_ok=True)
     for i in (frames if frames is not None else range(n)):
         u = i / n
+        if os.path.exists(os.path.join(out_dir, "f%04d.png" % i)):
+            continue
         pivot.rotation_euler = (0, 0, math.radians(125) + math.radians(20) * math.sin(2 * math.pi * u))
         sc.render.filepath = os.path.join(out_dir, "f%04d.png" % i)
         t = time.time(); bpy.ops.render.render(write_still=True)
