@@ -142,15 +142,15 @@ def _rt(t0, n, cam):
 
 def shot_load(n=90):
     """Breech opens, tray swings in, cannoneers 4 and 5 bring the projectile up and slide it onto the tray."""
-    return _rt(-16.25, n, lambda u, t: ((-4.3 + 0.5 * u, -2.9 + 0.2 * u, 1.95), (-1.25, 0.05, 0.98), 27.0))
+    return _rt(-16.25, n, lambda u, t: ((-4.5 + 0.4 * u, -2.0 + 0.2 * u, 2.85), (-1.20, 0.05, 0.90), 27.0))
 
 def shot_ram(n=52):
     """Seen from beside the breech looking back: the two cannoneers run the projectile home with the rammer staff."""
-    return _rt(-10.5, n, lambda u, t: ((0.25, 1.30 - 0.1 * u, 1.72), (-2.2, -0.05, 0.92), 21.0))
+    return _rt(-10.5, n, lambda u, t: ((1.05, -0.95 + 0.1 * u, 2.55), (-2.1, 0.0, 0.85), 22.0))
 
 def shot_charge(n=90):
     """Cannoneer 2 loads the propelling charge and closes the breech; cannoneer 1 hooks the lanyard."""
-    return _rt(-7.3, n, lambda u, t: ((-2.6 - 0.2 * u, -2.5, 1.55), (-0.85, 0.05, 1.02), 30.0))
+    return _rt(-7.3, n, lambda u, t: ((-3.3 - 0.2 * u, -1.55, 2.60), (-0.75, 0.05, 1.00), 30.0))
 
 def shot_fire(n=112, lead=52):
     """The tube is laid to the firing elevation, the chief drops his arm, the lanyard is pulled - then slow motion."""
@@ -163,8 +163,8 @@ def shot_fire(n=112, lead=52):
             sf = 40 + 2 * (i - lead - 40 + 1); t = (sf - 1) * DT; dt = 2 * DT
         st.set_time(t, dt, {})
         u = i / (n - 1)
-        pos = np.array([8.6 - 0.6 * u, -8.2, 1.55 + 0.25 * u])
-        tgt = np.array([1.6, 0.0, 1.9 + 0.3 * smoothstep(lead / n, 1.0, u)])
+        pos = np.array([6.9 - 0.5 * u, -6.4, 1.50 + 0.20 * u])
+        tgt = np.array([1.4, 0.0, 1.85 + 0.35 * smoothstep(lead / n, 1.0, u)])
         off, rq = shake(t - 0.012, 2.2)
         q = st.look(pos + off, tgt, 23.0)
         st.cam.rotation_quaternion = q @ rq
@@ -204,10 +204,10 @@ def shot_impact(n=120):
         sf, t, dt = _slow(i, 8, 52, 2)
         st.set_time(t, dt, {})
         u = i / (n - 1)
-        pos = np.array([-25.5 - 1.5 * u, -3.3 - 0.4 * u, 1.75 + 0.3 * u])
-        tgt = np.array([1.0, 1.6, 2.6 + 3.0 * smoothstep(0.15, 1.0, u)])
+        pos = np.array([-13.0 - 0.4 * u, -4.5, 1.70 + 0.3 * u])
+        tgt = np.array([0.5, 2.6, 2.8 + 1.6 * smoothstep(0.15, 1.0, u)])
         off, rq = shake(t - T_HIT - 0.06, 2.4)
-        q = st.look(pos + off, tgt, 24.0)
+        q = st.look(pos + off, tgt, 22.0)
         st.cam.rotation_quaternion = q @ rq
         return t, dt, dict(samples=8, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0.5)})
     return n, frame
@@ -221,27 +221,26 @@ def shot_radius(n=96, one=26):
             sf = one + 2 * (i - one + 1); dt = 2 * DT
         td = (sf - 1) * DT; t = T_HIT + td
         r_front = min(C.CASUALTY_R, 900.0 * max(td - 0.004, 0.0))
-        rings = {"lethal": min(C.LETHAL_R, r_front), "casualty": r_front if r_front >= C.LETHAL_R else 0.0, "m67": C.M67_R if td > 0.55 else 0.0,
-                 "fill": C.LETHAL_R if r_front >= C.LETHAL_R else 0.0}
-        st.set_time(t, dt, dict(rings=rings, frag_gain=2.3))
+        rings = {"lethal": min(C.LETHAL_R, r_front), "casualty": r_front if r_front >= C.LETHAL_R else 0.0, "m67": C.M67_R if td > 0.55 else 0.0}
+        st.set_time(t, dt, dict(frag_gain=2.3))
         u = i / (n - 1)
         pos = np.array([-78.0 + 10 * u, -128.0 + 6 * u, 118.0 + 6 * u])
         st.look(pos, np.array([0.0, 8.0, 0.0]), 24.0)
         a_ = D(-48)
         an = {"centre": (0, 0, 0.3), "lethal": (C.LETHAL_R * math.cos(a_), C.LETHAL_R * math.sin(a_), 0.3), "casualty": (C.CASUALTY_R * math.cos(a_), C.CASUALTY_R * math.sin(a_), 0.3),
               "m67": (C.M67_R * math.cos(D(-160)), C.M67_R * math.sin(D(-160)), 0.3)}
-        return t, dt, dict(samples=10, sim=sf, shutter=0.25, anchors=an, extra=dict(r_front=float(r_front)))
+        return t, dt, dict(samples=10, sim=sf, shutter=0.25, anchors=an, extra=dict(r_front=float(r_front)), circles=rings)
     return n, frame
 
 def shot_after(n=84):
     """Aftermath: the crater in the street and the opened house, then up and back over the roofs."""
-    A = np.array([-4.2, -3.6, 1.5]); B = np.array([-9.0, -5.2, 4.5]); E = np.array([-17.0, -11.0, 15.0])
+    A = np.array([-7.0, -4.9, 1.8]); B = np.array([-10.0, -5.4, 5.0]); E = np.array([-17.0, -11.0, 15.0])
     def frame(st, i):
         t = T_HIT + 20.0; dt = 1.0 / FPS
         st.set_time(t, dt, dict(motion_blur=False, frags=False))
         u = smoothstep(0.10, 1.0, i / (n - 1))
         pos = (1 - u) ** 2 * A + 2 * u * (1 - u) * B + u * u * E
-        tgt = lerp(np.array([0.3, 1.8, 1.2]), np.array([1.0, 4.5, 2.2]), smoothstep(0.2, 1.0, u))
+        tgt = lerp(np.array([0.3, 2.4, 2.2]), np.array([1.0, 4.5, 2.2]), smoothstep(0.2, 1.0, u))
         st.look(pos, tgt, 24.0)
         return t, dt, dict(samples=12, anchors={"crater": (0, 0, 0.0), "wall": (0.0, htown.HIT_Y, 3.4)})
     return n, frame
@@ -333,6 +332,11 @@ def main():
         if st.which == "gun":
             m["elev_mils"] = float(math.degrees(hcrew.elev(t)) * 6400 / 360); m["recoil"] = float(C.recoil(t))
         m.update(info.get("extra", {}))
+        for name, r in info.get("circles", {}).items():
+            pts = []
+            for a_ in np.linspace(0, 2 * math.pi, 121):
+                v = world_to_camera_view(sc, st.cam, Vector((r * math.cos(a_), r * math.sin(a_), 0.2))); pts.append([float(v.x), float(1 - v.y)])
+            m["circle_" + name] = pts if r > 0.5 else []
         meta[str(i)] = m
         sc.render.filepath = fp
         bpy.ops.render.render(write_still=True)

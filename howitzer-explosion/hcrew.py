@@ -198,11 +198,11 @@ def pose(name, t):
     held = 1 - smoothstep(-8.3, -8.0, t)
     xb = hp[0] - a[0] * (d0 + d1) / 2 - 0.34
     if t > -8.3:
-        xb = track(t, [(-8.3, xb), (-7.4, -2.6 - 0.5 * (sgn < 0))])
+        xb = track(t, [(-8.3, xb), (-7.4, -3.9 - 0.5 * (sgn < 0))])
     ph = (xb + 5.0) / 0.95
     moving = -10.45 < t < -8.3
     ln = track(t, [(-10.45, 0.12), (-10.05, 0.02), (-9.42, 0.42), (-9.2, 0.30), (-8.3, 0.05)])
-    yb = sgn * (0.47 + 0.45 * smoothstep(-8.3, -7.5, t))
+    yb = sgn * (0.47 + 0.25 * smoothstep(-8.3, -7.5, t))
     p = stand(xb, yb, -4.0 * sgn, lean=ln - 0.05 * k, gait=ph if moving else None, twist=-10.0 * sgn)
     if held > 0:
         _attach(p, "l" if sgn > 0 else "r", hp - a * d0 + np.array([0, sgn * 0.02, 0.0]), held); _attach(p, "r" if sgn > 0 else "l", hp - a * d1 + np.array([0, sgn * 0.02, 0.0]), held)

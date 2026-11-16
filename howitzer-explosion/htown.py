@@ -114,8 +114,8 @@ def sandy(ground, crater_r=None):
         dz = -0.78 * np.exp(-(r / (crater_r * 0.70 * rough)) ** 2) + 0.16 * np.exp(-((r - crater_r * 1.22 * rough) / 0.50) ** 2)
         co = V.copy(); co[:, 2] += dz; sk.data.foreach_set("co", co.astype(np.float32).ravel()); sk.value = 0.0
 
-def desert_hills(col, rng):
-    ob = env.build_hills(col, rng)
+def desert_hills(col, rng, scale=1.0):
+    ob = env.build_hills(col, rng); ob.scale = (scale, scale, scale)
     for nd in ob.data.materials[0].node_tree.nodes:
         if nd.type == 'VALTORGB':
             nd.color_ramp.elements[0].color = (0.20, 0.155, 0.105, 1); nd.color_ramp.elements[1].color = (0.42, 0.34, 0.24, 1)
@@ -226,7 +226,7 @@ class Town:
         new_obj("TownMounds", mg.mesh("mounds"), col, env.mat_vcol("TownDirt", rough=0.95, bump_scale=0.02))
         # --- street furniture: wrecks, barriers, drums, power poles with sagging wires, roof tanks
         pg = Geo()
-        car_wreck(pg, (-11.5, -3.6, 0), 0.25, 1.0); car_wreck(pg, (15.0, 1.0, 0), -2.9, 0.7); car_wreck(pg, (-30.0, -1.5, 0), 1.4, 1.2)
+        car_wreck(pg, (-19.0, -3.8, 0), 0.25, 1.0); car_wreck(pg, (15.0, 1.0, 0), -2.9, 0.7); car_wreck(pg, (-30.0, -1.5, 0), 1.4, 1.2)
         for k, x in enumerate((6.5, 8.6, 10.7)):
             env.box_geo(pg, (2.0, 0.55, 0.85), center=(x, -1.2 + 0.25 * k, 0.42), rot=rot_z(0.12 * k), color=(0.42, 0.40, 0.36, 1))
         poles = [(-38, HIT_Y - 0.6), (-19, HIT_Y - 0.6), (6.0, HIT_Y - 0.6), (24, HIT_Y - 0.6), (-28, -5.4), (0, -5.4), (22, -5.4)]
@@ -292,7 +292,7 @@ CRATER_R = 1.45
 def build_town(sc, seed=11):
     rng = np.random.default_rng(seed); np.random.seed(seed)
     col = bpy.data.collections.new("ENV"); sc.collection.children.link(col)
-    env.make_world(sc); ground = env.build_ground(col); sandy(ground, CRATER_R); env.build_stones(col, rng, -200.0); desert_hills(col, rng)
+    env.make_world(sc); ground = env.build_ground(col); sandy(ground, CRATER_R); env.build_stones(col, rng, -200.0); desert_hills(col, rng, 2.4)
     return col, ground
 
 def build_gun_position(sc, seed=11):
