@@ -109,10 +109,10 @@ def dust_volume_mat(name, color):
 class FragField:
     """Where fragments strike the ground: short radial dust spurts out to the 75 m bursting radius.  The steel
     itself is far too fast to see; these marks are what a camera would record."""
-    def __init__(self, col, seed=4, n=560):
-        rng = np.random.default_rng(seed)
+    def __init__(self, col, seed=4, n=560, rmax=None):
+        rng = np.random.default_rng(seed); rmax = rmax or C.BURST_R
         az = rng.uniform(0, 2 * np.pi, n * 2); keep = rng.random(n * 2) < (0.55 + 0.45 * np.abs(np.sin(az))); az = az[keep][:n]; n = len(az)
-        self.r = rng.uniform(3.5, C.BURST_R + 4.0, n) ** 1.0; self.az = az
+        self.r = rng.uniform(3.5, rmax + 4.0, n) ** 1.0; self.az = az
         self.t = self.r / rng.uniform(650, 1150, n)
         self.len = rng.uniform(0.6, 1.8, n) * (0.45 + self.r / 55.0); self.wid = rng.uniform(0.22, 0.45, n) * (0.55 + self.r / 80.0)
         self.hgt = rng.uniform(0.22, 0.50, n) * (0.6 + self.r / 120.0); self.n = n
@@ -143,9 +143,9 @@ class FragField:
 
 class Ejecta:
     """Clods of earth thrown out of the crater and a short shower of glowing sparks."""
-    def __init__(self, col, seed=8):
+    def __init__(self, col, seed=8, scale=1.0):
         rng = np.random.default_rng(seed)
-        self.clods = fx.Ballistic(800, rng, (5.0, 27.0), (14.0, 80.0), (0.8, 2.2), (0.012, 0.050), origin=(0, 0, 0.15), spread=0.5)
+        self.clods = fx.Ballistic(int(800 * scale), rng, (5.0, 27.0 * scale ** 0.5), (14.0, 80.0), (0.8, 2.2), (0.012, 0.050 * scale ** 0.5), origin=(0, 0, 0.15), spread=0.5 * scale)
         self.sparks = fx.Ballistic(220, rng, (50.0, 230.0), (4.0, 80.0), (5.0, 11.0), (0.008, 0.018), origin=(0, 0, 0.3), spread=0.4)
         self.life = rng.uniform(0.08, 0.32, 220)
         self.c_ob = new_obj("Clods", bpy.data.meshes.new("c"), col, simple_mat("ClodMat", (0.090, 0.062, 0.040), rough=0.95))

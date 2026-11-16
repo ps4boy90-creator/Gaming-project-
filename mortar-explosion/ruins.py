@@ -44,8 +44,9 @@ NEAR = ("C", (-1.8, 2.7), (1.6, 2.7), 0.24, [(0, 1.5), (0.3, 2.0), (0.7, 1.9), (
 RUBBLE = [((6.2, 7.0), 1.5, 150), ((1.0, 9.6), 1.1, 90), ((4.4, 5.2), 0.8, 60), ((11.5, -2.2), 1.4, 130), ((9.3, -0.6), 0.7, 45), ((-8.0, 9.5), 1.2, 90),
           ((7.8, 5.6), 0.8, 50), ((-2.6, 3.9), 0.6, 30), ((19.0, 9.0), 1.3, 80), ((-21.0, -8.5), 1.2, 70), ((1.9, 3.0), 0.45, 22)]
 
-def wall_material():
-    m, N, L, P = nodemat("RuinWall")
+def wall_material(name="RuinWall", c1=(0.25, 0.095, 0.058), c2=(0.36, 0.165, 0.10), mortar=(0.36, 0.33, 0.29), plo=(0.20, 0.175, 0.135), phi=(0.43, 0.39, 0.32),
+                  reach=26.0, soot_r=6.5, origin=(0, 0, 0.6)):
+    m, N, L, P = nodemat(name)
     at = N.new("ShaderNodeAttribute"); at.attribute_name = "col"; sep = N.new("ShaderNodeSeparateColor"); L.new(at.outputs["Color"], sep.inputs[0])
     geo = N.new("ShaderNodeNewGeometry"); spos = N.new("ShaderNodeSeparateXYZ"); L.new(geo.outputs["Position"], spos.inputs[0])
     vec = N.new("ShaderNodeCombineXYZ"); L.new(sep.outputs["Green"], vec.inputs[0]); L.new(spos.outputs["Z"], vec.inputs[1])
@@ -76,29 +77,29 @@ def wall_material():
         n = N.new("ShaderNodeMapRange"); n.interpolation_type = 'SMOOTHSTEP'; n.inputs["From Min"].default_value = lo; n.inputs["From Max"].default_value = hi
         L.new(v, n.inputs["Value"]); return n.outputs["Result"]
     br = N.new("ShaderNodeTexBrick"); br.offset = 0.5; br.inputs["Scale"].default_value = 1.0
-    br.inputs["Color1"].default_value = (0.25, 0.095, 0.058, 1); br.inputs["Color2"].default_value = (0.36, 0.165, 0.10, 1); br.inputs["Mortar"].default_value = (0.36, 0.33, 0.29, 1)
+    br.inputs["Color1"].default_value = (*c1, 1); br.inputs["Color2"].default_value = (*c2, 1); br.inputs["Mortar"].default_value = (*mortar, 1)
     br.inputs["Mortar Size"].default_value = 0.011; br.inputs["Mortar Smooth"].default_value = 0.25; br.inputs["Brick Width"].default_value = BW; br.inputs["Row Height"].default_value = BH
     L.new(vec.outputs[0], br.inputs["Vector"])
     n_big = noise(0.45, 5); n_mid = noise(2.6, 5); n_fine = noise(34, 4)
     brick = mix(1.0, br.outputs["Color"], mix(ramp(n_mid, 0.3, 0.7), (0.55, 0.52, 0.50), (1.15, 1.12, 1.08)), 'MULTIPLY')
-    plaster = mix(1.0, mix(ramp(noise(1.1, 6), 0.30, 0.70), (0.20, 0.175, 0.135), (0.43, 0.39, 0.32)), mix(ramp(n_fine, 0.3, 0.75), (0.80, 0.80, 0.80), (1.10, 1.10, 1.10)), 'MULTIPLY')
+    plaster = mix(1.0, mix(ramp(noise(1.1, 6), 0.30, 0.70), plo, phi), mix(ramp(n_fine, 0.3, 0.75), (0.80, 0.80, 0.80), (1.10, 1.10, 1.10)), 'MULTIPLY')
     pm = ramp(mth('ADD', mth('ADD', mth('MULTIPLY', sep.outputs["Red"], 0.70), mth('MULTIPLY', mth('SUBTRACT', n_big, 0.5), 1.25)),
                   mth('MULTIPLY', mth('SUBTRACT', n_mid, 0.5), 0.55)), 0.36, 0.43)
     base = mix(pm, brick, plaster)
     # --- blast marks: pale fragment pocks + soot on faces looking at the burst (Blast value 0 -> 1)
     blast = N.new("ShaderNodeValue"); blast.name = blast.label = "Blast"; blast.outputs[0].default_value = 0.0
-    tob = N.new("ShaderNodeVectorMath"); tob.operation = 'SUBTRACT'; tob.inputs[0].default_value = (0, 0, 0.6); L.new(geo.outputs["Position"], tob.inputs[1])
+    tob = N.new("ShaderNodeVectorMath"); tob.operation = 'SUBTRACT'; tob.inputs[0].default_value = origin; L.new(geo.outputs["Position"], tob.inputs[1])
     dist = N.new("ShaderNodeVectorMath"); dist.operation = 'LENGTH'; L.new(tob.outputs[0], dist.inputs[0])
     nrm = N.new("ShaderNodeVectorMath"); nrm.operation = 'NORMALIZE'; L.new(tob.outputs[0], nrm.inputs[0])
     dot = N.new("ShaderNodeVectorMath"); dot.operation = 'DOT_PRODUCT'; L.new(nrm.outputs[0], dot.inputs[0]); L.new(geo.outputs["True Normal"], dot.inputs[1])
     facing = ramp(dot.outputs["Value"], 0.02, 0.30)
-    near = N.new("ShaderNodeMapRange"); near.inputs["From Min"].default_value = 2.0; near.inputs["From Max"].default_value = 26.0
+    near = N.new("ShaderNodeMapRange"); near.inputs["From Min"].default_value = 2.0; near.inputs["From Max"].default_value = reach
     near.inputs["To Min"].default_value = 1.0; near.inputs["To Max"].default_value = 0.0; L.new(dist.outputs["Value"], near.inputs["Value"])
     w = mth('MULTIPLY', mth('MULTIPLY', mth('POWER', near.outputs["Result"], 1.6), facing), blast.outputs[0])
     vor = N.new("ShaderNodeTexVoronoi"); vor.inputs["Scale"].default_value = 9.0; L.new(geo.outputs["Position"], vor.inputs["Vector"])
     spot = mth('LESS_THAN', vor.outputs["Distance"], mth('MULTIPLY', w, 0.20))
     base = mix(mth('MULTIPLY', spot, 0.9), base, mix(ramp(n_fine, 0.3, 0.7), (0.50, 0.36, 0.27), (0.62, 0.55, 0.46)))
-    sootn = N.new("ShaderNodeMapRange"); sootn.inputs["From Min"].default_value = 2.2; sootn.inputs["From Max"].default_value = 6.5
+    sootn = N.new("ShaderNodeMapRange"); sootn.inputs["From Min"].default_value = 2.2; sootn.inputs["From Max"].default_value = soot_r
     sootn.inputs["To Min"].default_value = 0.85; sootn.inputs["To Max"].default_value = 0.0; L.new(dist.outputs["Value"], sootn.inputs["Value"])
     soot = mth('MULTIPLY', mth('MULTIPLY', mth('MULTIPLY', sootn.outputs["Result"], facing), blast.outputs[0]), mth('ADD', mth('MULTIPLY', n_mid, 0.8), 0.45))
     base = mix(soot, base, (0.022, 0.020, 0.018))
@@ -116,18 +117,20 @@ def wall_material():
 
 # ----------------------------------------------------------------------------- one wall as brick courses
 class Seg:
-    def __init__(self, spec, seed):
+    def __init__(self, spec, seed, rough=1.0):
         self.name, p0, p1, self.th, hpts, self.openings = spec
         self.p0 = np.array(p0, float); d = np.array(p1, float) - self.p0; self.L = float(np.linalg.norm(d)); self.d = d / self.L
         self.nrm = np.array([-self.d[1], self.d[0]])
         self.nc = int(math.ceil(self.L / (BW / 2))); hs = np.array(hpts, float)
         s = (np.arange(self.nc) + 0.5) * BW / 2
-        top = np.interp(s / self.L, hs[:, 0], hs[:, 1]) + 0.55 * (fbm(s * 0.9 + seed * 7.1, s * 0 + seed, seed, 3) - 0.5) + 0.30 * (fbm(s * 5.0, s * 0 + 3.0, seed + 5, 2) - 0.5)
+        top = np.interp(s / self.L, hs[:, 0], hs[:, 1]) + rough * (0.55 * (fbm(s * 0.9 + seed * 7.1, s * 0 + seed, seed, 3) - 0.5) + 0.30 * (fbm(s * 5.0, s * 0 + 3.0, seed + 5, 2) - 0.5))
         top = np.maximum(top, 0.16)
         self.nr = int(math.ceil((top.max() + 0.1) / BH)); z = (np.arange(self.nr) + 0.5) * BH
         m = z[:, None] < top[None, :]
+        om = np.zeros_like(m)
         for (s0, s1, z0, z1) in self.openings:
-            m &= ~((s[None, :] > s0) & (s[None, :] < s1) & (z[:, None] > z0) & (z[:, None] < z1))
+            om |= (s[None, :] > s0) & (s[None, :] < s1) & (z[:, None] > z0) & (z[:, None] < z1)
+        m &= ~om; self.open_mask = om; self.clean_openings = False
         self.s, self.z, self.top = s, z, top
         self.mask = m
         dz = top[None, :] - z[:, None]
@@ -146,9 +149,10 @@ class Seg:
                 continue
             e = np.diff(np.r_[0, row.astype(np.int8), 0]); a = np.where(e == 1)[0]; b = np.where(e == -1)[0]
             for i0, i1 in zip(a, b):
-                if (i0 + j) % 2 == 1 and i0 > 0:
+                co = self.clean_openings                         # built openings keep straight jambs; broken edges are toothed
+                if (i0 + j) % 2 == 1 and i0 > 0 and not (co and self.open_mask[j, i0 - 1]):
                     i0 += 1
-                if (i1 + j) % 2 == 1 and i1 < self.nc:
+                if (i1 + j) % 2 == 1 and i1 < self.nc and not (co and self.open_mask[j, i1]):
                     i1 -= 1
                 if i1 <= i0:
                     continue
