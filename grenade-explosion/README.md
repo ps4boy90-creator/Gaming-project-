@@ -8,6 +8,7 @@ top-down view of the 5 m kill radius and 15 m casualty radius.
 
 **Finished video:** [`renders/grenade_m67.mp4`](renders/grenade_m67.mp4) (1920×1080, 24 fps, 19.6 s, with sound).
 
+![Info card](renders/still_card.jpg)
 ![Detonation](renders/still_blast.jpg)
 ![Top view](renders/still_top.jpg)
 
@@ -22,8 +23,11 @@ top-down view of the 5 m kill radius and 15 m casualty radius.
 
 ## What is in the scene
 
-- **Grenade** (`grenade.py`) — own model from public dimensions: 63.5 mm sphere body with
-  seam, fuze, safety lever, pull ring, stencilled markings. The lever flies off at release.
+- **Grenade** (`grenade.py`) — own model from public dimensions and reference photos /
+  the technical-manual drawing: 63.5 mm sphere body with seam, block-shaped M213 fuze head
+  on a short neck, straight safety lever hooked over the rear hinge lug (hood, side ears,
+  pressed rib, standing clear of the body), split safety pin with pull ring, wire safety
+  clip, stencilled markings. The lever flies off at release.
 - **Thrower** (`figure.py`) — a procedural mannequin rebuilt every frame from key poses
   (2-bone IK limbs, lofted tubes fused by a voxel remesh) and shaded as refractive glass
   with a fresnel rim, so it reads as a person without pulling focus.
