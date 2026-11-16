@@ -25,7 +25,7 @@ from h777 import aim_quat
 
 D = math.radians
 EL_LOAD = D(5.0)
-S_TRAY = -0.90                     # base of the projectile once it has been slid up the tray, nose just inside the breech ring
+S_TRAY = -1.25                     # base of the projectile once it has been slid up the tray, nose just inside the breech ring
 NAMES = ("chief", "gunner", "n1", "n2", "n4", "n5")
 
 def track(t, pts):
@@ -73,7 +73,7 @@ TRAY_GRIP = (-0.72, -h777.TRAY_PIVOT[1] + 0.10, -h777.TRAY_PIVOT[2] + 0.03)
 # ----------------------------------------------------------------------------- projectile, rammer, charge
 def ram_head(t):
     """Bore coordinate of the rammer head."""
-    return track(t, [(-10.45, -1.22), (-10.05, -1.52), (-9.42, C.S_SEAT), (-9.28, C.S_SEAT), (-8.35, -1.75), (-7.8, -2.2)])
+    return track(t, [(-10.45, -1.57), (-10.05, -1.87), (-9.42, C.S_SEAT), (-9.28, C.S_SEAT), (-8.35, -2.10), (-7.8, -2.55)])
 
 def shell_state(t):
     """(base point, axis) of the projectile in the gun set."""
@@ -81,7 +81,7 @@ def shell_state(t):
         return C.launch_pos(t) - bore_dir(t) * 0.0, bore_dir(t)
     a = bore_dir(t)
     if t < -12.7:
-        carry = np.array([-2.72, 0.0, 1.02]); over = bore_pt(t, -1.95, 0, 0.035); on = bore_pt(t, S_TRAY)
+        carry = np.array([-3.07, 0.0, 1.02]); over = bore_pt(t, -2.30, 0, 0.035); on = bore_pt(t, S_TRAY)
         p = track(t, [(-15.0, carry), (-13.7, over), (-12.8, on)])
         return p, a
     s = max(S_TRAY, min(ram_head(t), C.S_SEAT)) if t < -9.42 else C.S_SEAT
@@ -95,12 +95,12 @@ def rammer_state(t):
     return bore_pt(t, ram_head(t)) + np.array([-0.3, 1.2, -0.25]) * u, a
 
 def charge_s(t):
-    return track(t, [(-7.0, -1.44), (-5.75, C.S_CHAMBER + 0.02)])
+    return track(t, [(-7.0, -1.79), (-5.75, C.S_CHAMBER + 0.02)])
 
 def charge_state(t):
     return bore_pt(t, charge_s(t)), bore_dir(t)
 
-LANYARD_HAND = [(-3.95, None), (-3.3, None), (-2.3, np.array([-1.70, 2.20, 1.08])), (-0.17, np.array([-1.70, 2.20, 1.08])), (-0.03, np.array([-1.95, 2.60, 1.02]))]
+LANYARD_HAND = [(-3.95, None), (-3.3, None), (-2.3, np.array([-2.35, 2.30, 1.08])), (-0.17, np.array([-2.35, 2.30, 1.08])), (-0.03, np.array([-2.62, 2.66, 1.02]))]
 
 def lanyard_hand(t):
     if t < -3.3:
@@ -143,20 +143,20 @@ def _shell_grip(t, x, side):
 def pose(name, t):
     k = _flinch(t)
     if name == "chief":
-        p = stand(-4.9, 2.9, -28, lean=-0.04 * k)
-        b = np.array([-4.9, 2.9, 0.0]); f = np.array([math.cos(D(-28)), math.sin(D(-28)), 0]); l = np.array([-f[1], f[0], 0])
+        p = stand(-5.7, 3.5, -30, lean=-0.04 * k)
+        b = np.array([-5.7, 3.5, 0.0]); f = np.array([math.cos(D(-30)), math.sin(D(-30)), 0]); l = np.array([-f[1], f[0], 0])
         up = b - l * 0.30 + f * 0.10 + np.array([0, 0, 2.02]); dn = b - l * 0.26 + f * 0.62 + np.array([0, 0, 1.05])
         w = _win(t, -1.9, 0.5, 0.35)
         if w > 0:
             p["elbow_r"] = -l * 0.8 + np.array([0, 0, 0.2]); _attach(p, "r", track(t, [(-0.55, up), (-0.36, dn)]), w)
         return p
     if name == "gunner":
-        p = stand(-0.66, 1.26, -22, lean=0.10 - 0.05 * k, head=-10)
-        c = np.array([-0.32, 0.77, 1.05]); a = 2 * math.pi * 1.6 * smoothstep(-3.4, -1.5, t) * 1.9
-        _attach(p, "r", c + 0.15 * np.array([math.cos(a), 0, math.sin(a)])); _attach(p, "l", np.array([-0.52, 0.66, 1.34]))
+        p = stand(-0.30, 1.42, -92, lean=0.22 - 0.05 * k, head=-60)
+        c = np.array([-0.32, 0.79, 1.05]); a = 2 * math.pi * 1.6 * smoothstep(-3.4, -1.5, t) * 1.9
+        _attach(p, "l", c + 0.16 * np.array([math.cos(a), 0, math.sin(a)])); _attach(p, "r", np.array([-0.24, 0.72, 1.56]))
         return p
     if name == "n1":
-        x = track(t, [(-3.3, -1.05), (-2.3, -1.95)]); y = track(t, [(-3.3, 1.28), (-2.3, 2.62)]); hd = track(t, [(-3.3, -82.0), (-2.3, -58.0)])
+        x = track(t, [(-3.3, -1.90), (-2.3, -2.55)]); y = track(t, [(-3.3, 1.28), (-2.3, 2.72)]); hd = track(t, [(-3.3, -75.0), (-2.3, -58.0)])
         g = None if not (-3.3 < t < -2.3) else (t + 3.3) * 1.6
         ln = track(t, [(-16.2, 0.05), (-15.8, 0.30), (-14.7, 0.30), (-14.2, 0.05), (-5.9, 0.05), (-5.5, 0.30), (-3.4, 0.30), (-2.6, 0.02)])
         p = stand(x, y, hd, lean=ln - 0.05 * k, gait=g)
@@ -168,10 +168,15 @@ def pose(name, t):
             _attach(p, "r", lanyard_hand(t), w)
         return p
     if name == "n2":
-        at_breech = track(t, [(-7.6, 1.0), (-7.45, 0.0), (-5.55, 0.0), (-4.85, 1.0)])
-        x = lerp(-1.78, -0.92, at_breech); y = lerp(-0.40, -1.22, at_breech); hd = lerp(4.0, 90.0, at_breech)
-        g = None if not (-5.55 < t < -4.85) else (t + 5.55) * 1.6
-        ln = 0.26 if at_breech > 0.5 else track(t, [(-7.0, 0.12), (-5.8, 0.34)])
+        inside = track(t, [(-15.1, 1.0), (-14.3, 0.0), (-7.6, 0.0), (-7.45, 1.0), (-3.7, 1.0), (-2.8, 0.0)])     # 1 = behind the breech, 0 = clear, outside the right trail
+        late = t > -5.0
+        x = lerp(-2.15 if not late else -2.45, -1.78 if t < -10 else -2.10, inside); y = lerp(-1.62 if not late else -1.95, -0.42, inside); hd = lerp(70.0, 6.0, inside)
+        g = None
+        if -15.1 < t < -14.3:
+            g = (t + 15.1) * 1.6
+        elif -3.7 < t < -2.8:
+            g = (t + 3.7) * 1.6
+        ln = track(t, [(-16.2, 0.34), (-15.1, 0.34), (-14.6, 0.05), (-7.3, 0.12), (-5.8, 0.36), (-3.9, 0.40), (-3.5, 0.05)])
         p = stand(x, y, hd, lean=ln - 0.05 * k, gait=g)
         w = _win(t, -16.15, -15.05) + _win(t, -4.8, -3.85)
         if w > 0:
@@ -183,7 +188,7 @@ def pose(name, t):
         return p
     sgn = 1.0 if name == "n4" else -1.0                                # n4 works on the left of the projectile, n5 on the right
     if t < -11.0:                                                      # carry and slide onto the tray
-        x = track(t, [(-15.0, -2.42), (-13.7, -1.72), (-12.8, -1.52), (-12.2, -2.05)]); g = None if not (-15.0 < t < -13.7) else (t + 15.0) * 1.25
+        x = track(t, [(-15.0, -2.77), (-13.7, -2.07), (-12.8, -1.87), (-12.2, -2.40)]); g = None if not (-15.0 < t < -13.7) else (t + 15.0) * 1.25
         y = sgn * track(t, [(-12.8, 0.50), (-12.2, 0.78)])
         ln = track(t, [(-15.0, 0.06), (-13.7, 0.16), (-12.8, 0.36), (-12.2, 0.05)])
         p = stand(x, y, -8.0 * sgn, lean=ln, gait=g, twist=-14.0 * sgn)
@@ -198,11 +203,11 @@ def pose(name, t):
     held = 1 - smoothstep(-8.3, -8.0, t)
     xb = hp[0] - a[0] * (d0 + d1) / 2 - 0.34
     if t > -8.3:
-        xb = track(t, [(-8.3, xb), (-7.4, -3.9 - 0.5 * (sgn < 0))])
-    ph = (xb + 5.0) / 0.95
-    moving = -10.45 < t < -8.3
+        xb = track(t, [(-8.3, xb), (-7.3, -3.2 - 0.7 * (sgn < 0))])
+    ph = (xb + 5.0) / 0.95 + 1.2 * smoothstep(-8.3, -7.3, t)
+    moving = -10.45 < t < -7.3
     ln = track(t, [(-10.45, 0.12), (-10.05, 0.02), (-9.42, 0.42), (-9.2, 0.30), (-8.3, 0.05)])
-    yb = sgn * (0.47 + 0.25 * smoothstep(-8.3, -7.5, t))
+    yb = sgn * (0.47 + 1.88 * smoothstep(-8.3, -7.3, t))
     p = stand(xb, yb, -4.0 * sgn, lean=ln - 0.05 * k, gait=ph if moving else None, twist=-10.0 * sgn)
     if held > 0:
         _attach(p, "l" if sgn > 0 else "r", hp - a * d0 + np.array([0, sgn * 0.02, 0.0]), held); _attach(p, "r" if sgn > 0 else "l", hp - a * d1 + np.array([0, sgn * 0.02, 0.0]), held)

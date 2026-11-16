@@ -17,13 +17,13 @@ FPS = 24
 MASTER_DT = 1.0 / 120.0
 G = 9.81
 
-# ---- gun (M777A2): rear trunnions, so the breech stays at loading height at every elevation
+# ---- gun (M777A2): trunnions about 0.8 m ahead of the breech face, 1.05 m above the ground
 TRUN = np.array([0.0, 0.0, 1.05])        # trunnion axis
-S_BREECH = -0.45                          # bore coordinate (m from the trunnion) of the rear face of the breech ring
-S_CHAMBER = -0.30                         # rear of the powder chamber
-S_SEAT = 0.58                             # base of the rammed projectile
-S_TUBE = 5.25                             # end of the tube proper
-S_MUZZLE = 5.70                           # front of the muzzle brake
+S_BREECH = -0.80                          # bore coordinate (m from the trunnion) of the rear face of the breech ring
+S_CHAMBER = -0.65                         # rear of the powder chamber
+S_SEAT = 0.23                             # base of the rammed projectile
+S_TUBE = 4.80                             # end of the tube proper
+S_MUZZLE = 5.25                           # front of the muzzle brake
 RECOIL_LEN = 1.25
 
 # ---- projectile M795 (manufacturer brochure) and charge

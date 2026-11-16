@@ -108,7 +108,7 @@ class Stage(gshots.Stage):
             self.rope.hide_render = t < -4.0
             if t >= -4.0:
                 self._rope(t)
-            self.l_muzzle.data.energy = 60000.0 * opt.get("flash", 1.0) * math.exp(-t / 0.014) if 0 <= t < 0.14 else 0.0
+            self.l_muzzle.data.energy = 20000.0 * opt.get("flash", 1.0) * math.exp(-t / 0.014) if 0 <= t < 0.14 else 0.0
             self.l_muzzle.hide_render = self.l_muzzle.data.energy < 5.0
         else:
             td = t - T_HIT; hit = td >= 0
@@ -142,15 +142,15 @@ def _rt(t0, n, cam):
 
 def shot_load(n=90):
     """Breech opens, tray swings in, cannoneers 4 and 5 bring the projectile up and slide it onto the tray."""
-    return _rt(-16.25, n, lambda u, t: ((-4.5 + 0.4 * u, -2.0 + 0.2 * u, 2.85), (-1.20, 0.05, 0.90), 27.0))
+    return _rt(-16.25, n, lambda u, t: ((-5.0 + 0.4 * u, -1.5 + 0.2 * u, 3.0), (-1.55, 0.05, 0.90), 27.0))
 
 def shot_ram(n=52):
     """Seen from beside the breech looking back: the two cannoneers run the projectile home with the rammer staff."""
-    return _rt(-10.5, n, lambda u, t: ((1.05, -0.95 + 0.1 * u, 2.55), (-2.1, 0.0, 0.85), 22.0))
+    return _rt(-10.5, n, lambda u, t: ((0.85, -0.95 + 0.1 * u, 2.60), (-2.45, 0.0, 0.85), 22.0))
 
 def shot_charge(n=90):
     """Cannoneer 2 loads the propelling charge and closes the breech; cannoneer 1 hooks the lanyard."""
-    return _rt(-7.3, n, lambda u, t: ((-3.3 - 0.2 * u, -1.55, 2.60), (-0.75, 0.05, 1.00), 30.0))
+    return _rt(-7.3, n, lambda u, t: ((-4.5 - 0.2 * u, -0.9, 3.0), (-1.15, 0.05, 0.95), 30.0))
 
 def shot_fire(n=112, lead=52):
     """The tube is laid to the firing elevation, the chief drops his arm, the lanyard is pulled - then slow motion."""
