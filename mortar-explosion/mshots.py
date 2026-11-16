@@ -98,24 +98,13 @@ def point_light(col, name, color, soft=0.3):
     ob = bpy.data.objects.new(name, ld); col.objects.link(ob); return ob
 
 # ----------------------------------------------------------------------------- burst effects (target set)
-def dust_surface_mat(name, color):
-    """Soft-edged dust blob: diffuse colour, alpha from the per-vertex 'col' alpha times a facing falloff."""
+def dust_volume_mat(name, color):
+    """Homogeneous dust volume; its density is set per frame (all strikes are nearly the same age)."""
     m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree; N = nt.nodes; L = nt.links; N.clear()
-    out = N.new("ShaderNodeOutputMaterial"); at = N.new("ShaderNodeAttribute"); at.attribute_name = "col"
-    lw = N.new("ShaderNodeLayerWeight"); lw.inputs["Blend"].default_value = 0.5
-    inv = N.new("ShaderNodeMath"); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0; L.new(lw.outputs["Facing"], inv.inputs[1])
-    pw = N.new("ShaderNodeMath"); pw.operation = 'POWER'; pw.inputs[1].default_value = 1.8; L.new(inv.outputs[0], pw.inputs[0])
-    al0 = N.new("ShaderNodeMath"); al0.operation = 'MULTIPLY'; L.new(pw.outputs[0], al0.inputs[0]); L.new(at.outputs["Alpha"], al0.inputs[1])
-    geo = N.new("ShaderNodeNewGeometry"); nz = N.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 2.2; nz.inputs["Detail"].default_value = 4
-    L.new(geo.outputs["Position"], nz.inputs["Vector"])
-    nr = N.new("ShaderNodeMapRange"); nr.inputs["From Min"].default_value = 0.36; nr.inputs["From Max"].default_value = 0.66; L.new(nz.outputs["Fac"], nr.inputs["Value"])
-    al = N.new("ShaderNodeMath"); al.operation = 'MULTIPLY'; L.new(al0.outputs[0], al.inputs[0]); L.new(nr.outputs["Result"], al.inputs[1])
-    df = N.new("ShaderNodeBsdfDiffuse"); df.inputs["Color"].default_value = (*color, 1)
-    tl = N.new("ShaderNodeBsdfTranslucent"); tl.inputs["Color"].default_value = (*color, 1)          # dust scatters light through itself
-    dm = N.new("ShaderNodeMixShader"); dm.inputs[0].default_value = 0.6; L.new(df.outputs[0], dm.inputs[1]); L.new(tl.outputs[0], dm.inputs[2])
-    tr = N.new("ShaderNodeBsdfTransparent"); mx = N.new("ShaderNodeMixShader")
-    L.new(al.outputs[0], mx.inputs[0]); L.new(tr.outputs[0], mx.inputs[1]); L.new(dm.outputs[0], mx.inputs[2]); L.new(mx.outputs[0], out.inputs["Surface"])
-    return m
+    out = N.new("ShaderNodeOutputMaterial"); pv = N.new("ShaderNodeVolumePrincipled")
+    pv.inputs["Color"].default_value = (*color, 1); pv.inputs["Anisotropy"].default_value = 0.3; pv.inputs["Density"].default_value = 0.0
+    L.new(pv.outputs[0], out.inputs["Volume"])
+    return m, pv
 
 class FragField:
     """Where fragments strike the ground: short radial dust spurts out to the 75 m bursting radius.  The steel
@@ -127,24 +116,29 @@ class FragField:
         self.t = self.r / rng.uniform(650, 1150, n)
         self.len = rng.uniform(0.6, 1.8, n) * (0.45 + self.r / 55.0); self.wid = rng.uniform(0.22, 0.45, n) * (0.55 + self.r / 80.0)
         self.hgt = rng.uniform(0.22, 0.50, n) * (0.6 + self.r / 120.0); self.n = n
-        U, F, _ = ellipsoid((0, 0, 0), (1, 1, 1), 10, 6); self.U = np.asarray(U); self.F = np.asarray(F)
-        self.ob = new_obj("FragStrikes", bpy.data.meshes.new("fs"), col, dust_surface_mat("FragDust", (0.50, 0.42, 0.31)))
+        U, F, _ = ellipsoid((0, 0, 0), (1, 1, 1), 12, 8); U = np.asarray(U); self.F = np.asarray(F)
+        w1 = rng.normal(0, 1, (n, 3)); w2 = rng.normal(0, 1, (n, 3)); ph = rng.uniform(0, 6.283, (n, 2))       # lumpy, not egg-shaped
+        lump = 1 + 0.30 * np.sin(np.einsum("mk,nk->nm", U, w1) * 2.2 + ph[:, :1]) + 0.20 * np.sin(np.einsum("mk,nk->nm", U, w2) * 4.0 + ph[:, 1:])
+        self.UL = U[None, :, :] * lump[:, :, None]; self.U = U
+        mat, self.pv = dust_volume_mat("FragDust", (0.66, 0.58, 0.45))
+        self.ob = new_obj("FragStrikes", bpy.data.meshes.new("fs"), col, mat)
         self.ob.visible_shadow = False; self.ob.hide_render = True
-    def update(self, td):
+    def update(self, td, gain=1.0):
         age = td - self.t; on = (age > 0) & (age < 3.5)
         self.ob.hide_render = not on.any()
         if not on.any():
             return
-        a = age[on]; g = 1 - np.exp(-a / 0.10)
+        a = age[on]; g = 1 - np.exp(-a / 0.045)
         er = np.stack([np.cos(self.az[on]), np.sin(self.az[on]), np.zeros(on.sum())], 1); et = np.stack([-er[:, 1], er[:, 0], er[:, 2]], 1)
-        cen = er * (self.r[on] + 0.5 * self.len[on] * g)[:, None]; cen[:, 2] = 0.10 + 0.5 * self.hgt[on] * g + 0.25 * a
-        V = (cen[:, None, :] + self.U[None, :, 0:1] * er[:, None, :] * (0.5 * self.len[on] * g + 0.1)[:, None, None]
-             + self.U[None, :, 1:2] * et[:, None, :] * (self.wid[on] * (0.4 + 0.6 * g) * (1 + 0.5 * a))[:, None, None]
-             + self.U[None, :, 2:3] * np.array([0, 0, 1.0])[None, None, :] * (self.hgt[on] * (0.3 + 0.7 * g) * (1 + 0.6 * a))[:, None, None])
+        ln = self.len[on] * gain; wd = self.wid[on] * gain; hg = self.hgt[on] * gain
+        cen = er * (self.r[on] + 0.5 * ln * g)[:, None]; cen[:, 2] = 0.10 + 0.5 * hg * g + 0.25 * a
+        UL = self.UL[on]
+        V = (cen[:, None, :] + UL[:, :, 0:1] * er[:, None, :] * (0.5 * ln * g + 0.1)[:, None, None]
+             + UL[:, :, 1:2] * et[:, None, :] * (wd * (0.4 + 0.6 * g) * (1 + 0.5 * a))[:, None, None]
+             + UL[:, :, 2:3] * np.array([0, 0, 1.0])[None, None, :] * (hg * (0.3 + 0.7 * g) * (1 + 0.6 * a))[:, None, None])
         m = len(self.U); F = (self.F[None] + (np.arange(on.sum()) * m)[:, None, None]).reshape(-1, self.F.shape[1])
-        alpha = 0.55 * np.exp(-a / 0.6) * np.minimum(1.0, a / 0.008)
-        Cc = np.ones((on.sum(), m, 4), np.float32); Cc[..., 3] = alpha[:, None]
-        me = new_mesh("fs", V.reshape(-1, 3), [F], attrs={"col": Cc.reshape(-1, 4)}); me.materials.append(self.ob.data.materials[0])
+        me = new_mesh("fs", V.reshape(-1, 3), [F]); me.materials.append(self.ob.data.materials[0])
+        self.pv.inputs["Density"].default_value = 0.75 * gain ** 1.25 * math.exp(-max(td - 0.1, 0.0) / (0.75 * gain ** 0.5))
         old = self.ob.data; self.ob.data = me; bpy.data.meshes.remove(old)
 
 class Ejecta:
@@ -215,7 +209,7 @@ class Stage(gshots.Stage):
             if kind == "impact":
                 for nd in bm_.node_tree.nodes:                      # keep the HE smoke dark: less lift of the sooty sim colours
                     if nd.type == 'VECT_MATH' and nd.operation == 'POWER':
-                        nd.inputs[1].default_value = (0.82, 0.82, 0.82)
+                        nd.inputs[1].default_value = (0.72, 0.72, 0.72)
                 for nd in bm_.node_tree.nodes:
                     if nd.type == 'VALTORGB':
                         for el, c in zip(sorted(nd.color_ramp.elements, key=lambda e: e.position),
@@ -278,7 +272,7 @@ class Stage(gshots.Stage):
             self.ruins.update(td)
             self.blast_node.outputs[0].default_value = 0.8 if hit else 0.0
             self.ground.data.shape_keys.key_blocks["Crater120"].value = 1.0 if hit else 0.0
-            self.frags.update(td if opt.get("frags", True) else -1.0); self.ejecta.update(td, 0.5 * dt_out)
+            self.frags.update(td if opt.get("frags", True) else -1.0, opt.get("frag_gain", 1.0)); self.ejecta.update(td, 0.5 * dt_out)
             self.rings.update(opt.get("rings", {}))
             self.l_hit.data.energy = 70000.0 * opt.get("flash", 1.0) * math.exp(-td / 0.016) if 0 <= td < 0.25 else 0.0
             self.l_hit.hide_render = self.l_hit.data.energy < 5.0
@@ -370,7 +364,7 @@ def shot_radius(n=96, one=26):
         td = (sf - 1) * DT; t = T_HIT + td
         r_front = min(C.BURST_R, 900.0 * max(td - 0.004, 0.0))
         rings = {"burst": r_front, "m67": min(C.M67_R, r_front) if td > 0.35 else 0.0, "fill": C.BURST_R if r_front >= C.BURST_R else 0.0}
-        st.set_time(t, dt, dict(rings=rings))
+        st.set_time(t, dt, dict(rings=rings, frag_gain=2.3))
         u = i / (n - 1)
         pos = np.array([-62.0 + 10 * u, -98.0 + 6 * u, 88.0 + 6 * u])
         st.look(pos, np.array([0.0, 6.0, 0.0]), 24.0)
