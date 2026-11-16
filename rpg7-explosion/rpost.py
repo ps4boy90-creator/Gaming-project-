@@ -47,6 +47,39 @@ def readout(d, label, value, a=1.0, color=INK):
     text(d, (W - 64, H - 150), label, F_SEMI(30), DIM, a, anchor="ra", tracking=5)
     text(d, (W - 64, H - 120), value, F_TITLE(74), color, a, anchor="ra")
 
+def ruler(d, p0, p1, big, small, a):
+    """Ground distance ruler from the wall to the farthest brick; if that brick is outside the
+    frame the line is cut at the frame edge and ends in an arrow instead of a tick."""
+    x0, y0 = p0[0] * W, p0[1] * H; x1, y1 = p1[0] * W, p1[1] * H
+    s = 1.0
+    for lo, hi, v0, v1 in ((90, W - 90, x0, x1), (150, H - 210, y0, y1)):
+        if v1 > hi and v1 != v0: s = min(s, (hi - v0) / (v1 - v0))
+        if v1 < lo and v1 != v0: s = min(s, (lo - v0) / (v1 - v0))
+    s = max(0.0, s) * ease(a)
+    cut = s < 0.999 and a >= 1.0
+    ex, ey = x0 + (x1 - x0) * s, y0 + (y1 - y0) * s
+    L = math.hypot(ex - x0, ey - y0)
+    if L < 4: return
+    ux, uy = (ex - x0) / L, (ey - y0) / L; nx, ny = -uy, ux
+    col = AMBER + (int(235 * a),); sh = (0, 0, 0, int(150 * a))
+    for off, c in ((2, sh), (0, col)):
+        k = 0.0
+        while k < L:                                   # dashed line
+            e = min(L, k + 16)
+            d.line([(x0 + ux * k, y0 + uy * k + off), (x0 + ux * e, y0 + uy * e + off)], fill=c, width=3)
+            k += 26
+        d.line([(x0 - nx * 12, y0 - ny * 12 + off), (x0 + nx * 12, y0 + ny * 12 + off)], fill=c, width=3)
+        if cut or a < 1.0:
+            d.polygon([(ex + ux * 16, ey + uy * 16 + off), (ex - ux * 6 + nx * 10, ey - uy * 6 + ny * 10 + off),
+                       (ex - ux * 6 - nx * 10, ey - uy * 6 - ny * 10 + off)], fill=c)
+        else:
+            d.line([(ex - nx * 12, ey - ny * 12 + off), (ex + nx * 12, ey + ny * 12 + off)], fill=c, width=3)
+    mx, my = x0 + (ex - x0) * 0.5, y0 + (ey - y0) * 0.5
+    side = -1 if ny > 0 else 1                         # put the label above the line
+    lx, ly = mx + nx * side * 34 - 60, my + ny * side * 34 - 62
+    text(d, (lx, ly - 14), big, F_TITLE(64), AMBER, a)
+    text(d, (lx + 2, ly + 62), small, F_SEMI(30), INK, a, tracking=3)
+
 def overlay_for(shot, i, n, m, info):
     ov = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
     t = m["t"]; td = m["td"]
@@ -80,7 +113,7 @@ def overlay_for(shot, i, n, m, info):
         if a1 > 0:
             callout(d, an["hole"][0] * W, an["hole"][1] * H, "BREACHED", "215 MM BRICK  ·  ONE ROCKET", RED, a1, dx=150, dy=-150)
         if a2 > 0:
-            callout(d, an["far"][0] * W, an["far"][1] * H, "%d m" % round(info["reach"]), "DEBRIS THROWN", AMBER, a2, dx=-330, dy=-110)
+            ruler(d, an["wall"], an["far"], "%d m" % round(info["reach"]), "DEBRIS THROWN  ·  FARTHEST BRICK", a2)
         lower(d, "WHAT IT CAN DO", "Built to pierce 260 mm of steel armour  ·  brick is no obstacle", ease((i - 44) / 12.0))
     return ov
 

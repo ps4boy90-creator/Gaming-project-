@@ -5,6 +5,13 @@ PG-7V rocket at a one-brick-thick wall 30 m away, and the camera shows what the 
 Everything is procedural (Blender as a Python module, Cycles) and shares the outdoor range,
 figure, render setup and post tools with [`../grenade-explosion`](../grenade-explosion).
 
+**Finished video:** [`renders/rpg7.mp4`](renders/rpg7.mp4) — 1920×1080, 24 fps, 20.3 s, with sound.
+
+| | | |
+|---|---|---|
+| ![card](renders/still_card.jpg) | ![fire](renders/still_fire.jpg) | ![flight](renders/still_flight.jpg) |
+| ![impact](renders/still_impact.jpg) | ![behind](renders/still_behind.jpg) | ![after](renders/still_after.jpg) |
+
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
 | 1 | `card`   | RPG-7 with a loaded PG-7V on a studio backdrop + spec panel | – |
