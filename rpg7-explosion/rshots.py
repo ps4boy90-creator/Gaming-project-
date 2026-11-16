@@ -131,9 +131,15 @@ class Stage(gshots.Stage):
                     bpy.data.objects.remove(o, do_unlink=True)
             self.dom = bpy.data.objects["BlastDomain"]
             self.dom.data.materials.clear()
-            self.fire0 = 45.0 if kind == "launch" else 60.0
+            self.fire0 = 45.0 if kind == "launch" else 20.0
             bm_ = blast_material(density=9.0, fire=self.fire0, ambient=0.11) if kind == "launch" else blast_material(fire=self.fire0)
             self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]
+            if kind == "impact":                 # deep orange fireball rather than a cream one
+                for nd in bm_.node_tree.nodes:
+                    if nd.type == 'VALTORGB':
+                        for el, c in zip(sorted(nd.color_ramp.elements, key=lambda e: e.position),
+                                         [(0, 0, 0), (0.55, 0.05, 0.0), (0.95, 0.20, 0.015), (1.0, 0.36, 0.05), (1.0, 0.52, 0.14)]):
+                            el.color = (*c, 1)
             self.dom.hide_render = True
         else:
             bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -148,8 +154,8 @@ class Stage(gshots.Stage):
         self.wall = wallmod.Wall(col)
         self.trail = Trail(col, self.rocket.root)
         self.l_motor = point_light(col, "MotorGlow", (1.0, 0.55, 0.25), 0.08)
-        self.l_hit = point_light(col, "HitFlash", (1.0, 0.72, 0.42), 0.4); self.l_hit.location = (-0.40, 0, C.ZI)
-        self.l_exit = point_light(col, "ExitFlash", (1.0, 0.66, 0.36), 0.3); self.l_exit.location = (C.WALL_T + 0.5, 0, C.ZI)
+        self.l_hit = point_light(col, "HitFlash", (1.0, 0.50, 0.20), 0.4); self.l_hit.location = (-0.40, 0, C.ZI)
+        self.l_exit = point_light(col, "ExitFlash", (1.0, 0.50, 0.20), 0.3); self.l_exit.location = (C.WALL_T + 0.5, 0, C.ZI)
         self.l_breech = point_light(col, "BreechFlash", (1.0, 0.70, 0.42), 0.3); self.l_breech.location = C.BREECH - C.AIM * 0.5
         self.l_muzzle = point_light(col, "MuzzleFlash", (1.0, 0.72, 0.45), 0.2); self.l_muzzle.location = C.MUZZLE + C.AIM * 0.3
         cd = bpy.data.cameras.new("Cam"); self.cam = bpy.data.objects.new("Cam", cd); sc.collection.objects.link(self.cam); sc.camera = self.cam
@@ -192,8 +198,8 @@ class Stage(gshots.Stage):
         # impact
         self.wall.update(td, shutter=0.5 * dt_out)
         fl = opt.get("flash", 1.0)
-        self.l_hit.data.energy = 55000.0 * fl * math.exp(-td / 0.014) if 0 <= td < 0.25 else 0.0
-        self.l_exit.data.energy = 22000.0 * fl * math.exp(-td / 0.010) if 0 <= td < 0.2 else 0.0
+        self.l_hit.data.energy = 14000.0 * fl * math.exp(-td / 0.014) if 0 <= td < 0.25 else 0.0
+        self.l_exit.data.energy = 7000.0 * fl * math.exp(-td / 0.010) if 0 <= td < 0.2 else 0.0
         for l in (self.l_motor, self.l_hit, self.l_exit, self.l_breech, self.l_muzzle):
             l.hide_render = l.data.energy < 5.0
         if self.dom is not None:
@@ -217,7 +223,7 @@ def shot_fire(n=90):
         off, rq = shake(t - 0.004, 0.8)
         q = st.look(pos + off, tgt, 28.0, fstop=4.0, focus=float(np.linalg.norm(C.SHOULDER - pos)))
         st.cam.rotation_quaternion = q @ rq
-        return t, dt, dict(samples=10, sim=sf, shutter=0.3, anchors={"muzzle": C.MUZZLE})
+        return t, dt, dict(samples=8, sim=sf, shutter=0.3, anchors={"muzzle": C.MUZZLE})
     return n, frame
 
 def shot_follow(n=78, side=-1.0):
@@ -255,7 +261,7 @@ def shot_impact(n=100):
         off, rq = shake(t - T_HIT - 0.012, 1.5)
         q = st.look(pos + off, tgt, 30.0, fstop=5.6, focus=8.5)
         st.cam.rotation_quaternion = q @ rq
-        return t, dt, dict(samples=10, sim=sf, shutter=0.25, anchors={"hit": C.IMPACT})
+        return t, dt, dict(samples=8, sim=sf, shutter=0.25, anchors={"hit": C.IMPACT})
     return n, frame
 
 def shot_behind(n=64):
@@ -268,7 +274,7 @@ def shot_behind(n=64):
         off, rq = shake(t - T_HIT - 0.012, 1.2)
         q = st.look(pos + off, np.array([0.1, 0.0, 1.30]), 28.0, fstop=5.6, focus=6.0)
         st.cam.rotation_quaternion = q @ rq
-        return t, dt, dict(samples=10, sim=sf, shutter=0.25, anchors={"hit": (C.WALL_T, 0, C.ZI)})
+        return t, dt, dict(samples=8, sim=sf, shutter=0.25, anchors={"hit": (C.WALL_T, 0, C.ZI)})
     return n, frame
 
 def shot_after(n=84):
