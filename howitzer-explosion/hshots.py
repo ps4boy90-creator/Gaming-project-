@@ -228,7 +228,7 @@ def shot_impact(n=120):
         sf, t, dt = _slow(i, 8, 52, 2)
         st.set_time(t, dt, {})
         u = i / (n - 1)
-        pos = np.array([-13.0 - 0.4 * u, -4.5, 1.70 + 0.3 * u])
+        pos = np.array([-13.0 - 0.25 * u, -4.5, 1.70 + 0.3 * u])       # 0.25 m of pull-back: further would back the lens into the palm trunk at (-13.5, -4.6)
         tgt = np.array([0.5, 2.6, 2.8 + 1.6 * smoothstep(0.15, 1.0, u)])
         off, rq = shake(t - T_HIT - 0.06, 2.4)
         q = st.look(pos + off, tgt, 22.0)
