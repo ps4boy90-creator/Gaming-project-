@@ -40,11 +40,17 @@ class Puffs:
         w1 = rng.normal(0, 1, (nmax, 3)); w2 = rng.normal(0, 1, (nmax, 3)); ph = rng.uniform(0, 6.283, (nmax, 2))
         lump = 1 + 0.28 * np.sin(np.einsum("mk,nk->nm", U, w1) * 2.2 + ph[:, :1]) + 0.18 * np.sin(np.einsum("mk,nk->nm", U, w2) * 4.0 + ph[:, 1:])
         self.UL = U[None, :, :] * lump[:, :, None]; self.rnd = rng.uniform(-1, 1, (nmax, 3)); self.size = rng.uniform(0.8, 1.25, nmax)
-    def mesh(self, name, idx, cen, rad):
+    def mesh(self, name, idx, cen, rad, mats):
+        """Cycles keeps one volume-stack entry per (object, shader), so overlapping shells that share a shader cancel each
+        other; the blobs are therefore spread over several identical materials, whose densities add where they overlap."""
         rad = np.asarray(rad, float); rad = rad[:, None] * np.ones(3)[None] if rad.ndim == 1 else rad
         V = cen[:, None, :] + self.UL[idx] * rad[:, None, :]
         F = (self.F[None] + (np.arange(len(idx)) * self.m)[:, None, None]).reshape(-1, self.F.shape[1])
-        return new_mesh(name, V.reshape(-1, 3), [F])
+        me = new_mesh(name, V.reshape(-1, 3), [F])
+        for mt in mats:
+            me.materials.append(mt)
+        me.polygons.foreach_set("material_index", np.repeat(np.asarray(idx) % len(mats), len(self.F)).astype(np.int32))
+        return me
 
 def _vol_mat(name, color, noise_scale, lo, hi, rise=0.0, emission=None):
     """Volume material: density (or flame emission) = gain x noise mask; returns material, gain socket, time value node, tex-coord separate node."""
@@ -62,6 +68,7 @@ def _vol_mat(name, color, noise_scale, lo, hi, rise=0.0, emission=None):
     else:
         L.new(m1.outputs[0], pv.inputs["Density"])
     L.new(pv.outputs[0], out.inputs["Volume"])
+    fade.name = "Fade"; tv.name = "Time"
     return m, fade, tv, sep
 
 class Trail:
@@ -71,7 +78,7 @@ class Trail:
         sv = np.arange(0.0, C.s_of(min(C.T_BURN, 1.6)), 0.35); self.taus = np.interp(sv, C.FLY[:, 1], C.FLY[:, 0]); self.P = Puffs(len(self.taus), 41)   # one puff every 0.35 m of flight
         self.base = np.array([C.path_at(s_)[0] - C._P0 for s_ in sv])
         m, self.fade, tv, sep = _vol_mat("TrailSmoke", (0.90, 0.89, 0.87), 1.6, 0.34, 0.62)
-        m.node_tree.links.new(sep.outputs["X"], self.fade.inputs["Value"])
+        m.node_tree.links.new(sep.outputs["X"], self.fade.inputs["Value"]); self.mats = [m] + [m.copy() for _ in range(7)]
         self.ob = new_obj("Trail", bpy.data.meshes.new("trail"), col, m); self.ob.visible_shadow = False; self.ob.hide_render = True
     def update(self, t, rail):
         idx = np.nonzero(self.taus < t - 0.004)[0]; self.ob.hide_render = len(idx) < 2
@@ -81,10 +88,11 @@ class Trail:
         cen = rail[None] + self.base[idx] - np.array([C.U * t, 0, 0])[None]
         cen[:, 1] += 0.34 * ages ** 0.8 * R[:, 0]; cen[:, 2] += 0.08 * ages + 0.30 * ages ** 0.8 * R[:, 1]
         rad = (0.15 + 0.50 * ages ** 0.60) * self.P.size[idx]
-        me = self.P.mesh("trail", idx, cen, rad); me.materials.append(self.ob.data.materials[0])
+        me = self.P.mesh("trail", idx, cen, rad, self.mats)
         old = self.ob.data; self.ob.data = me; bpy.data.meshes.remove(old)
         x_old = float(cen[:, 0].min()); x_new = float(cen[:, 0].max())
-        f = self.fade; f.inputs["From Min"].default_value = x_old; f.inputs["From Max"].default_value = x_new; f.inputs["To Min"].default_value = 0.10; f.inputs["To Max"].default_value = 1.3
+        for mt in self.mats:
+            f = mt.node_tree.nodes["Fade"]; f.inputs["From Min"].default_value = x_old; f.inputs["From Max"].default_value = x_new; f.inputs["To Min"].default_value = 0.06; f.inputs["To Max"].default_value = 0.75
 
 class Plume:
     """The wreck burning some time after the strike: black smoke rising and leaning down-wind, flames in the cab and bed."""
@@ -92,11 +100,11 @@ class Plume:
     def __init__(self, col):
         self.P = Puffs(self.N, 57); self.phase = (np.arange(self.N) + np.random.default_rng(2).uniform(0, 1, self.N)) / self.N
         m, fade, self.time, sep = _vol_mat("PlumeSmoke", (0.030, 0.028, 0.027), 0.55, 0.30, 0.58, rise=2.2)
-        m.node_tree.links.new(sep.outputs["Z"], fade.inputs["Value"]); fade.inputs["From Min"].default_value = 1.0; fade.inputs["From Max"].default_value = 26.0; fade.inputs["To Min"].default_value = 2.6; fade.inputs["To Max"].default_value = 0.10
+        m.node_tree.links.new(sep.outputs["Z"], fade.inputs["Value"]); fade.inputs["From Min"].default_value = 1.0; fade.inputs["From Max"].default_value = 26.0; fade.inputs["To Min"].default_value = 2.0; fade.inputs["To Max"].default_value = 0.32; self.mats = [m] + [m.copy() for _ in range(7)]
         self.ob = new_obj("Plume", bpy.data.meshes.new("plume"), col, m); self.ob.hide_render = True
         self.FP = Puffs(14, 63); rng = np.random.default_rng(9); self.fpos = np.stack([rng.uniform(-0.55, 0.75, 14), rng.uniform(-2.0, 1.0, 14), rng.uniform(0.75, 1.25, 14)], 1); self.fph = rng.uniform(0, 6.28, 14)
         fm, ffade, self.ftime, fsep = _vol_mat("WreckFlames", (0.05, 0.03, 0.02), 1.7, 0.36, 0.62, rise=5.0, emission=(1.0, 0.36, 0.05))
-        fm.node_tree.links.new(fsep.outputs["Z"], ffade.inputs["Value"]); ffade.inputs["From Min"].default_value = 3.3; ffade.inputs["From Max"].default_value = 0.9; ffade.inputs["To Max"].default_value = 38.0
+        fm.node_tree.links.new(fsep.outputs["Z"], ffade.inputs["Value"]); ffade.inputs["From Min"].default_value = 3.3; ffade.inputs["From Max"].default_value = 0.9; ffade.inputs["To Max"].default_value = 24.0; self.fmats = [fm] + [fm.copy() for _ in range(3)]
         self.fl = new_obj("Flames", bpy.data.meshes.new("flames"), col, fm); self.fl.hide_render = True; self.fl.visible_shadow = False
         self.glow = ms.point_light(col, "FireGlow", (1.0, 0.45, 0.15), 0.8); self.glow.location = (0.2, -0.3, 1.9)
     def update(self, on, t):
@@ -106,11 +114,12 @@ class Plume:
         s = (self.phase + t * 0.085) % 1.0; z = self.HT * s; idx = np.arange(self.N); R = self.P.rnd
         rad = (self.R0 + self.RK * z ** 1.05) * self.P.size * np.clip(s / 0.04, 0.35, 1.0) * np.clip((1.0 - s) / 0.08, 0.2, 1.0)
         cen = np.stack([self.AX + self.K * z * z + 0.38 * rad * R[:, 0], 0.02 * z + 0.38 * rad * R[:, 1], 1.0 + z + 0.25 * rad * R[:, 2]], 1)
-        me = self.P.mesh("plume", idx, cen, rad); me.materials.append(self.ob.data.materials[0]); old = self.ob.data; self.ob.data = me; bpy.data.meshes.remove(old)
+        me = self.P.mesh("plume", idx, cen, rad, self.mats); old = self.ob.data; self.ob.data = me; bpy.data.meshes.remove(old)
         k = 1.0 + 0.30 * np.sin(t * 9.0 + self.fph) + 0.18 * np.sin(t * 23.0 + 2.1 * self.fph)
         frad = np.stack([0.42 * k, 0.42 * k, 0.95 * k], 1) * self.FP.size[:, None]; fcen = self.fpos + np.array([0, 0, 1.0])[None] * (0.55 * k)[:, None]
-        me = self.FP.mesh("flames", np.arange(14), fcen, frad); me.materials.append(self.fl.data.materials[0]); old = self.fl.data; self.fl.data = me; bpy.data.meshes.remove(old)
-        self.time.outputs[0].default_value = t; self.ftime.outputs[0].default_value = t
+        me = self.FP.mesh("flames", np.arange(14), fcen, frad, self.fmats); old = self.fl.data; self.fl.data = me; bpy.data.meshes.remove(old)
+        for mt in self.mats + self.fmats:
+            mt.node_tree.nodes["Time"].outputs[0].default_value = t
         self.glow.data.energy = 520.0 * (1 + 0.18 * math.sin(t * 13.0) + 0.12 * math.sin(t * 29.0))
 
 # ----------------------------------------------------------------------------- scene
@@ -311,7 +320,7 @@ def shot_after(n=84):
         pos = (1 - u) ** 2 * A + 2 * u * (1 - u) * B + u * u * E
         tgt = lerp(np.array([0.3, 0.0, 1.2]), np.array([1.5, 0.5, 4.5]), smoothstep(0.2, 1.0, u))
         st.look(pos, tgt, 26.0)
-        return t, dt, dict(samples=24, anchors={"wreck": (0.3, 0.0, 1.0), "door": tuple(st.truck.pieces["doorR"].at(30.0)[0])})
+        return t, dt, dict(samples=48, anchors={"wreck": (0.3, 0.0, 1.0), "door": tuple(st.truck.pieces["doorR"].at(30.0)[0])})
     return n, frame
 
 SHOTS = {"cruise": shot_cruise, "launch": shot_launch, "target": shot_target, "fly": shot_fly, "impact": shot_impact, "radius": shot_radius, "after": shot_after}

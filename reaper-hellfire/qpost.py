@@ -56,8 +56,7 @@ def sensor_look(img, i):
     """Turn the rendered view into a monochrome infra-red style picture (white-hot), a little soft and noisy."""
     a = np.asarray(img.convert("RGB").resize((W, H), Image.LANCZOS), np.float32) / 255.0
     lum = a[..., 0] * 0.45 + a[..., 1] * 0.45 + a[..., 2] * 0.10
-    lo, hi = np.percentile(lum, 1), np.percentile(lum, 99.7); g = np.clip((lum - lo) / max(hi - lo, 1e-3), 0, 1) ** 1.15
-    g = 0.10 + 0.82 * g
+    g = np.clip(0.46 + (lum - np.median(lum)) * 1.9, 0.03, 0.97)          # the sand sits mid-grey; the vehicle goes white, its shadow black
     g += _rng.normal(0, 0.022, g.shape).astype(np.float32)
     yy, xx = np.mgrid[0:H, 0:W]; r2 = ((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2
     g *= 1.0 - 0.28 * np.clip(r2 - 0.25, 0, 1.5)
@@ -92,11 +91,11 @@ def overlay_for(shot, i, n, m, info):
     if shot == "cruise":
         lower(d, "ON STATION", "MQ-9A Reaper  ·  two Hellfire missiles under each wing, a 500 lb laser-guided bomb inboard", io)
         readout(d, "ALTITUDE", "20,000 ft", ease((i - 10) / 10.0), AMBER, "CRUISE  %d kt" % round(info["U"] / 0.5144))
-        a1 = ease((i - 22) / 8.0) * (1 - ease((i - 58) / 8.0)); a2 = ease((i - 50) / 8.0) * (1 - ease((i - (n - 8)) / 7.0))
+        a1 = ease((i - 16) / 8.0) * (1 - ease((i - 44) / 7.0)); a2 = ease((i - 54) / 8.0) * (1 - ease((i - (n - 8)) / 7.0))
         if a1 > 0:
             callout(d, an["turret"][0] * W, an["turret"][1] * H, "SENSOR BALL", "CAMERAS AND THE LASER DESIGNATOR", AMBER, a1, dx=-520, dy=150)
         if a2 > 0:
-            callout(d, an["missile"][0] * W, an["missile"][1] * H, "AGM-114 HELLFIRE", "1.63 m  ·  49 kg  ·  9 kg WARHEAD", RED, a2, dx=120, dy=190)
+            callout(d, an["missile"][0] * W, an["missile"][1] * H, "AGM-114 HELLFIRE", "1.63 m  ·  49 kg  ·  9 kg WARHEAD", RED, a2, dx=-640, dy=170)
     elif shot == "launch":
         if t < 0:
             lower(d, "CLEARED TO FIRE", "The sensor operator holds the laser on the pickup  ·  the pilot releases the missile", ease((i - 3) / 8.0))
@@ -131,7 +130,7 @@ def overlay_for(shot, i, n, m, info):
             callout(d, an["kill"][0] * W, an["kill"][1] * H, "15 m", "KILL RADIUS", RED, a, dx=260, dy=150)
             a2 = ease((td - 0.30) / 0.12)
             if a2 > 0:
-                callout(d, an["wound"][0] * W, an["wound"][1] * H, "20 m", "WOUNDING RADIUS", AMBER, a2, dx=-560, dy=-170)
+                callout(d, an["wound"][0] * W, an["wound"][1] * H, "20 m", "WOUNDING RADIUS", AMBER, a2, dx=-330, dy=-210)
         lower(d, "THE REAL REACH", "Published kill and wounding radii of a Hellfire warhead  ·  sources in the README", ease((td - 0.30) / 0.2))
     elif shot == "after":
         a1 = ease((i - 8) / 8.0) * (1 - ease((i - 44) / 8.0)); a2 = ease((i - 32) / 8.0) * (1 - ease((i - 64) / 8.0))

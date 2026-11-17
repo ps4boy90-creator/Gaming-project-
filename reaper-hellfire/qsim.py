@@ -34,9 +34,9 @@ def build_impact():
     column = ico("E_column", 0.60, (0.1, 0.2, 1.25), rough=0.35, scale=(1.0, 1.9, 0.8))   # the wreck burns
     flow(column, 'BOTH', 9, 400, dens=1.5, temp=1.5, fuel=0.55, color=DARK[0], vn=1.2, vinit=(0.6, 0, 4.0))
     skirt = torus("E_skirt", 2.2, 0.45, (0, 0, 0.32), lobes=0.30)
-    flow(skirt, 'SMOKE', 1, 5, dens=1.8, temp=0.25, color=SAND[1], vn=20.0, vinit=(1.0, 0, 2.2))
-    sheet = ico("E_sheet", 1.0, (0.5, 0, 0.12), rough=0.25, scale=(6.5, 6.5, 0.07))
-    flow(sheet, 'SMOKE', 3, 7, dens=0.75, temp=0.15, color=SAND[2], vn=1.5, vinit=(0, 0, 2.2))
+    flow(skirt, 'SMOKE', 1, 4, dens=1.3, temp=0.30, color=SAND[1], vn=20.0, vinit=(1.0, 0, 3.0))
+    sheet = ico("E_sheet", 1.0, (0.5, 0, 0.10), rough=0.5, scale=(5.0, 5.0, 0.05))                     # a thin veil of dust the blast lifts off the sand
+    flow(sheet, 'SMOKE', 3, 5, dens=0.22, temp=0.12, color=SAND[2], vn=1.0, vinit=(0, 0, 1.2))
     for i in range(30):                                                           # sand and wreckage thrown up and out
         az = random.uniform(0, math.tau); el = math.radians(random.uniform(12, 80))
         d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
