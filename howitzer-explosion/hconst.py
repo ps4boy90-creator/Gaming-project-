@@ -21,11 +21,11 @@ G = 9.81
 # and the bore runs 0.30 m above the trunnion axis, so the recoiling breech comes back between the saddle arms
 TRUN = np.array([0.0, 0.0, 0.95])        # trunnion axis
 BZ = 0.30                                 # height of the bore axis above the trunnion axis (cradle frame)
-S_BREECH = 0.85                           # bore coordinate (m ahead of the trunnion) of the rear face of the breech ring
-S_CHAMBER = 1.00                          # rear of the powder chamber
-S_SEAT = 1.88                             # base of the rammed projectile
-S_TUBE = 6.45                             # end of the tube proper
-S_MUZZLE = 6.95                           # front of the muzzle brake
+S_BREECH = 1.20                           # bore coordinate (m ahead of the trunnion) of the rear face of the breech ring
+S_CHAMBER = 1.35                          # rear of the powder chamber
+S_SEAT = 2.23                             # base of the rammed projectile
+S_TUBE = 6.80                             # end of the tube proper
+S_MUZZLE = 7.30                           # front of the muzzle brake
 RECOIL_LEN = 1.0
 
 # ---- projectile M795 (manufacturer brochure) and charge

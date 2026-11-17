@@ -142,15 +142,15 @@ def _rt(t0, n, cam):
 
 def shot_load(n=90):
     """Breech opens, tray swings in, cannoneers 4 and 5 bring the projectile up and slide it onto the tray."""
-    return _rt(-16.25, n, lambda u, t: ((-1.5 + 0.3 * u, -3.7, 3.7), (0.38, -0.70, 1.15), 27.0))
+    return _rt(-16.25, n, lambda u, t: ((-2.9 + 0.3 * u, 0.55, 3.40), (0.70, -0.60, 1.10), 26.0))
 
 def shot_ram(n=52):
-    """Seen from beside the breech looking back: the two cannoneers run the projectile home with the rammer staff."""
-    return _rt(-10.5, n, lambda u, t: ((2.5, -2.5 + 0.2 * u, 2.70), (-1.0, 0.0, 1.15), 23.0))
+    """Seen from the right rear, outside the trail: the two cannoneers run the projectile home with the rammer staff."""
+    return _rt(-10.5, n, lambda u, t: ((-5.2 + 0.25 * u, -3.0, 1.80), (-1.3, 0.0, 1.20), 24.0))
 
 def shot_charge(n=90):
     """Cannoneer 2 loads the propelling charge and closes the breech; cannoneer 1 hooks the lanyard."""
-    return _rt(-7.3, n, lambda u, t: ((-2.7 - 0.2 * u, -0.15, 3.05), (0.75, 0.0, 1.28), 28.0))
+    return _rt(-7.3, n, lambda u, t: ((-2.4 - 0.2 * u, -0.15, 3.05), (1.08, 0.0, 1.30), 28.0))
 
 def shot_fire(n=112, lead=52):
     """The tube is laid to the firing elevation, the chief drops his arm, the lanyard is pulled - then slow motion."""

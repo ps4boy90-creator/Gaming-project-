@@ -27,9 +27,10 @@ from m120 import cyl, disc_wheel, lathe_uv
 import hconst as C
 
 BREECH_OPEN = math.radians(150.0)
-TRAY_ARM = 0.475                                    # radius of the tray's swing
-TRAY_PIVOT = np.array([C.S_BREECH - 0.02, -TRAY_ARM, C.BZ])   # cradle-frame point on the swing axis (parallel to the bore)
-TRAY_OUT, TRAY_STOW, TRAY_IN = 0.0, math.pi / 2, math.pi     # swing angles: out to the right for loading, up for firing, in line with the bore
+TRAY_ARM = math.hypot(0.32, C.BZ - 0.02)            # radius of the tray's swing
+TRAY_PIVOT = np.array([C.S_BREECH - 0.02, -0.32, 0.02])       # cradle-frame point on the swing axis: the right-hand slide of the cradle
+TRAY_OUT = TRAY_STOW = math.radians(15.0)           # swing angles: lying outboard of the right slide (loading, and stowed for firing) ...
+TRAY_IN = math.pi - math.atan2(C.BZ - 0.02, 0.32)   # ... and swung up and in, in line with the bore
 TRAY_LEN = 0.98
 R_SHELL = 0.0770
 
@@ -91,37 +92,89 @@ def beam(g, p0, p1, sec0, sec1=None, up=(0, 0, 1.0)):
             V.append(p + a * sa * w / 2 + b * sb * h / 2)
     g.add(np.array(V), [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]])
 
-def wheel(g_tire, g_rim, c, r=0.44, w=0.27):
-    c = np.asarray(c, float)
-    prof = [(-w / 2, r * 0.62), (-w / 2, r * 0.90), (-w * 0.36, r), (w * 0.36, r), (w / 2, r * 0.90), (w / 2, r * 0.62)]
-    tmp = Geo(); lathe(tmp, prof, 36); V = np.concatenate(tmp.v)[:, [1, 0, 2]] + c            # axis along Y
+def _put(g, tmp, R=None, t=(0, 0, 0)):
+    """Add the contents of a scratch Geo to g after rotating (3x3) and translating."""
+    V = np.concatenate(tmp.v); V = (V @ np.asarray(R).T if R is not None else V) + np.asarray(t, float)
     for k, fl in tmp.f.items():
-        g_tire.add(V, np.concatenate(fl))
-    tmp = Geo(); lathe(tmp, [(-w * 0.30, 0.001), (-w * 0.30, r * 0.60), (-w * 0.42, r * 0.63), (w * 0.42, r * 0.63), (w * 0.30, r * 0.60), (w * 0.30, 0.001)], 28)
-    V = np.concatenate(tmp.v)[:, [1, 0, 2]] + c
-    for k, fl in tmp.f.items():
-        g_rim.add(V, np.concatenate(fl))
+        g.add(V, np.concatenate(fl))
 
-# ----------------------------------------------------------------------------- the gun
-def _scoop(g, origin, td, tn, width=1.18):
-    """Self-digging spade: a wide, shallow scoop with ribs inside, hinged on the end of the trail and lying back on the ground."""
-    up = np.array([0, 0, 1.0]); origin = np.asarray(origin, float)
-    us = np.linspace(0, 1, 9); prof = np.stack([0.02 + 0.92 * us, 0.16 - 0.50 * us ** 0.75], 1)       # (along td, z): from the hinge down to the lip
-    m = len(prof)
-    for th, flip in ((0.0, False), (-0.035, True)):                                                    # blade (two skins)
-        V = np.array([origin + td * px + up * (pz + th) + tn * w for (px, pz) in prof for w in (-width / 2, width / 2)])
-        g.add(V, grid_faces(m, 2, flip=flip))
-    for w in np.linspace(-width / 2, width / 2, 5):                                                    # ribs standing on the blade, tapering to the lip
-        hgt = 0.26 * (1 - us) ** 0.8 + 0.03
-        V = np.array([origin + td * px + up * (pz + dz) + tn * (w + dw) for (px, pz), h in zip(prof, hgt) for dz in (0.0, h) for dw in (-0.02, 0.02)])
+def wheel(g_tire, g_rim, g_dark, c, r=0.44, w=0.29, yaw=0.0, outer=1.0):
+    """Road wheel: tyre with shoulders and tread grooves, rim with hand holes, hub and lug nuts. Axis = local Y turned by yaw;
+    outer = +1/-1 says which side carries the nuts (the other takes the swing arm)."""
+    R = rot_z(yaw) @ np.array([[0, 1.0, 0], [1.0, 0, 0], [0, 0, 1.0]])                      # lathe X axis -> wheel axis
+    tmp = Geo(); lathe(tmp, [(-w * 0.46, r * 0.63), (-w / 2, r * 0.74), (-w / 2, r * 0.88), (-w * 0.40, r * 0.975), (-w * 0.30, r), (w * 0.30, r), (w * 0.40, r * 0.975), (w / 2, r * 0.88), (w / 2, r * 0.74), (w * 0.46, r * 0.63)], 44)
+    _put(g_tire, tmp, R, c)
+    for k in range(5):                                                                        # tread grooves
+        tmp = Geo(); x = -w * 0.26 + w * 0.13 * k; lathe(tmp, [(x - 0.007, r + 0.0005), (x - 0.007, r + 0.005), (x + 0.007, r + 0.005), (x + 0.007, r + 0.0005)], 44); _put(g_dark, tmp, R, c)
+    o = outer; tmp = Geo()
+    lathe(tmp, [(-w * 0.46, r * 0.635), (-w * 0.40, r * 0.60), (-w * 0.30, r * 0.56), (-w * 0.27, r * 0.24), (-w * 0.27, 0.001)], 36)
+    lathe(tmp, [(w * 0.46, r * 0.635), (w * 0.40, r * 0.60), (w * 0.30, r * 0.56), (w * 0.27, r * 0.24), (w * 0.27, 0.001)], 36)
+    cyl(tmp, (o * w * 0.27, 0, 0), (o * w * 0.40, 0, 0), r * 0.17, 16); cyl(tmp, (o * w * 0.27, 0, 0), (o * (w * 0.27 + 0.012), 0, 0), r * 0.36, 24)
+    for k in range(8):
+        a = 2 * math.pi * k / 8; cyl(tmp, (o * w * 0.27, r * 0.27 * math.cos(a), r * 0.27 * math.sin(a)), (o * (w * 0.27 + 0.034), r * 0.27 * math.cos(a), r * 0.27 * math.sin(a)), 0.017, 6)
+    _put(g_rim, tmp, R, c)
+    tmp = Geo()
+    for k in range(8):                                                                        # hand holes
+        a = 2 * math.pi * (k + 0.5) / 8
+        for sg in (-1, 1):
+            cyl(tmp, (sg * (w * 0.29 - 0.004), r * 0.455 * math.cos(a), r * 0.455 * math.sin(a)), (sg * (w * 0.29 + 0.006), r * 0.455 * math.cos(a), r * 0.455 * math.sin(a)), r * 0.062, 10)
+    _put(g_dark, tmp, R, c)
+
+def _bolts(g, pts, axis=(0, 0, 1), r=0.018, h=0.016):
+    a = np.asarray(axis, float)
+    for p_ in pts:
+        cyl(g, np.asarray(p_, float), np.asarray(p_, float) + a * h, r, 6)
+
+def holed_plate(g, c, eu, ev, hu, hv, r, th, cells=1, n=20):
+    """Flat plate (centre c, in-plane axes eu/ev, half sizes hu/hv, thickness th) with one round hole of radius r in each of `cells`
+    equal cells along eu."""
+    c = np.asarray(c, float); eu = np.asarray(eu, float); ev = np.asarray(ev, float); en = np.cross(eu, ev); cu = hu / cells
+    for k in range(cells):
+        cc = c + eu * (-hu + cu * (2 * k + 1))
+        ang = sorted(set([round(2 * math.pi * q / n, 6) for q in range(n)] + [round(math.atan2(sv * hv, su * cu) % (2 * math.pi), 6) for su in (-1, 1) for sv in (-1, 1)]))
+        m = len(ang); ci = []; pe = []
+        for a in ang:
+            ca, sa = math.cos(a), math.sin(a); f = min(cu / max(abs(ca), 1e-9), hv / max(abs(sa), 1e-9))
+            ci.append(eu * (r * ca) + ev * (r * sa)); pe.append(eu * (f * ca) + ev * (f * sa))
+        V = np.array([cc + q + en * z for z in (-th / 2, th / 2) for q in ci + pe])
         F = []
-        for k in range(m - 1):
-            a0, b0 = 4 * k, 4 * (k + 1)
-            F += [[a0, b0, b0 + 2, a0 + 2], [a0 + 1, a0 + 3, b0 + 3, b0 + 1], [a0 + 2, b0 + 2, b0 + 3, a0 + 3]]
+        for q in range(m):
+            q2 = (q + 1) % m
+            F += [[2 * m + q, 2 * m + q2, 3 * m + q2, 3 * m + q], [q2, q, m + q, m + q2], [q, q2, 2 * m + q2, 2 * m + q], [m + q2, m + q, 3 * m + q, 3 * m + q2]]
         g.add(V, F)
-    box_c = origin + td * 0.02 + up * 0.20                                                             # hinge beam across the top
-    g.add(np.array([box_c + td * a + up * b + tn * c for a in (-0.07, 0.07) for b in (-0.08, 0.08) for c in (-width / 2, width / 2)]),
+
+def _scoop(g, hinge, td, tn, length=0.90, w0=0.86, w1=1.12):
+    """Self-digging spade as on the M777: a broad curved scoop behind the trail, high at the hinge and sweeping down to a lip on the
+    ground, with a rolled rim, low side walls and three curved ribs."""
+    up = np.array([0, 0, 1.0]); o = np.asarray(hinge, float); o = np.array([o[0], o[1], 0.0])
+    us = np.linspace(0, 1, 9); hw = (w0 + (w1 - w0) * us ** 0.8) / 2; m = len(us)
+    zf = 0.02 + 0.50 * (1 - us) ** 2.1; xf = 0.04 + (length - 0.04) * us
+    floor = np.array([o + td * xf[k] + up * zf[k] for k in range(m)])
+    nrm = []
+    for k in range(m):                                                                                # blade normal (up/back side)
+        a, b = max(k - 1, 0), min(k + 1, m - 1); t = floor[b] - floor[a]; t /= np.linalg.norm(t); nn = np.cross(t, tn); nrm.append(nn if nn[2] > 0 else -nn)
+    nrm = np.array(nrm)
+    for th, flip in ((0.0, False), (-0.030, True)):                                                    # blade, two skins
+        V = np.array([floor[k] + nrm[k] * th + tn * sgn * hw[k] for k in range(m) for sgn in (-1, 1)]); g.add(V, grid_faces(m, 2, flip=flip))
+    V = np.array([floor[k] + nrm[k] * th + tn * sgn * hw[k] for sgn in (-1, 1) for k in (0, m - 1) for th in (0.0, -0.030)]); g.add(V, [[0, 1, 5, 4], [2, 6, 7, 3]])
+    for sgn in (-1.0, 1.0):                                                                            # side walls with a rolled top edge
+        wall = 0.10 + 0.10 * (1 - us)
+        V = np.array([floor[k] + tn * sgn * (hw[k] - dw) + nrm[k] * dz for k in range(m) for (dw, dz) in ((0.0, -0.03), (0.0, wall[k]), (0.035, wall[k]), (0.035, 0.0))])
+        g.add(V, grid_faces(m, 4, flip=sgn > 0))
+    for q in (-0.48, 0.0, 0.48):                                                                       # three ribs
+        rib = 0.05 + 0.15 * np.sin(np.pi * np.clip(us * 1.15, 0, 1)) ** 0.7
+        V = np.array([floor[k] + tn * (q * hw[k] + dw) + nrm[k] * dz for k in range(m) for (dw, dz) in ((-0.016, 0.0), (-0.016, rib[k]), (0.016, rib[k]), (0.016, 0.0))])
+        g.add(V, grid_faces(m, 4)); g.add(V[[0, 1, 2, 3]], [[0, 1, 2, 3]]); g.add(V[[-4, -3, -2, -1]], [[3, 2, 1, 0]])
+    V = np.array([floor[-1] + tn * sgn * hw[-1] + nrm[-1] * dz + td * dx for sgn in (-1, 1) for (dx, dz) in ((0, -0.03), (0, 0.035), (0.05, 0.02), (0.05, -0.03))])
+    g.add(V, [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [0, 3, 2, 1], [4, 5, 6, 7]])     # cutting lip
+    c = o + td * 0.0 + up * 0.36                                                                        # hinge beam across the top of the blade
+    g.add(np.array([c + td * a + up * b + tn * q for a in (-0.07, 0.07) for b in (-0.20, 0.18) for q in (-w0 / 2, w0 / 2)]),
           [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]])
+
+STAB_ANG = math.radians(47.0)                    # forward stabilisers, from the line of fire
+TRAIL_ANG = math.radians(42.0)                   # trails, from the rear
+TC = np.array([0.15, 0.0, 0.0])                    # centre of the turntable
+WHEEL_C = np.array([1.60, 1.02, 0.46])             # left wheel centre (mirror for the right)
 
 def build_gun(col=None, name="M777", elev=None):
     """Returns dict(root, cradle, tube, breech, tray, tray_arm, struts)."""
@@ -130,72 +183,114 @@ def build_gun(col=None, name="M777", elev=None):
     cradle = _root("Cradle", col); cradle.parent = root; cradle.location = C.TRUN
     tube = _root("Tube", col); tube.parent = cradle; tube.location = (0, 0, C.BZ)
     SB, ST, SM, BZ = C.S_BREECH, C.S_TUBE, C.S_MUZZLE, C.BZ
-    # --- recoiling parts (tube frame: bore axis = local X): breech ring, tube, big double-baffle muzzle brake with the towing lug
+    # ------------------------------------------------------------------ recoiling parts (tube frame: bore axis = local X)
     gt = Geo(); gd = Geo(); gb = Geo(); gk0 = Geo()
-    lathe(gt, [(SB, 0.094), (SB, 0.200), (SB + 0.03, 0.220), (SB + 0.42, 0.220), (SB + 0.50, 0.175), (2.10, 0.165), (3.20, 0.140), (4.40, 0.124), (ST, 0.114), (ST, 0.0775)], 56)
+    lathe(gt, [(SB, 0.094), (SB, 0.205), (SB + 0.03, 0.228), (SB + 0.44, 0.228), (SB + 0.52, 0.182), (SB + 1.35, 0.176), (SB + 2.45, 0.160), (SB + 4.01, 0.150), (SB + 4.11, 0.128), (ST, 0.119), (ST, 0.0775)], 56)
     lathe(gt, [(ST, 0.0775), (C.S_SEAT + 0.12, 0.0775), (C.S_SEAT + 0.04, 0.0900), (SB, 0.0920)], 48)                     # bore + powder chamber
-    box(gt, (0.34, 0.36, 0.09), (SB + 0.22, 0.0, 0.232))
-    for x, r_, w, h in ((SB + 0.02, 0.220, 0.04, 0.008), (SB + 0.40, 0.220, 0.04, 0.008), (3.25, 0.140, 0.06, 0.010), (ST - 0.25, 0.116, 0.05, 0.006)):
+    box(gt, (0.36, 0.38, 0.10), (SB + 0.22, 0.0, 0.238))
+    for x, r_, w, h in ((SB + 0.02, 0.228, 0.04, 0.008), (SB + 0.42, 0.228, 0.04, 0.008), (SB + 3.95, 0.150, 0.05, 0.006), (ST - 0.22, 0.121, 0.06, 0.008)):
         ring(gt, x, r_, w, h, 56)
-    lathe(gt, [(ST - 0.04, 0.114), (ST - 0.04, 0.160), (ST + 0.02, 0.215), (ST + 0.46, 0.215), (ST + 0.50, 0.195), (ST + 0.50, 0.085)], 8)   # brake body
-    for sx in (ST + 0.135, ST + 0.355):                                                                                       # two large round ports each side
-        for sy in (-1, 1):
-            cyl(gk0, (sx, sy * 0.170, 0.0), (sx, sy * 0.203, 0.0), 0.088, 24); tmp = Geo()
-            lathe(tmp, [(0.0, 0.088), (0.0, 0.104), (0.012, 0.104), (0.012, 0.088)], 24)
-            Vr = np.concatenate(tmp.v)[:, [1, 0, 2]] * np.array([1, sy, 1]) + np.array([sx, sy * 0.196, 0.0])
-            for k, fl in tmp.f.items():
-                gt.add(Vr, np.concatenate(fl))
-    box(gt, (0.30, 0.075, 0.11), (SM + 0.13, 0.0, -0.10)); ang = np.linspace(0, 2 * np.pi, 21)                                # towing lug with its eye
-    pipe(gt, [(SM + 0.30 + 0.060 * math.cos(a), 0.0, -0.10 + 0.060 * math.sin(a)) for a in ang], [(0.038, 0.022)] * 21, 8)
-    _finish(gt, "TubeSteel", col, M["HwGreen"], tube); _finish(gk0, "BrakePorts", col, M["HwDark"], tube)
-    # --- breech block carrier (hinge on top of the breech ring; rotation about +Y swings it back and up)
+    # muzzle brake: a box of plates behind a conical neck, two round ports through each side, baffles with the bore hole
+    ex, ey, ez = np.eye(3); bx0 = ST + 0.02; bl = 0.50; hy = 0.215; hz = 0.200
+    for sy in (-1, 1):
+        holed_plate(gt, (bx0 + bl / 2, sy * hy, 0.0), ex, ez, bl / 2, hz, 0.098, 0.034, cells=2)
+        for sx in (bx0 + bl * 0.25, bx0 + bl * 0.75):
+            tmp = Geo(); lathe(tmp, [(0.0, 0.098), (0.0, 0.120), (0.012, 0.120), (0.012, 0.098)], 26); _put(gt, tmp, np.array([[0, 1.0, 0], [sy, 0, 0], [0, 0, 1.0]]), (sx, sy * (hy + 0.016), 0.0))
+    for sz in (-1, 1):
+        box(gt, (bl, 2 * hy + 0.034, 0.034), (bx0 + bl / 2, 0.0, sz * (hz + 0.017)))
+    holed_plate(gt, (bx0, 0, 0), ey, ez, hy, hz, 0.120, 0.034); holed_plate(gt, (bx0 + bl / 2, 0, 0), ey, ez, hy, hz, 0.086, 0.030); holed_plate(gt, (bx0 + bl, 0, 0), ey, ez, hy, hz, 0.086, 0.034)
+    lathe(gt, [(ST - 0.10, 0.119), (ST - 0.08, 0.150), (bx0, 0.185), (bx0, 0.119)], 40)
+    V = np.array([[SM - 0.30, y, z] for y in (-0.085, 0.085) for z in (-0.275, -0.215)] + [[SM + 0.30, y, z] for y in (-0.050, 0.050) for z in (-0.262, -0.222)])
+    gt.add(V, [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]])                            # towing tongue
+    tmp = Geo(); lathe(tmp, [(-0.022, 0.045), (-0.022, 0.085), (0.022, 0.085), (0.022, 0.045)], 20); _put(gt, tmp, np.array([[0, 1.0, 0], [0, 0, 1.0], [1.0, 0, 0]]), (SM + 0.36, 0, -0.242))
+    _finish(gt, "TubeSteel", col, M["HwGreen"], tube)
+    # ------------------------------------------------------------------ breech block carrier (hinge on top of the breech ring)
     breech = _root("Breech", col); breech.parent = tube; breech.location = (SB, 0, 0.215)
-    box(gd, (0.070, 0.330, 0.440), (-0.040, 0.0, -0.215))
+    box(gd, (0.070, 0.340, 0.450), (-0.040, 0.0, -0.215))
     cyl(gd, (-0.01, 0, -0.215), (0.130, 0, -0.215), 0.0905, 40)
     for k in range(6):
         a = k * math.pi / 3
         cyl(gb, (0.02, 0.089 * math.cos(a), -0.215 + 0.089 * math.sin(a)), (0.12, 0.089 * math.cos(a), -0.215 + 0.089 * math.sin(a)), 0.012, 8)
-    cyl(gd, (-0.085, 0, -0.215), (-0.040, 0, -0.215), 0.060, 24)                                                               # firing mechanism
-    box(gd, (0.050, 0.120, 0.050), (-0.100, -0.110, -0.200)); cyl(gd, (-0.115, -0.170, -0.200), (-0.115, -0.200, -0.120), 0.010, 8)   # firing lever (right)
+    lathe(gd, [(-0.075, 0.001), (-0.075, 0.095), (-0.085, 0.105), (-0.095, 0.095), (-0.105, 0.105), (-0.115, 0.095), (-0.125, 0.105), (-0.135, 0.095), (-0.150, 0.085), (-0.150, 0.001)], 32,
+          center=(0, 0, -0.215))                                                                                               # finned firing mechanism
+    box(gd, (0.050, 0.150, 0.050), (-0.100, -0.150, -0.200)); cyl(gd, (-0.115, -0.215, -0.200), (-0.115, -0.250, -0.130), 0.010, 8)   # firing lever (right)
     box(gd, (0.090, 0.150, 0.090), (-0.050, 0.060, 0.040))                                                                     # primer feed mechanism
     cyl(gd, (-0.02, -0.19, 0.0), (-0.02, 0.19, 0.0), 0.028, 14)
     pipe(gd, [(-0.06, 0.175, -0.30), (-0.14, 0.215, -0.30), (-0.14, 0.215, -0.16)], [0.012] * 3, 8)                           # operating handle (left)
     _finish(gd, "BreechDark", col, M["HwDark"], breech); _finish(gb, "BreechBare", col, M["HwBare"], breech)
-    # --- cradle (origin = trunnion axis): two lower tubes that carry the trunnions, two upper tubes, slotted side plates,
-    #     the open trough behind the breech, front yoke, recoil cylinders, accumulator and electronics on top
+    # ------------------------------------------------------------------ cradle (origin = trunnion axis)
     gc = Geo(); gr = Geo(); gk = Geo(); gs = Geo()
     for sy in (-1, 1):
-        cyl(gc, (-0.18, sy * 0.30, 0.02), (3.18, sy * 0.30, 0.02), 0.072, 26)
-        cyl(gc, (0.95, sy * 0.27, 0.50), (3.18, sy * 0.27, 0.50), 0.066, 26); cyl(gc, (3.18, sy * 0.27, 0.50), (3.26, sy * 0.27, 0.50), 0.066, 20, r1=0.030)
-        cyl(gc, (0.95, sy * 0.27, 0.50), (0.88, sy * 0.27, 0.50), 0.066, 20, r1=0.035); cyl(gc, (3.18, sy * 0.30, 0.02), (3.26, sy * 0.30, 0.02), 0.072, 20, r1=0.035)
-        box(gc, (2.20, 0.030, 0.40), (2.05, sy * 0.315, 0.26))                                           # side plate
-        for k in range(7):
-            box(gs, (0.170, 0.036, 0.115), (1.22 + 0.285 * k, sy * 0.317, 0.27))                         # lightening slots
-        cyl(gc, (0.0, sy * 0.36, 0.0), (0.0, sy * 0.58, 0.0), 0.085, 24); box(gc, (0.30, 0.06, 0.26), (0.0, sy * 0.36, 0.03))        # trunnion
-        cyl(gc, (1.30, sy * 0.105, 0.635), (3.00, sy * 0.105, 0.635), 0.050, 18); cyl(gr, (3.00, sy * 0.105, 0.635), (3.16, sy * 0.105, 0.635), 0.025, 12)   # recoil cylinders
-    box(gc, (1.20, 0.60, 0.025), (0.42, 0.0, -0.035))                                                    # trough plate behind the breech
+        # lower side cylinder: carries the trunnion, ribbed section at the rear, fat sleeve along the middle
+        cyl(gc, (-0.22, sy * 0.32, 0.02), (3.18, sy * 0.32, 0.02), 0.086, 26); cyl(gc, (0.34, sy * 0.32, 0.02), (1.80, sy * 0.32, 0.02), 0.104, 28)
+        cyl(gc, (-0.22, sy * 0.32, 0.02), (-0.30, sy * 0.32, 0.02), 0.086, 20, r1=0.050); cyl(gc, (3.18, sy * 0.32, 0.02), (3.30, sy * 0.32, 0.02), 0.086, 20, r1=0.040); cyl(gc, (3.30, sy * 0.32, 0.02), (3.34, sy * 0.32, 0.02), 0.022, 8)
+        for k in range(9):
+            ring(gk, 0.03 + 0.033 * k, 0.088, 0.016, 0.010, 24, center=(0, sy * 0.32, 0.02))
+        # upper tube with domed caps
+        cyl(gc, (0.98, sy * 0.29, 0.53), (3.18, sy * 0.29, 0.53), 0.080, 26); cyl(gc, (3.18, sy * 0.29, 0.53), (3.30, sy * 0.29, 0.53), 0.080, 20, r1=0.036); cyl(gc, (3.30, sy * 0.29, 0.53), (3.34, sy * 0.29, 0.53), 0.020, 8)
+        cyl(gc, (0.98, sy * 0.29, 0.53), (0.89, sy * 0.29, 0.53), 0.080, 20, r1=0.040)
+        # windowed box beam between them, with the buffer springs showing through
+        box(gc, (2.10, 0.120, 0.300), (2.08, sy * 0.365, 0.275))
+        for k in range(6):
+            box(gs, (0.150 + (0.07 if k == 5 else 0), 0.126, 0.110), (1.38 + 0.300 * k, sy * 0.367, 0.275))
+            for q in range(4):
+                ring(gb, 1.325 + 0.300 * k + 0.036 * q, 0.030, 0.014, 0.012, 12, center=(0, sy * 0.415, 0.275))
+        for sx in (1.56, 2.46):                                                                          # strap brackets
+            box(gc, (0.050, 0.025, 0.70), (sx, sy * 0.435, 0.275)); _bolts(gk, [(sx, sy * 0.447, 0.275 + dz) for dz in (-0.27, -0.13, 0.13, 0.27)], axis=(0, sy, 0))
+        cyl(gc, (0.0, sy * 0.38, 0.0), (0.0, sy * 0.60, 0.0), 0.088, 24); box(gc, (0.40, 0.07, 0.34), (0.02, sy * 0.425, 0.00)); _bolts(gk, [(0.11 * math.cos(a_), sy * 0.46, 0.11 * math.sin(a_)) for a_ in np.linspace(0, 2 * math.pi, 9)[:-1]], axis=(0, sy, 0), r=0.014)   # trunnion + its lug
+    arch = [(-0.06 + 0.24 * math.sin(a_), -0.22 * math.cos(a_)) for a_ in np.linspace(0, math.pi, 13)]                   # trough plate, arched at the rear
+    strip = [(-0.26, -0.30), (-0.26, -0.22)] + arch + [(-0.26, 0.22), (-0.26, 0.30)]
+    for z, flip in ((-0.055, True), (-0.025, False)):
+        P = [(x, y) for x, y in strip]; Q = [(1.06, y) for x, y in strip]
+        Vz = np.array([[x, y, z] for x, y in P] + [[x, y, z] for x, y in Q]); gc.add(Vz, grid_faces(2, len(P), flip=flip))
+    Vw = np.array([[x, y, z] for x, y in strip for z in (-0.055, -0.025)]); gc.add(Vw, grid_faces(len(strip), 2))
+    _bolts(gk, [(0.02 + 0.15 * k, sy * 0.26, -0.026) for k in range(8) for sy in (-1, 1)])
+    cyl(gc, (-0.20, -0.32, 0.02), (-0.20, -0.22, 0.02), 0.050, 14); cyl(gc, (-0.20, 0.22, 0.02), (-0.20, 0.32, 0.02), 0.050, 14)
+    # yokes: rear frame at the breech, front plate with the bolted barrel collar
+    for sy in (-1, 1):
+        box(gc, (0.07, 0.07, 0.66), (0.98, sy * 0.385, 0.275))
+    box(gc, (0.07, 0.84, 0.06), (0.98, 0, 0.61)); box(gc, (0.07, 0.84, 0.06), (0.98, 0, -0.06))
+    box(gc, (0.07, 0.90, 0.80), (3.15, 0, 0.275)); lathe(gc, [(3.10, 0.150), (3.10, 0.235), (3.22, 0.235), (3.25, 0.205), (3.30, 0.195), (3.30, 0.150)], 44, center=(0, 0, BZ))
+    _bolts(gk, [(3.22, 0.215 * math.cos(a), BZ + 0.215 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 13)[:-1]], axis=(1, 0, 0), r=0.016)
+    # on top: the recuperator cylinder, a slimmer one beside it, electronics boxes with their cables, the chief's display
+    cyl(gc, (1.22, 0.0, 0.675), (2.85, 0.0, 0.675), 0.088, 26); cyl(gc, (2.85, 0.0, 0.675), (3.10, 0.0, 0.640), 0.045, 16)
+    for k in range(5):
+        ring(gk, 1.25 + 0.035 * k, 0.090, 0.016, 0.012, 26, center=(0, 0, 0.675))
+    cyl(gc, (1.45, -0.16, 0.655), (2.95, -0.16, 0.655), 0.045, 16); cyl(gr, (2.95, -0.16, 0.655), (3.10, -0.16, 0.655), 0.022, 10)
+    box(gc, (0.40, 0.30, 0.24), (2.20, 0.25, 0.80)); _bolts(gk, [(2.20 + dx, 0.25 + dy, 0.92) for dx in (-0.17, 0.17) for dy in (-0.12, 0.12)])
+    box(gc, (0.22, 0.20, 0.17), (1.72, -0.30, 0.74)); box(gc, (0.20, 0.16, 0.12), (1.62, 0.26, 0.70))
+    for q in range(4):
+        pipe(gk, [(2.00, 0.18 + 0.03 * q, 0.74), (1.80, 0.20 + 0.03 * q, 0.66), (1.50, 0.33, 0.60 - 0.02 * q), (1.20, 0.40, 0.50)], [0.011] * 4, 6)
+    box(gk, (0.05, 0.28, 0.21), (1.08, -0.50, 0.74), rot=rot_z(-0.5)); pipe(gc, [(1.15, -0.36, 0.52), (1.10, -0.46, 0.64)], [0.025, 0.025], 8)
+    # stowed ribbed panel along the lower left of the cradle
+    tmp = Geo(); box(tmp, (1.02, 0.050, 0.46), (0, 0, 0))
+    for k in range(7):
+        box(tmp, (0.022, 0.030, 0.44), (-0.45 + 0.15 * k, 0.038, 0))
+    for sz in (-1, 1):
+        box(tmp, (1.02, 0.030, 0.022), (0, 0.038, sz * 0.22))
+    _put(gc, tmp, rot_x(math.radians(-28)), (1.62, 0.455, -0.10))
+    pipe(gk, [(1.25, 0.36, 0.44), (1.9, 0.44, 0.47), (2.6, 0.44, 0.45), (3.05, 0.40, 0.44)], [0.012] * 4, 8)
+    pipe(gk, [(1.25, -0.40, 0.42), (1.8, -0.43, 0.46), (2.4, -0.42, 0.50)], [0.012] * 3, 8)
+    # everything ahead of the trough was laid out with the breech 0.85 m ahead of the trunnions; slide it forward to the real breech
+    # position (the slides, sleeves and trough plate simply get longer)
+    DXC = SB - 0.85
+    for g_ in (gc, gr, gk, gs, gb):
+        for arr in g_.v:
+            arr[:, 0] += DXC * (arr[:, 0] >= 0.885)
     for k in range(3):
-        cyl(gs, (0.12 + 0.30 * k, 0, -0.050), (0.12 + 0.30 * k, 0, -0.020), 0.105, 20)                    # its oval holes
-    cyl(gc, (-0.15, -0.30, 0.02), (-0.15, 0.30, 0.02), 0.060, 16)
-    for sx in (0.95, 3.12):                                                                               # yokes
-        box(gc, (0.08, 0.72, 0.05), (sx, 0, 0.575)); box(gc, (0.08, 0.72, 0.05), (sx, 0, -0.055))
-        for sy in (-1, 1):
-            box(gc, (0.08, 0.05, 0.60), (sx, sy * 0.345, 0.26))
-    lathe(gc, [(3.02, 0.145), (3.02, 0.185), (3.24, 0.185), (3.24, 0.145)], 40, center=(0, 0, BZ))      # barrel collar
-    cyl(gc, (1.10, 0.0, 0.73), (1.95, 0.0, 0.73), 0.072, 20)                                             # accumulator
-    box(gc, (0.34, 0.30, 0.20), (2.30, -0.02, 0.76)); box(gc, (0.24, 0.22, 0.16), (2.72, 0.05, 0.74)); box(gk, (0.05, 0.26, 0.20), (1.02, -0.47, 0.72), rot=rot_z(-0.5))   # electronics, display
-    pipe(gk, [(1.2, 0.36, 0.44), (1.8, 0.375, 0.47), (2.5, 0.37, 0.45), (3.0, 0.36, 0.44)], [0.012] * 4, 8)
-    pipe(gk, [(1.2, -0.36, 0.40), (1.7, -0.38, 0.47), (2.3, -0.37, 0.52)], [0.012] * 3, 8)
-    _finish(gc, "CradleGreen", col, M["HwGreen"], cradle); _finish(gr, "CradleRods", col, M["HwBare"], cradle); _finish(gk, "CradleHoses", col, M["HwDark"], cradle)
-    _finish(gs, "CradleSlots", col, M["HwRubber"], cradle)
-    # --- loading tray: ribbed trough carried on a swing arm on the right of the cradle (trough stays level; see set_tray)
+        tmp = Geo(); cyl(tmp, (0, 0, -0.058), (0, 0, -0.022), 0.085, 22); _put(gs, tmp, np.diag([1.40, 1.0, 1.0]), (0.36 + 0.305 * k, 0, 0))
+    _finish(gc, "CradleGreen", col, M["HwGreen"], cradle); _finish(gr, "CradleRods", col, M["HwBare"], cradle); _finish(gk, "CradleFittings", col, M["HwDark"], cradle)
+    _finish(gs, "CradleSlots", col, M["HwRubber"], cradle); _finish(gb, "CradleSprings", col, M["HwBare"], cradle) if False else None
+    # ------------------------------------------------------------------ loading tray (right): channel trough on a swing arm, stays level
     tray = _root("Tray", col); tray.parent = cradle
     gy = Geo(); a = np.linspace(math.radians(195), math.radians(345), 15); xs = np.array([0.0, -TRAY_LEN])
     for rr, flip in ((R_SHELL + 0.006, False), (R_SHELL + 0.016, True)):
         V = np.array([[x, rr * math.cos(t), rr * math.sin(t)] for x in xs for t in a]); gy.add(V, grid_faces(2, len(a), flip=flip))
-    for x in np.linspace(-0.06, -TRAY_LEN + 0.06, 6):                                                    # ribs under the trough
+    for x in np.linspace(-0.06, -TRAY_LEN + 0.06, 6):
         V = np.array([[x + dx, (R_SHELL + rr) * math.cos(t), (R_SHELL + rr) * math.sin(t)] for (dx, rr) in ((-0.012, 0.014), (-0.012, 0.034), (0.012, 0.034), (0.012, 0.014)) for t in a])
         gy.add(V, grid_faces(4, len(a)))
+    for sy in (-1, 1):
+        box(gy, (TRAY_LEN, 0.016, 0.055), (-TRAY_LEN / 2, sy * (R_SHELL + 0.012), 0.020))
     _finish(gy, "TrayGreen", col, M["HwGreen"], tray)
     tray_arm = _root("TrayArm", col); tray_arm.parent = cradle; tray_arm.location = TRAY_PIVOT
     ga = Geo()
@@ -203,63 +298,131 @@ def build_gun(col=None, name="M777", elev=None):
         beam(ga, (x, 0, 0), (x, -(TRAY_ARM - R_SHELL - 0.03), 0), (0.05, 0.05), up=(1, 0, 0))
     cyl(ga, (-0.05, 0, 0), (-0.85, 0, 0), 0.028, 14)
     _finish(ga, "TrayArmGreen", col, M["HwGreen"], tray_arm)
-    # --- carriage: round turntable body, saddle arms, forward stabilisers, short trails with scoop spades, front road wheels
+    # ------------------------------------------------------------------ carriage
     gg = Geo(); gb2 = Geo(); gt2 = Geo(); grim = Geo(); gl = Geo(); gdk = Geo(); gtr = Geo()
-    cyl(gg, (0.05, 0, 0.08), (0.05, 0, 0.30), 0.82, 56); cyl(gg, (0.05, 0, 0.30), (0.05, 0, 0.46), 0.74, 56); cyl(gg, (0.05, 0, 0.46), (0.05, 0, 0.50), 0.60, 48)
-    for k in range(72):                                                                                   # traverse gear ring
-        t = 2 * math.pi * k / 72; box(gdk, (0.030, 0.030, 0.055), (0.05 + 0.795 * math.cos(t), 0.795 * math.sin(t), 0.33), rot=rot_z(t))
+    up = np.array([0, 0, 1.0])
+    # turntable: base disc, toothed traverse ring, deck with bolt circle and hatch
+    lathe_z = lambda g_, prof, segs=64: _put(g_, _lz(prof, segs), None, TC)
+    def _lz(prof, segs):
+        tmp = Geo(); lathe(tmp, [(z, r) for (r, z) in prof], segs); V = np.concatenate(tmp.v)[:, [1, 2, 0]]; t2 = Geo()
+        for k, fl in tmp.f.items():
+            t2.add(V, np.concatenate(fl))
+        return t2
+    lathe_z(gg, [(0.001, 0.06), (0.86, 0.06), (0.93, 0.12), (0.93, 0.30), (0.90, 0.30), (0.90, 0.375), (0.84, 0.375), (0.84, 0.445), (0.001, 0.445)])
+    for k in range(96):
+        t = 2 * math.pi * k / 96; box(gdk, (0.028, 0.026, 0.060), TC + [0.905 * math.cos(t), 0.905 * math.sin(t), 0.338], rot=rot_z(t))
+    _bolts(gdk, [TC + [0.78 * math.cos(t), 0.78 * math.sin(t), 0.445] for t in np.linspace(0, 2 * math.pi, 29)[:-1]], r=0.016)
+    _bolts(gdk, [TC + [0.935 * math.cos(t), 0.935 * math.sin(t), 0.21] for t in np.linspace(0, 2 * math.pi, 25)[:-1] if abs(math.sin(2 * t)) < 0.75], axis=(0, 0, 0), r=0.0) if False else None
+    box(gg, (0.30, 0.22, 0.015), TC + [-0.52, 0.10, 0.452])
+    for k in range(3):                                                                                  # lugs round the base of the turntable
+        box(gg, (0.20, 0.10, 0.12), TC + [-0.93 * math.cos(0.5 * (k - 1)), 0.93 * math.sin(0.5 * (k - 1)), 0.14], rot=rot_z(math.pi - 0.5 * (k - 1)))
     for sy in (-1, 1):
-        # saddle arm up to the trunnion bearing
-        P = [(-0.42, 0.48), (0.38, 0.48), (0.16, 1.02), (0.05, 1.08), (-0.05, 1.08), (-0.16, 1.02)]; n = len(P)
-        V = np.array([[x, sy * 0.47, z] for x, z in P] + [[x, sy * 0.58, z] for x, z in P])
+        # --- saddle column: side plate up to the trunnion bearing, a post behind it carrying the balancing gear
+        P = [(-0.34, 0.445), (0.36, 0.445), (0.22, 0.80), (0.13, 1.07), (0.04, 1.12), (-0.06, 1.12), (-0.15, 1.07), (-0.20, 0.90), (-0.34, 0.80)]; n = len(P)
+        V = np.array([[x, sy * 0.47, z] for x, z in P] + [[x, sy * 0.60, z] for x, z in P])
         gg.add(V, [[k, (k + 1) % n, n + (k + 1) % n, n + k] for k in range(n)]); gg.add(V, [list(range(n)), list(range(2 * n - 1, n - 1, -1))])
-        cyl(gg, (0, sy * 0.57, C.TRUN[2]), (0, sy * 0.63, C.TRUN[2]), 0.12, 24)
-        # forward stabiliser: long tapered leg with a small foot
-        s0 = np.array([0.50, sy * 0.55, 0.29]); s1 = np.array([3.05, sy * 1.72, 0.14]); sd = (s1 - s0) / np.linalg.norm(s1 - s0); sn = np.cross([0, 0, 1.0], sd)
-        beam(gg, s0, s1, (0.30, 0.34), (0.17, 0.15)); cyl(gg, s0 + [0, 0, -0.18], s0 + [0, 0, 0.18], 0.20, 18)
-        box(gg, (0.40, 0.30, 0.045), s1 + sd * 0.05 + [0, 0, -0.10], rot=np.stack([sd, sn, [0, 0, 1.0]], 1))
-        cyl(gdk, s0 + sd * 0.25 + [0, 0, 0.21], s0 + sd * 1.15 + [0, 0, 0.16], 0.040, 12)
-        # trail: short and stout, with the scoop spade and its strut
-        t0 = np.array([-0.50, sy * 0.55, 0.32]); t1 = np.array([-2.15, sy * 1.52, 0.34]); td = (t1 - t0) / np.linalg.norm(t1 - t0); tn = np.cross(td, [0, 0, 1.0])
-        beam(gg, t0, t1, (0.50, 0.42), (0.42, 0.34)); cyl(gg, t0 + [0, 0, -0.22], t0 + [0, 0, 0.22], 0.26, 20)
-        _scoop(gg, t1 + td * 0.06 + [0, 0, -0.02], td, tn)
-        cyl(gdk, t1 - td * 0.80 + [0, 0, 0.24], t1 + td * 0.06 + [0, 0, 0.27], 0.045, 12)
-        pipe(gdk, [t1 - td * 1.15 + tn * 0.26 + [0, 0, 0.0], t1 - td * 1.15 + tn * 0.35 + [0, 0, 0.0], t1 - td * 0.75 + tn * 0.35 + [0, 0, 0.0], t1 - td * 0.75 + tn * 0.26 + [0, 0, 0.0]], [0.014] * 4, 8)
-        # road wheel on its hydrogas arm, beside the stabiliser, just clear of the ground
-        c = np.array([1.12, sy * 1.26, 0.50]); wheel(gt2, grim, c)
-        beam(gg, (0.45, sy * 0.80, 0.32), c - [0, sy * 0.19, 0], (0.17, 0.15), (0.14, 0.12)); cyl(gg, c - [0, sy * 0.24, 0], c - [0, sy * 0.10, 0], 0.090, 16)
-        cyl(gdk, (0.30, sy * 0.84, 0.47), (0.85, sy * 1.00, 0.52), 0.060, 14)
-        # tread plates on the body beside the saddle
-        box(gtr, (0.55, 0.30, 0.025), (0.55, sy * 0.80, 0.435), rot=rot_z(sy * 0.42))
-    cyl(gdk, (3.10, -1.74, 0.10), (3.10, -1.74, 0.40), 0.040, 12); cyl(gdk, (3.10, -1.74, 0.40), (3.10, -1.74, 2.60), 0.011, 8)          # antenna mast on the right stabiliser
-    # gunner's side (left): two handwheels and the sight; assistant gunner's side (right): one handwheel
-    box(gg, (0.20, 0.14, 0.24), (-0.34, 0.60, 0.86)); disc_wheel(gdk, (-0.50, 0.60, 0.86), (-1, 0, 0), 0.16, 0.012); cyl(gg, (-0.44, 0.60, 0.86), (-0.49, 0.60, 0.86), 0.024, 10)
-    box(gg, (0.16, 0.14, 0.20), (-0.08, 0.66, 1.00)); disc_wheel(gdk, (-0.08, 0.80, 1.00), (0, 1, 0), 0.16, 0.012); cyl(gg, (-0.08, 0.72, 1.00), (-0.08, 0.79, 1.00), 0.024, 10)
-    pipe(gg, [(0.02, 0.60, 1.08), (0.02, 0.64, 1.30), (0.02, 0.64, 1.46)], [0.042, 0.038, 0.034], 12)
-    box(gdk, (0.13, 0.11, 0.16), (0.02, 0.64, 1.53)); cyl(gdk, (0.02, 0.64, 1.60), (0.02, 0.64, 1.72), 0.030, 12); cyl(gdk, (0.02, 0.64, 1.69), (-0.09, 0.64, 1.71), 0.024, 12)
-    cyl(gl, (-0.092, 0.64, 1.71), (-0.095, 0.64, 1.71), 0.019, 12)
-    box(gg, (0.18, 0.14, 0.24), (-0.10, -0.66, 0.98)); disc_wheel(gdk, (-0.10, -0.80, 0.98), (0, -1, 0), 0.16, 0.012); cyl(gg, (-0.10, -0.72, 0.98), (-0.10, -0.79, 0.98), 0.024, 10)
+        cyl(gg, (0, sy * 0.60, C.TRUN[2]), (0, sy * 0.66, C.TRUN[2]), 0.130, 28); _bolts(gdk, [(0.10 * math.cos(a_), sy * 0.66, C.TRUN[2] + 0.10 * math.sin(a_)) for a_ in np.linspace(0, 2 * math.pi, 9)[:-1]], axis=(0, sy, 0), r=0.013)
+        box(gg, (0.56, 0.22, 0.10), (0.02, sy * 0.53, 0.49))
+        box(gg, (0.13, 0.11, 0.32), (-0.27, sy * 0.61, 0.93)); cyl(gg, (-0.27, sy * 0.52, 1.02), (-0.27, sy * 0.68, 1.02), 0.055, 14)
+        for q in (0.60, 0.72, 0.84):
+            box(gdk, (0.012, 0.135, 0.07), (0.27 - (q - 0.445) * 0.39, sy * 0.535, q), rot=rot_y(-0.37))
+        # --- forward stabiliser: fixed arm from the body, a big vertical hinge with a hex-headed pin, then the long tapering leg
+        sd = np.array([math.cos(STAB_ANG), sy * math.sin(STAB_ANG), 0.0]); sn = np.cross(up, sd); Rs = np.stack([sd, sn, up], 1)
+        beam(gg, TC + sd * 0.62 + up * 0.26, TC + sd * 1.26 + up * 0.27, (0.60, 0.36), (0.42, 0.34))
+        hg = TC + sd * 1.32 + up * 0.27
+        cyl(gg, hg - up * 0.22, hg + up * 0.22, 0.205, 24); cyl(gdk, hg + up * 0.22, hg + up * 0.265, 0.095, 6); cyl(gdk, hg - up * 0.25, hg - up * 0.22, 0.075, 6)
+        s1 = TC + sd * 3.15 + up * 0.105; sm = hg + (s1 - hg) * 0.40 + up * 0.035
+        beam(gg, hg + sd * 0.10, sm, (0.36, 0.36), (0.25, 0.30)); beam(gg, sm, s1, (0.25, 0.30), (0.19, 0.13))
+        box(gg, (0.44, 0.36, 0.045), s1 + sd * 0.06 - up * 0.083, rot=Rs); box(gg, (0.07, 0.36, 0.15), s1 + sd * 0.26 - up * 0.045, rot=Rs)
+        for q, w_, h_ in ((0.52, 0.34, 0.15), (0.98, 0.30, 0.12), (1.42, 0.24, 0.08)):                       # lightening pockets in the leg sides
+            pc_ = hg + (s1 - hg) * (q / 1.83)
+            for sg in (-1, 1):
+                box(gdk, (w_, 0.012, h_), pc_ + sn * sg * (0.172 - 0.045 * q) + up * 0.02, rot=Rs)
+        cyl(gdk, hg + sd * 0.16 + up * 0.215, hg + sd * 0.86 + up * 0.215, 0.040, 12); cyl(gb2, hg + sd * 0.86 + up * 0.215, hg + sd * 1.16 + up * 0.20, 0.020, 10)
+        box(gtr, (0.50, 0.40, 0.022), TC + sd * 0.90 + up * 0.452, rot=Rs)                                    # perforated step on the arm
+        cyl(gg, TC + sd * 0.90 + up * 0.30, TC + sd * 0.90 + up * 0.445, 0.05, 10)
+        # --- trail: fixed arm, knuckle, short stout box, and the spade behind it
+        td = np.array([-math.cos(TRAIL_ANG), sy * math.sin(TRAIL_ANG), 0.0]); tn = np.cross(td, up); Rt = np.stack([td, tn, up], 1)
+        beam(gg, TC + td * 0.62 + up * 0.27, TC + td * 1.10 + up * 0.29, (0.66, 0.38), (0.52, 0.40))
+        kn = TC + td * 1.16 + up * 0.30
+        cyl(gg, kn - up * 0.23, kn + up * 0.23, 0.250, 24); cyl(gdk, kn + up * 0.23, kn + up * 0.275, 0.105, 6)
+        t1 = TC + td * 1.74 + up * 0.33
+        beam(gg, kn + td * 0.10, t1, (0.50, 0.44), (0.46, 0.40))
+        for q in (0.24, 0.46):
+            box(gg, (0.13, 0.32, 0.07), kn + td * q + up * 0.245, rot=Rt); _bolts(gdk, [kn + td * q + tn * sg * 0.10 + up * 0.28 for sg in (-1, 1)], r=0.022)
+            box(gdk, (0.15, 0.012, 0.17), kn + td * (q + 0.01) + tn * 0.252 + up * 0.0, rot=Rt); box(gdk, (0.15, 0.012, 0.17), kn + td * (q + 0.01) - tn * 0.252 + up * 0.0, rot=Rt)
+        for sg in (-1, 1):                                                                                    # lifting handles
+            pipe(gdk, [kn + td * 0.20 + tn * sg * 0.25 + up * 0.14, kn + td * 0.20 + tn * sg * 0.36 + up * 0.14, kn + td * 0.50 + tn * sg * 0.36 + up * 0.14, kn + td * 0.50 + tn * sg * 0.25 + up * 0.14], [0.016] * 4, 8)
+        box(gtr, (0.44, 0.38, 0.022), TC + td * 0.86 + up * 0.475, rot=Rt)
+        hinge = TC + td * 1.86
+        _scoop(gg, hinge, td, tn)
+        for sg in (-1, 1):                                                                                    # hinge lugs between trail and spade
+            box(gg, (0.26, 0.07, 0.30), t1 + td * 0.06 + tn * sg * 0.19 + up * 0.02, rot=Rt)
+        cyl(gdk, t1 + td * 0.10 - tn * 0.30 + up * 0.04, t1 + td * 0.10 + tn * 0.30 + up * 0.04, 0.035, 12)
+        cyl(gdk, kn + td * 0.16 + up * 0.31, hinge + td * 0.02 + up * 0.56, 0.045, 12); cyl(gb2, kn + td * 0.45 + up * 0.40, hinge + td * 0.30 + up * 0.36, 0.022, 8)
+        pipe(gdk, [hinge + td * 0.02 + tn * 0.24 + up * 0.50, hinge + td * 0.02 + tn * 0.24 + up * 0.74, hinge + td * 0.02 - tn * 0.24 + up * 0.74, hinge + td * 0.02 - tn * 0.24 + up * 0.50], [0.018] * 4, 8)
+        # --- road wheel: on a swing arm from the front of the body, ahead of the stabiliser
+        c = WHEEL_C * np.array([1, sy, 1]); yaw = sy * math.radians(14.0)
+        wheel(gt2, grim, gdk, c, yaw=yaw, outer=sy)
+        ax = rot_z(yaw) @ np.array([0, 1.0, 0]); hub = c - ax * sy * 0.20; a0 = TC + np.array([0.86, sy * 0.30, 0.44])
+        beam(gg, a0, hub, (0.20, 0.18), (0.16, 0.15)); cyl(gg, hub - ax * 0.08, hub + ax * 0.08, 0.12, 18); cyl(gg, a0 - ax * 0.10, a0 + ax * 0.10, 0.14, 18)
+        cyl(gg, hub, c, 0.07, 14)
+        cyl(gdk, TC + [0.58, sy * 0.50, 0.56], a0 + (hub - a0) * 0.50 + up * 0.11, 0.058, 14); cyl(gb2, a0 + (hub - a0) * 0.50 + up * 0.11, a0 + (hub - a0) * 0.78 + up * 0.09, 0.028, 10)
+    # antenna mast on the right stabiliser: spring base and whip
+    mp = TC + np.array([math.cos(STAB_ANG), -math.sin(STAB_ANG), 0]) * 3.13 + up * 0.17
+    cyl(gdk, mp, mp + up * 0.16, 0.055, 12)
+    for k in range(7):
+        cyl(gdk, mp + up * (0.17 + 0.036 * k), mp + up * (0.19 + 0.036 * k), 0.038 - 0.001 * k, 10)
+    cyl(gdk, mp + up * 0.16, mp + up * 0.44, 0.026, 10); cyl(gdk, mp + up * 0.44, mp + up * 0.60, 0.022, 10); cyl(gdk, mp + up * 0.60, mp + up * 3.05, 0.011, 8); cyl(gdk, mp + up * 3.05, mp + up * 3.08, 0.020, 8)
+    # gunner's side (left): sight on its stalk, one handwheel out to the side on a long shaft, one low at the rear on a vertical gearbox
+    box(gg, (0.26, 0.20, 0.30), (-0.12, 0.70, 0.84)); ax_a = np.array([-0.45, 0.89, 0.0]); ax_a /= np.linalg.norm(ax_a)
+    pa = np.array([-0.16, 0.78, 0.88]); cyl(gg, pa, pa + ax_a * 0.36, 0.026, 10); disc_wheel(gdk, pa + ax_a * 0.37, ax_a, 0.18, 0.017)
+    gbx = TC + np.array([-0.70, 0.56, 0.0]); cyl(gg, gbx + up * 0.30, gbx + up * 0.74, 0.075, 16); cyl(gg, gbx + up * 0.74, gbx + up * 0.80, 0.055, 12)
+    ax_b = np.array([-0.94, 0.20, 0.28]); ax_b /= np.linalg.norm(ax_b); pb = gbx + up * 0.66
+    cyl(gg, pb, pb + ax_b * 0.20, 0.026, 10); disc_wheel(gdk, pb + ax_b * 0.21, ax_b, 0.18, 0.017)
+    box(gg, (0.16, 0.20, 0.24), (-0.42, 0.52, 0.70)); box(gdk, (0.12, 0.17, 0.20), (-0.50, 0.38, 0.86))
+    for k in range(5):
+        box(gg, (0.125, 0.012, 0.20), (-0.50, 0.31 + 0.035 * k, 0.86))
+    pipe(gg, [(0.02, 0.62, 1.10), (0.04, 0.70, 1.26), (0.04, 0.72, 1.44)], [0.050, 0.044, 0.038], 12)
+    box(gdk, (0.17, 0.14, 0.15), (0.04, 0.72, 1.51)); box(gdk, (0.11, 0.11, 0.13), (0.11, 0.81, 1.46)); cyl(gdk, (0.04, 0.72, 1.58), (0.04, 0.72, 1.74), 0.034, 12)
+    box(gdk, (0.10, 0.09, 0.09), (0.04, 0.72, 1.76)); cyl(gdk, (0.04, 0.72, 1.76), (-0.10, 0.72, 1.78), 0.027, 12); cyl(gl, (-0.102, 0.72, 1.78), (-0.105, 0.72, 1.78), 0.021, 12)
+    cyl(gdk, (0.00, 0.80, 1.52), (0.00, 0.88, 1.52), 0.024, 10); cyl(gdk, (-0.04, 0.66, 1.50), (-0.14, 0.66, 1.53), 0.020, 10)
+    # assistant gunner's side (right): gearbox, handwheel, bolted flange block
+    box(gg, (0.28, 0.22, 0.26), (-0.12, -0.71, 0.80)); ax_c = np.array([-0.60, -0.80, 0.0]); pc = np.array([-0.18, -0.80, 0.84])
+    cyl(gg, pc, pc + ax_c * 0.30, 0.026, 10); disc_wheel(gdk, pc + ax_c * 0.31, ax_c, 0.18, 0.017)
+    box(gg, (0.17, 0.17, 0.17), (0.12, -0.80, 0.78)); _bolts(gdk, [(0.12 + dx, -0.885, 0.78 + dz) for dx in (-0.055, 0.055) for dz in (-0.055, 0.055)], axis=(0, -1, 0), r=0.015); cyl(gdk, (0.12, -0.886, 0.78), (0.12, -0.892, 0.78), 0.04, 12)
     for g_, nm, mt in ((gg, "CarriageGreen", "HwGreen"), (gb2, "CarriageRods", "HwBare"), (gt2, "Tyres", "HwRubber"), (grim, "Rims", "HwGreen"),
                        (gl, "SightLens", "HwLens"), (gdk, "CarriageDark", "HwDark"), (gtr, "TreadPlates", "HwDark")):
         if g_.v:
             _finish(g_, nm, col, M[mt], root)
-    # balancing gear: a long strut each side from the back of the saddle arm up to the cradle (follows the elevation)
+    # balancing gear: an equilibrator each side (cylinder on the cradle, bellows and rod back to the saddle post), plus the long
+    # spring rod on the left; all follow the elevation
     struts = []
     for sy in (-1, 1):
-        g1 = Geo(); cyl(g1, (0, 0, 0), (1, 0, 0), 0.052, 16); g2 = Geo(); cyl(g2, (0, 0, 0), (1, 0, 0), 0.028, 12)
-        o1 = _finish(g1, "StrutBody", col, M["HwDark"], root); o2 = _finish(g2, "StrutRod", col, M["HwBare"], root)
-        o1.rotation_mode = o2.rotation_mode = 'QUATERNION'; struts.append((sy, o1, o2))
+        g1 = Geo(); cyl(g1, (0, 0, 0), (0.80, 0, 0), 0.070, 20); cyl(g1, (0, 0, 0), (-0.06, 0, 0), 0.070, 18, r1=0.035); cyl(g1, (0.80, 0, 0), (0.86, 0, 0), 0.050, 14)
+        for k in range(8):
+            ring(g1, 0.88 + 0.034 * k, 0.040, 0.020, 0.014, 16)
+        g2 = Geo(); cyl(g2, (0, 0, 0), (1, 0, 0), 0.026, 12)
+        o1 = _finish(g1, "EquilBody", col, M["HwGreen"], root); o2 = _finish(g2, "EquilRod", col, M["HwBare"], root)
+        struts.append(dict(body=o1, rod=o2, bot=np.array([-0.27, sy * 0.59, 1.02]), top=np.array([1.42 + SB - 0.85, sy * 0.505, 0.10])))
+    g1 = Geo()
+    for k in range(14):
+        ring(g1, 0.03 + 0.03 * k, 0.026, 0.016, 0.012, 12)
+    g2 = Geo(); cyl(g2, (0, 0, 0), (1, 0, 0), 0.014, 8)
+    o1 = _finish(g1, "RodSpring", col, M["HwBare"], root); o2 = _finish(g2, "RodLong", col, M["HwDark"], root)
+    struts.append(dict(body=o1, rod=o2, bot=np.array([-0.46, 0.76, 0.62]), top=np.array([1.86 + SB - 0.85, 0.60, -0.04])))
+    for st in struts:
+        st["body"].rotation_mode = st["rod"].rotation_mode = 'QUATERNION'
     G = dict(root=root, cradle=cradle, tube=tube, breech=breech, tray=tray, tray_arm=tray_arm, struts=struts)
     set_elevation(G, elev); set_tray(G, TRAY_STOW)
     return G
 
 def set_elevation(G, elev):
     q = aim_quat((math.cos(elev), 0, math.sin(elev))); G["cradle"].rotation_quaternion = q
-    for sy, o1, o2 in G["struts"]:
-        top = np.array(Vector(C.TRUN) + q @ Vector((1.90, sy * 0.40, 0.02))); bot = np.array([-0.30, sy * 0.66, 0.56]); d = top - bot; L_ = float(np.linalg.norm(d))
-        qq = aim_quat(d / L_)
-        o1.location = bot; o1.rotation_quaternion = qq; o1.scale = (min(1.25, L_ * 0.6), 1, 1)
-        o2.location = bot; o2.rotation_quaternion = qq; o2.scale = (L_, 1, 1)
+    for st in G["struts"]:
+        top = np.array(Vector(C.TRUN) + q @ Vector(st["top"])); d = st["bot"] - top; L_ = float(np.linalg.norm(d)); qq = aim_quat(d / L_)
+        st["body"].location = top; st["body"].rotation_quaternion = qq
+        st["rod"].location = top; st["rod"].rotation_quaternion = qq; st["rod"].scale = (L_, 1, 1)
 
 def tray_offset(phi):
     """Cradle-frame position of the trough's front-centre for swing angle phi (0 = out to the right, pi/2 = up, pi = in line)."""
@@ -309,7 +472,7 @@ class Charge:
         for o in self.obs:
             o.hide_render = not v
 
-RAMMER_LEN = 3.60
+RAMMER_LEN = 3.95
 def build_rammer(col=None, name="Rammer"):
     """Rammer staff: origin at the face of the head, +X = pushing direction (the pole runs back along -X)."""
     M = materials(); root = _root(name, col); g = Geo(); w = Geo()
