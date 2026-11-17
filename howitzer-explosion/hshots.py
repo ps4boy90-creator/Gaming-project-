@@ -140,6 +140,30 @@ def _rt(t0, n, cam):
         return t, dt, dict(samples=10, shutter=0.4, anchors={"breech": hcrew.bore_pt(t, C.S_BREECH)})
     return n, frame
 
+def use_device(sc):
+    """RENDER_DEVICE=GPU (or OPTIX / CUDA / HIP / METAL / ONEAPI) renders with Cycles on the graphics card; anything else, or no usable
+    card, renders on the CPU as before."""
+    want = os.environ.get("RENDER_DEVICE", "CPU").upper()
+    if want == "CPU":
+        return "CPU"
+    try:
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+    except Exception as e:
+        print("RENDER_DEVICE: no Cycles preferences (%s) - rendering on the CPU" % e); return "CPU"
+    for kind in (["OPTIX", "CUDA", "HIP", "METAL", "ONEAPI"] if want == "GPU" else [want]):
+        try:
+            prefs.compute_device_type = kind; prefs.refresh_devices()
+        except Exception:
+            continue
+        cards = [d for d in prefs.devices if d.type == kind]
+        if cards:
+            for d in prefs.devices:
+                d.use = d.type == kind
+            sc.cycles.device = 'GPU'
+            print("RENDER_DEVICE: %s on %s" % (kind, ", ".join(d.name for d in cards))); return kind
+    print("RENDER_DEVICE: no %s device found - rendering on the CPU" % want); sc.cycles.device = 'CPU'; return "CPU"
+
+
 def shot_load(n=90):
     """Breech opens, tray swings in, cannoneers 4 and 5 bring the projectile up and slide it onto the tray."""
     return _rt(-16.25, n, lambda u, t: ((-2.9 + 0.3 * u, 0.55, 3.40), (0.70, -0.60, 1.10), 26.0))
@@ -270,6 +294,7 @@ def render_card(out_dir, res, spp, frames, n=72):
     cam.location = (0.0, -54.0, 2.6); cam.rotation_euler = (math.radians(88.6), 0, 0)
     cam.data.shift_x = 0.25
     sc.render.engine = 'CYCLES'; c = sc.cycles; c.samples = spp or 20; c.use_denoising = True; c.denoising_quality = 'HIGH'; c.max_bounces = 6
+    use_device(sc)
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.render.use_border = True; sc.render.use_crop_to_border = True
     sc.render.border_min_x = 0.0; sc.render.border_max_x = 0.50; sc.render.border_min_y = 0.0; sc.render.border_max_y = 1.0
@@ -300,6 +325,7 @@ def main():
     frames = gshots.parse_frames(a.frames, n)
     st = Stage(SET_OF[a.shot], a.sim, SIM_OF.get(a.shot))
     sc = st.sc; sc.render.resolution_x, sc.render.resolution_y = res
+    use_device(sc)
     os.makedirs(a.out, exist_ok=True)
     tl = dict(T_HIT=T_HIT, T_EXIT=C.T_EXIT, V0=C.V0, RANGE=C.RANGE, APEX=C.APEX, TOF=C.TOF, ELEV_DEG=math.degrees(C.ELEV), ELEV_MILS=math.degrees(C.ELEV) * 6400 / 360,
               V_HIT=C.V_HIT, FALL_DEG=math.degrees(C.FALL_ANGLE), LETHAL_R=C.LETHAL_R, CASUALTY_R=C.CASUALTY_R, M67_R=C.M67_R, fps=FPS)

@@ -69,7 +69,24 @@ simplified.
 - `hshots.py` — the nine shots and the frame renderer.
 - `hpost.py` — title card, HUD, sound, encode.
 - `render_all.sh` — bakes the sims if needed, renders every shot (resumable) and runs post.
+- `render_all.py` — the same as a plain Python script, for Windows/macOS as well as Linux.
 
 ```
 ./render_all.sh <frames_root> <sim_root> [out.mp4]
 ```
+
+## Rendering on your own graphics card
+
+The shots render with Cycles on the CPU by default. On a machine with a supported card (NVIDIA RTX/GTX, AMD, Intel Arc, Apple
+Silicon) set `RENDER_DEVICE=GPU` and the same scripts render on the card; the two smoke bakes still run on the CPU.
+
+```
+pip install bpy numpy pillow          # Blender as a Python module (Python 3.13), plus ffmpeg on the PATH for the final encode
+# Windows (PowerShell)
+$env:RENDER_DEVICE = "GPU"; python howitzer-explosion\render_all.py D:\how\frames D:\how\sim
+# Linux / macOS
+RENDER_DEVICE=GPU python3 howitzer-explosion/render_all.py ~/how/frames ~/how/sim
+```
+
+Each render process prints which device it picked (`RENDER_DEVICE: OPTIX on ...`); if no card is found it says so and uses the CPU.
+The run is resumable: finished bakes and existing frames are skipped.
