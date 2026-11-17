@@ -163,8 +163,8 @@ def shot_fire(n=112, lead=52):
             sf = 40 + 2 * (i - lead - 40 + 1); t = (sf - 1) * DT; dt = 2 * DT
         st.set_time(t, dt, {})
         u = i / (n - 1)
-        pos = np.array([7.4 - 0.5 * u, -7.9, 1.60 + 0.20 * u])
-        tgt = np.array([1.7, 0.0, 2.10 + 0.35 * smoothstep(lead / n, 1.0, u)])
+        pos = np.array([7.9 - 0.5 * u, -8.6, 1.60 + 0.20 * u])
+        tgt = np.array([2.3, 0.0, 2.45 + 0.35 * smoothstep(lead / n, 1.0, u)])
         off, rq = shake(t - 0.012, 2.2)
         q = st.look(pos + off, tgt, 23.0)
         st.cam.rotation_quaternion = q @ rq
