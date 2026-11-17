@@ -19,7 +19,7 @@ import msim
 from msim import flow, ico, torus, box, collider, jet, DIRT, DARK
 import hconst as C
 
-msim.DOMAINS["h_launch"] = ((26.0, 20.0, 13.0), (6.5, 0.0)); msim.DOMAINS["h_impact"] = ((46.0, 46.0, 32.0), (0.0, 3.0))
+msim.DOMAINS["h_launch"] = ((26.0, 20.0, 14.0), (8.0, 0.0)); msim.DOMAINS["h_impact"] = ((46.0, 46.0, 32.0), (0.0, 3.0))
 SAND = [(0.52, 0.44, 0.32), (0.46, 0.38, 0.27), (0.58, 0.50, 0.38)]
 DUST = [(0.60, 0.56, 0.48), (0.54, 0.50, 0.43), (0.66, 0.61, 0.52)]
 
@@ -35,13 +35,13 @@ def build_launch():
         flow(f, 'BOTH', 1, 2, dens=1.3, temp=2.0, fuel=0.8, color=(0.45, 0.42, 0.38), vn=10.0, vinit=d * 55)
         s = ico("E_sides%d" % k, 0.38, M - A * 0.20 + d * 0.8, rough=0.4)
         flow(s, 'SMOKE', 2, 7, dens=2.2, temp=0.5, color=(0.52, 0.49, 0.44), vn=7.0, vinit=d * 30)
-    sheet = ico("E_gsheet", 1.0, (5.5, 0, 0.12), rough=0.25, scale=(7.5, 6.5, 0.07))
+    sheet = ico("E_gsheet", 1.0, (6.5, 0, 0.12), rough=0.25, scale=(7.5, 6.5, 0.07))
     flow(sheet, 'SMOKE', 3, 9, dens=0.9, temp=0.15, color=SAND[2], vn=1.5, vinit=(1.5, 0, 2.6))
     near = ico("E_gnear", 1.0, (0.5, 0, 0.12), rough=0.25, scale=(4.0, 4.0, 0.06))
     flow(near, 'SMOKE', 4, 9, dens=0.45, temp=0.12, color=SAND[0], vn=1.0, vinit=(0, 0, 1.6))
     for i in range(12):
         az = random.uniform(-1.9, 1.9); d = (math.cos(az), math.sin(az), random.uniform(0.05, 0.35))
-        jet("E_gj%02d" % i, (5.2 + 2.0 * d[0], 2.0 * d[1], 0.25), d, random.uniform(14, 30), random.uniform(3.5, 6.0), random.randint(14, 30), random.uniform(0.3, 0.5),
+        jet("E_gj%02d" % i, (6.4 + 2.0 * d[0], 2.0 * d[1], 0.25), d, random.uniform(14, 30), random.uniform(3.5, 6.0), random.randint(14, 30), random.uniform(0.3, 0.5),
             random.choice(SAND), start=3, dens=1.4)
 
 def build_impact():

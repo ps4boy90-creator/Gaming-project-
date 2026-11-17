@@ -10,9 +10,9 @@ earlier segments.
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
 | 1 | `card`   | The howitzer and a shell on a studio backdrop + spec panel | – |
-| 2 | `load`   | Breech opens, loading tray swings in, two cannoneers bring up the shell and slide it onto the tray | real time |
-| 3 | `ram`    | The two cannoneers drive the shell home with the rammer staff | real time |
-| 4 | `charge` | Five-increment propelling charge loaded, tray out, breech closed, lanyard hooked | real time |
+| 2 | `load`   | Breech opens; two cannoneers bring the shell up from the right and set it on the loading tray, which swings over into line | real time |
+| 3 | `ram`    | From behind the gun, the two cannoneers drive the shell home with the rammer staff | real time |
+| 4 | `charge` | Five-increment propelling charge loaded, tray pushed up clear, breech closed, lanyard hooked | real time |
 | 5 | `fire`   | Tube laid from loading elevation to the firing data, chief's signal, lanyard pulled; muzzle blast and recoil | real time, then 5× slow |
 | 6 | `fall`   | Chase camera riding down behind the shell for its last three seconds | real time |
 | 7 | `impact` | Down the street: the burst, then the house front and floor slabs coming down | 5× slow, then 2.5× |
@@ -36,12 +36,14 @@ earlier segments.
 
 The rings in the aerial shot are drawn at the **lower bounds** (50 m and 100 m) of those ranges.
 
-Shapes and proportions (low body, A-frame saddle, the four cradle tubes and their yokes, muzzle
-brake with towing eye, swing-up breech, loading tray, flat stabilisers with pads, splayed trails
-with their spades, the raised road wheels, sight and handwheels; the boat-tailed shell with its
-rotating band, yellow markings and fuze) are modelled from six public photos of the gun in US
-service. Where a part cannot be seen in them (the breech mechanism, the tray's mounting, the far
-side of the carriage) it is a plausible stand-in, not a measured copy.
+Shapes and proportions follow six service photos and a detailed scale-model reference supplied
+for this project: a round turntable body low on the ground; two long forward stabilisers; two
+short, stout trails with wide ribbed scoop spades; one road wheel each side, forward beside the
+stabilisers; a cradle that pivots at its rear end, built of two lower and two upper tubes with
+slotted side plates and an open trough behind the breech; the breech about 0.85 m ahead of the
+trunnions; a large muzzle brake with two round ports a side and the towing lug; a ribbed loading
+tray on the right. Fine detail (hoses, fittings, the breech mechanism, the tray linkage) is
+simplified.
 
 **Not from sources (illustration)**
 
@@ -49,9 +51,9 @@ side of the carriage) it is a plausible stand-in, not a measured copy.
   22.5 km maximum range at 827 m/s. For the 18 km shot it gives about 24° (427 mils) elevation,
   48 s of flight, a 3 km apex and an arrival at about 306 m/s and 43°. It is not a firing-table solution.
 * Loading is shown with the tube at a low loading elevation and then laid to the firing elevation;
-  the exact elevations, timings, positions of the crew members and which side each one stands on
-  are staging. The lanyard side and the tray's swing direction are assumptions.
-* The recoil length (1.25 m), the size of the cloud, the crater, how much of the house comes down
+  the exact elevations, timings, where each crew member stands (two of them on the body's tread
+  plates), the rammer length, the lanyard side and the way the tray swings are staging.
+* The recoil length (1.0 m), the size of the cloud, the crater, how much of the house comes down
   and where each fragment mark lands come from this simulation, not from test data.
 * The town is invented; it is not a real place.
 

@@ -17,14 +17,16 @@ FPS = 24
 MASTER_DT = 1.0 / 120.0
 G = 9.81
 
-# ---- gun (M777A2): trunnions about 0.8 m ahead of the breech face, 1.05 m above the ground
-TRUN = np.array([0.0, 0.0, 1.05])        # trunnion axis
-S_BREECH = -0.80                          # bore coordinate (m from the trunnion) of the rear face of the breech ring
-S_CHAMBER = -0.65                         # rear of the powder chamber
-S_SEAT = 0.23                             # base of the rammed projectile
-S_TUBE = 4.80                             # end of the tube proper
-S_MUZZLE = 5.25                           # front of the muzzle brake
-RECOIL_LEN = 1.25
+# ---- gun (M777A2): the cradle pivots at its REAR end; the breech sits about 0.85 m ahead of the trunnions
+# and the bore runs 0.30 m above the trunnion axis, so the recoiling breech comes back between the saddle arms
+TRUN = np.array([0.0, 0.0, 0.95])        # trunnion axis
+BZ = 0.30                                 # height of the bore axis above the trunnion axis (cradle frame)
+S_BREECH = 0.85                           # bore coordinate (m ahead of the trunnion) of the rear face of the breech ring
+S_CHAMBER = 1.00                          # rear of the powder chamber
+S_SEAT = 1.88                             # base of the rammed projectile
+S_TUBE = 6.45                             # end of the tube proper
+S_MUZZLE = 6.95                           # front of the muzzle brake
+RECOIL_LEN = 1.0
 
 # ---- projectile M795 (manufacturer brochure) and charge
 SHELL_LEN = 0.843                         # 33.2 in with fuze
@@ -86,7 +88,9 @@ TOF = float(TRAJ[-1, 0]); APEX = float(TRAJ[:, 2].max())
 V_IMP = TRAJ[-1, 3:5].copy(); V_HIT = float(np.hypot(*V_IMP)); FALL_ANGLE = math.atan2(-V_IMP[1], V_IMP[0])
 T_HIT = TOF
 BORE = np.array([math.cos(ELEV), 0.0, math.sin(ELEV)])
-MUZZLE = TRUN + BORE * S_MUZZLE
+UPV = np.array([-math.sin(ELEV), 0.0, math.cos(ELEV)])
+AXIS0 = TRUN + UPV * BZ                   # the point of the bore axis above the trunnions (firing elevation)
+MUZZLE = AXIS0 + BORE * S_MUZZLE
 T_EXIT = 2 * (S_TUBE - S_SEAT) / V0
 IMPACT = np.zeros(3)
 
@@ -94,7 +98,7 @@ def recoil(t):
     """Rearward travel of the recoiling parts (m): out in ~0.12 s, back in battery in ~1.5 s."""
     if t <= 0:
         return 0.0
-    out = 1 - math.exp(-t / 0.035)
+    out = 1 - math.exp(-t / 0.030)
     back = 1.0 if t < 0.16 else 0.5 * (1 + math.cos(math.pi * min((t - 0.16) / 1.35, 1.0)))
     return RECOIL_LEN * out * back
 
@@ -105,9 +109,9 @@ def base_s(t):
 def launch_pos(t):
     """World position of the projectile base after firing (gun set)."""
     if t < T_EXIT:
-        return TRUN + BORE * base_s(t)
+        return AXIS0 + BORE * base_s(t)
     tau = t - T_EXIT
-    return TRUN + BORE * S_TUBE + BORE * V0 * tau + np.array([0, 0, -0.5 * G * tau * tau])
+    return AXIS0 + BORE * S_TUBE + BORE * V0 * tau + np.array([0, 0, -0.5 * G * tau * tau])
 
 def fall_state(td):
     """Position of the nose and velocity td seconds relative to impact (town set, td <= 0)."""

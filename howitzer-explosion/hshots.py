@@ -59,7 +59,7 @@ class Stage(gshots.Stage):
             self.ground.data.materials[0].node_tree.nodes["Blast"].outputs[0].default_value = 0.0
             col = self.col = bpy.data.collections.new("ACTION"); sc.collection.children.link(col)
             self.gun = h777.build_gun(col, elev=hcrew.EL_LOAD)
-            for k in ("tube", "breech", "tray"):
+            for k in ("tube", "breech", "tray", "tray_arm"):
                 self.gun[k].rotation_mode = 'QUATERNION'
             self.shell = h777.Shell(col); self.charge = h777.Charge(col); self.rammer = h777.build_rammer(col)
             self.rope = new_obj("Lanyard", bpy.data.meshes.new("rope"), col, simple_mat("LanyardMat", (0.42, 0.36, 0.24), rough=0.9))
@@ -91,8 +91,8 @@ class Stage(gshots.Stage):
         if self.which == "gun":
             G = self.gun
             h777.set_elevation(G, hcrew.elev(t))
-            G["tube"].location = (-C.recoil(t), 0, 0)
-            G["breech"].rotation_quaternion = Quaternion((0, 1, 0), hcrew.breech_angle(t)); G["tray"].rotation_quaternion = Quaternion((1, 0, 0), hcrew.tray_angle(t))
+            G["tube"].location = (-C.recoil(t), 0, C.BZ)
+            G["breech"].rotation_quaternion = Quaternion((0, 1, 0), hcrew.breech_angle(t)); h777.set_tray(G, hcrew.tray_phi(t))
             for n, fig in self.men.items():
                 fig.set_pose(hcrew.pose(n, min(t, 2.0)))
             def sstate(tt):
@@ -142,15 +142,15 @@ def _rt(t0, n, cam):
 
 def shot_load(n=90):
     """Breech opens, tray swings in, cannoneers 4 and 5 bring the projectile up and slide it onto the tray."""
-    return _rt(-16.25, n, lambda u, t: ((-5.0 + 0.4 * u, -1.5 + 0.2 * u, 3.0), (-1.55, 0.05, 0.90), 27.0))
+    return _rt(-16.25, n, lambda u, t: ((-1.5 + 0.3 * u, -3.7, 3.7), (0.38, -0.70, 1.15), 27.0))
 
 def shot_ram(n=52):
     """Seen from beside the breech looking back: the two cannoneers run the projectile home with the rammer staff."""
-    return _rt(-10.5, n, lambda u, t: ((0.85, -0.95 + 0.1 * u, 2.60), (-2.45, 0.0, 0.85), 22.0))
+    return _rt(-10.5, n, lambda u, t: ((2.5, -2.5 + 0.2 * u, 2.70), (-1.0, 0.0, 1.15), 23.0))
 
 def shot_charge(n=90):
     """Cannoneer 2 loads the propelling charge and closes the breech; cannoneer 1 hooks the lanyard."""
-    return _rt(-7.3, n, lambda u, t: ((-4.5 - 0.2 * u, -0.9, 3.0), (-1.15, 0.05, 0.95), 30.0))
+    return _rt(-7.3, n, lambda u, t: ((-2.7 - 0.2 * u, -0.15, 3.05), (0.75, 0.0, 1.28), 28.0))
 
 def shot_fire(n=112, lead=52):
     """The tube is laid to the firing elevation, the chief drops his arm, the lanyard is pulled - then slow motion."""
@@ -163,8 +163,8 @@ def shot_fire(n=112, lead=52):
             sf = 40 + 2 * (i - lead - 40 + 1); t = (sf - 1) * DT; dt = 2 * DT
         st.set_time(t, dt, {})
         u = i / (n - 1)
-        pos = np.array([6.9 - 0.5 * u, -6.4, 1.50 + 0.20 * u])
-        tgt = np.array([1.4, 0.0, 1.85 + 0.35 * smoothstep(lead / n, 1.0, u)])
+        pos = np.array([7.4 - 0.5 * u, -7.9, 1.60 + 0.20 * u])
+        tgt = np.array([1.7, 0.0, 2.10 + 0.35 * smoothstep(lead / n, 1.0, u)])
         off, rq = shake(t - 0.012, 2.2)
         q = st.look(pos + off, tgt, 23.0)
         st.cam.rotation_quaternion = q @ rq
@@ -253,9 +253,8 @@ def render_card(out_dir, res, spp, frames, n=72):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     pivot = bpy.data.objects.new("Pivot", None); sc.collection.objects.link(pivot)
-    G = h777.build_gun(elev=D(30.0)); G["root"].parent = pivot; G["root"].location = (-0.9, 0, 0)
-    G["tray"].rotation_mode = 'QUATERNION'; G["tray"].rotation_quaternion = Quaternion((1, 0, 0), h777.TRAY_STOW)
-    S = h777.Shell(); S.root.parent = pivot; S.root.location = (1.2, -2.4, 0.0); S.root.rotation_quaternion = aim_quat((0.0, 0.0, 1.0))
+    G = h777.build_gun(elev=D(32.0)); G["root"].parent = pivot; G["root"].location = (-1.6, 0, 0)
+    S = h777.Shell(); S.root.parent = pivot; S.root.location = (2.6, -2.2, 0.0); S.root.rotation_quaternion = aim_quat((0.0, 0.0, 1.0))
     prof = [(-80.0, 0.0), (7.5, 0.0)] + [(7.5 + 2.4 * math.sin(a), 2.4 * (1 - math.cos(a))) for a in np.linspace(0, math.pi / 2, 12)[1:]] + [(9.9, 40.0)]
     V = np.array([[x, y, z] for (y, z) in prof for x in (-60.0, 60.0)])
     new_obj("Backdrop", new_mesh("bd", V, [grid_faces(len(prof), 2)]), None, simple_mat("BackdropMat", (0.64, 0.61, 0.56), rough=0.85))
