@@ -13,6 +13,8 @@ import os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = [("card", 72), ("approach", 96), ("release", 112), ("fall", 64), ("impact", 150), ("radius", 96), ("after", 84)]
 
+RES = {"release": "1920x1080"}          # the close shot of the release is rendered at full size
+
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:1]), time.strftime("%H:%M:%S")), flush=True)
     p = subprocess.Popen([sys.executable, os.path.join(HERE, script)] + list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
@@ -22,7 +24,7 @@ def run(script, *args):
     return p.wait()
 
 def shot(root, name, n, sim=None, chunk=24):
-    extra = ["--res", "1280x720"] + (["--sim", sim] if sim else [])
+    extra = ["--res", RES.get(name, "1280x720")] + (["--sim", sim] if sim else [])
     for a in range(0, n, chunk):
         b = min(a + chunk, n) - 1
         if all(os.path.exists(os.path.join(root, name, "f%04d.png" % i)) for i in range(a, b + 1)):

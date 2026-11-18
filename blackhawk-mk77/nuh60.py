@@ -173,7 +173,7 @@ def spin(rot, sc, t, dt_out, rps, shutter=0.5):
     rot.rotation_quaternion = q(t)
 
 def build(col=None, name="UH60"):
-    """Returns dict: root, main, tail (rotors), bombs (list of Mk77; index 3 hangs on the right outboard pylon), stores (their rest positions)."""
+    """Returns dict: root, main, tail (rotors), bombs (list of Mk77; index 1 hangs on the left outboard pylon, the one that is dropped), stores (their rest positions)."""
     col = col or bpy.context.scene.collection
     root = bpy.data.objects.new(name, None); col.objects.link(root); root.rotation_mode = 'QUATERNION'
     S = Shell(); W = Shell(); _fuselage(S); _top(S); _tail(S); _gear(S, W); _esss(S)

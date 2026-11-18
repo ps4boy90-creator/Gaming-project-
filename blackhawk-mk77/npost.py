@@ -68,7 +68,7 @@ def overlay_for(shot, i, n, m, info):
             callout(d, an["store"][0] * W, an["store"][1] * H, "MK 77 MOD 5", "ALUMINIUM CANISTER  ·  284 L OF FUEL GEL", RED, a2, dx=-640, dy=190)
     elif shot == "release":
         if t < 0:
-            lower(d, "OVER THE AIM POINT", "The rack on the right outboard pylon lets go", ease((i - 3) / 8.0))
+            lower(d, "OVER THE AIM POINT", "The rack on the left outboard pylon lets go", ease((i - 3) / 8.0))
         else:
             lower(d, "RELEASE", "No fins  ·  the canister starts to tumble as soon as it is free", 1 - ease((i - (n - 8)) / 8.0))
             readout(d, "SLOW MOTION", "T + %03d ms" % round(t * 1000), 1.0, INK, "FALLEN  %.1f m" % m.get("drop", 0))
@@ -110,10 +110,39 @@ def s_rotor(dur):
     x = gp.lp(gp.noise(n), 260, 2) * (0.25 + 1.6 * thump) + 0.25 * np.sin(2 * np.pi * 2 * bp_ * t) * thump + gp.bp(gp.noise(n), 2500, 5200) * 0.10
     return x
 
-def s_fire(dur):
-    n = int(dur * SR); t = np.arange(n) / SR
-    x = gp.lp(gp.noise(n), 420, 2) * 1.3 + gp.bp(gp.noise(n), 600, 2600) * 0.35
-    return x * (0.75 + 0.25 * np.sin(2 * np.pi * 0.9 * t + 1.0) * np.sin(2 * np.pi * 2.3 * t))
+def _mod(n, rate, depth, seed):
+    """Slow random envelope around 1.0: `rate` wobbles a second, `depth` deep."""
+    r = np.random.default_rng(seed); m = int(n / SR * rate) + 6; k = r.normal(0, 1, m)
+    x = np.interp(np.arange(n) * (rate / SR), np.arange(m), k); x = gp.lp(x, max(rate, 0.5), 2); x = x / (np.abs(x).max() + 1e-9)
+    return 1.0 + depth * x
+
+def s_roar(dur, seed=1):
+    """A big fuel fire: a deep, unsteady roar, the flutter of turbulent flame above it and a thin hiss on top."""
+    n = int(dur * SR)
+    low = gp.lp(gp.noise(n), 110, 3) * 3.4 * _mod(n, 1.1, 0.40, seed)
+    body = gp.bp(gp.noise(n), 140, 620) * 1.25 * _mod(n, 4.5, 0.50, seed + 1) * _mod(n, 0.6, 0.30, seed + 2)
+    flut = gp.bp(gp.noise(n), 500, 1800) * 0.42 * np.clip(_mod(n, 11.0, 0.85, seed + 3), 0.0, None) ** 2
+    hiss = gp.hp(gp.lp(gp.noise(n), 6000, 1), 2200) * 0.10 * _mod(n, 7.0, 0.5, seed + 4)
+    return low + body + flut + hiss
+
+def s_crackle(dur, rate=30.0, seed=7):
+    """Crackle and spit of burning debris: many tiny sharp ticks, fewer heavier pops, at random."""
+    r = np.random.default_rng(seed); n = int(dur * SR); x = np.zeros(n); pops = np.zeros(n)
+    for _ in range(r.poisson(rate * dur)):
+        L = int(SR * r.uniform(0.002, 0.012)); t0 = r.integers(0, max(n - L, 1)); tau = r.uniform(0.0006, 0.003) * SR
+        x[t0:t0 + L] += r.normal(0, 1, L) * np.exp(-np.arange(L) / tau) * r.lognormal(-0.7, 0.7)
+    for _ in range(r.poisson(rate * dur / 9.0)):
+        L = int(SR * r.uniform(0.02, 0.07)); t0 = r.integers(0, max(n - L, 1)); tau = r.uniform(0.004, 0.014) * SR
+        pops[t0:t0 + L] += r.normal(0, 1, L) * np.exp(-np.arange(L) / tau) * r.lognormal(0.0, 0.5)
+    return gp.hp(x, 1500, 2) * 0.9 + gp.bp(pops, 250, 2600) * 1.1
+
+def s_whoomph():
+    """Ignition: not a bang - the soft, heavy 'whoomph' of a large volume of fuel catching at once."""
+    n = int(2.6 * SR); t = np.arange(n) / SR
+    env = np.minimum(1.0, t / 0.14) ** 1.5 * np.exp(-np.maximum(t - 0.14, 0) / 0.75)
+    low = gp.lp(gp.noise(n), 95, 3) * 6.0 * env + np.sin(2 * np.pi * np.cumsum(np.linspace(62, 30, n)) / SR) * 0.9 * env
+    air = gp.bp(gp.noise(n), 160, 1300) * 1.3 * np.minimum(1.0, t / 0.30) ** 2 * np.exp(-np.maximum(t - 0.30, 0) / 0.9)
+    return low + air
 
 def build_audio(path, starts, metas, total):
     mx = gp.Mix(total); T = {k: v / FPS for k, v in starts.items()}; L = {k: len(metas[k]) / FPS for k in metas}
@@ -134,10 +163,16 @@ def build_audio(path, starts, metas, total):
     mx.add(T["fall"], gp.s_whoosh(L["fall"], 200, 1500, 0.7) * 0.9, 0.6); mx.add(T["fall"], gp.s_wind(L["fall"]) * 0.30, 1.0, 0.0); mx.add(T["fall"], s_rotor(L["fall"]) * 0.25, 0.4, -0.3)
     th = when("impact", lambda m: m["td"] >= 0)
     if th:
-        e = T["after"] - th
-        mx.add(th, gp.s_boom(0.8, 2.6), 0.8); mx.add(th + 0.05, gp.s_whoosh(3.0, 100, 900, 0.25), 0.9, 0.0); mx.add(th + 0.15, s_fire(e) * np.minimum(1.0, np.arange(int(e * SR)) / (0.8 * SR)), 0.8, 0.0)
-        mx.add(th + 0.3, gp.s_debris(e - 0.4, 30, 0.8), 0.25, 0.1)
-    ta = T["after"]; mx.add(ta, s_fire(L["after"]) * 0.45, 0.6, 0.1); mx.add(ta, gp.s_wind(L["after"]) * 0.10, 1.0, -0.1); mx.add(ta + 0.1, gp.s_debris(L["after"] - 0.3, 26, 0.6), 0.25, 0.1)
+        e = total - th; ne = int(e * SR); ts = np.arange(ne) / SR
+        # the fire builds over the first second and a half as it runs down the street; it is heard from further away
+        # in the aerial shot and close again, burning lower, in the last one
+        level = np.minimum(1.0, 0.25 + ts / 1.4)
+        level = level * np.interp(ts + th, [0, T["radius"] - 0.15, T["radius"] + 0.15, T["after"] - 0.2, T["after"] + 0.2, total], [1.0, 1.0, 0.62, 0.62, 0.50, 0.50])
+        mx.add(th, gp.s_thud(0.8), 0.8, 0.0); mx.add(th + 0.03, s_whoomph(), 0.95, 0.0)
+        mx.add(th + 0.10, s_roar(e, 11)[:ne] * level, 0.62, -0.45); mx.add(th + 0.10, s_roar(e, 23)[:ne] * level, 0.62, 0.45)
+        ck = np.minimum(1.0, ts / 2.5) * np.interp(ts + th, [0, T["radius"], T["radius"] + 0.3, T["after"], T["after"] + 0.3, total], [1.0, 1.0, 0.35, 0.35, 1.25, 1.25])
+        mx.add(th + 0.4, s_crackle(e, 34.0, 5)[:ne] * ck, 0.30, -0.3); mx.add(th + 0.4, s_crackle(e, 26.0, 9)[:ne] * ck, 0.30, 0.35)
+    ta = T["after"]; mx.add(ta, gp.s_wind(L["after"]) * 0.08, 1.0, -0.1)
     x = np.tanh(mx.b[: int(total * SR)] * 1.1)
     fo = int(0.6 * SR); x[-fo:] *= np.linspace(1, 0, fo)[:, None]
     x = x / (np.abs(x).max() + 1e-9) * 0.89

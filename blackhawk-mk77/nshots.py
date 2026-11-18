@@ -26,7 +26,7 @@ FPS = C.FPS; T_HIT = C.T_HIT; SDT = C.SIM_DT
 D = math.radians
 shake = gshots.shake
 SIM_OF = {"impact": "impact", "radius": "impact"}
-DROP = 3                                      # index of the canister that is released (right outboard pylon)
+DROP = 1                                      # index of the canister that is released (left outboard pylon)
 PITCH = D(4.0)                                # nose-down attitude in forward flight
 FIRE_C = np.array([17.0, -1.5, 0.0])          # middle of the burning stretch of street
 
@@ -111,7 +111,7 @@ class Stage(gshots.Stage):
         td = t - T_HIT; hit = td >= 0
         self.bomb.ob.hide_render = hit
         if not hit:
-            self.key3(self.bomb.ob, bomb_xform, t, dt_out, mb and t > 0)
+            self.key3(self.bomb.ob, bomb_xform, t, dt_out, mb)            # keyed before release too: it rides with the helicopter
         self.scorch_gain.outputs[0].default_value = 0.92 * smoothstep(0.3, 2.5, td)
         on = hit and opt.get("glow", True) and td < 20
         self.glow.hide_render = not on
@@ -128,29 +128,32 @@ def shot_approach(n=96):
     """Air to air: the Black Hawk running in low towards the ruins, four fire bombs under its stub wings."""
     def frame(st, i):
         t = -5.2 + i / FPS; dt = 1.0 / FPS; u = i / (n - 1)
-        st.set_time(t, dt, dict(haze=0.8))
-        a = D(lerp(28.0, 66.0, smoothstep(0, 1, u))); r = lerp(21.0, 17.0, u); off = np.array([r * math.cos(a), -r * math.sin(a), lerp(0.4, 2.6, u)])
+        st.set_time(t, dt, dict(haze=0.6, shutter=0.35))
+        a = D(lerp(28.0, 66.0, smoothstep(0, 1, u))); r = lerp(21.0, 17.0, u); off = np.array([r * math.cos(a), r * math.sin(a), lerp(0.4, 2.6, u)])      # on the sunlit (left) side
         def cam_at(tt):
             hp = heli_xform(tt)[0]; pos = hp + off; return pos, (Vector(hp + np.array([-1.5, 0.0, 2.0])) - Vector(pos)).to_track_quat('-Z', 'Y')
         hp = heli_xform(t)[0]; pos, q = cam_at(t); st.look(pos, None, 34.0, quat=q); st.key3(st.cam, cam_at, t, dt, True)
         an = {"store": tuple(store_world(t)[0]), "rotor": tuple(hp + np.array([0, 0, 3.8]))}
-        return t, dt, dict(samples=18, shutter=0.5, anchors=an)
+        return t, dt, dict(samples=24, shutter=0.35, anchors=an)
     return n, frame
 
-def shot_release(n=112, lead=24):
-    """Beside the right stub wing: the rack lets go and the canister drops away, starting to tumble (real time, then 4x slow)."""
+def shot_release(n=112, lead=20):
+    """Close beside the left stub wing, on the sunlit side: the rack lets go and the canister drops away and starts to
+    tumble (real time, then 4x slow).  The camera rides with the helicopter and sinks with the canister, on a short
+    exposure, so that both stay sharp."""
     def frame(st, i):
         if i < lead:
             t = -(lead - i) / FPS - 0.002; dt = 1.0 / FPS
         else:
             dt = 1.0 / 96.0; t = (i - lead) * dt
-        st.set_time(t, dt, dict(haze=0.8, shutter=0.4))
-        bp, bq = bomb_xform(t); u = i / (n - 1); off = np.array([5.6 - 0.8 * u, -8.6, 0.9 - 0.9 * u]); k = smoothstep(0.05, 0.45, max(t, 0.0))
+        st.set_time(t, dt, dict(haze=0.30, shutter=0.18))
+        bp, bq = bomb_xform(t); u = i / (n - 1); fallen = float(max(store_world(t)[0][2] - bp[2], 0.0))
+        off = np.array([4.5 - 0.5 * u, 6.3, 0.60 - 0.55 * fallen]); k = smoothstep(0.02, 0.30, max(t, 0.0))
         def cam_at(tt):
-            pos = heli_xform(tt)[0] + off; tgt = lerp(store_world(tt)[0] + np.array([0.0, 0.6, 0.2]), bomb_xform(tt)[0], k)
+            pos = heli_xform(tt)[0] + off; tgt = lerp(store_world(tt)[0] + np.array([0.0, -0.35, 0.15]), bomb_xform(tt)[0], k)
             return pos, (Vector(tgt) - Vector(pos)).to_track_quat('-Z', 'Y')
-        pos, q = cam_at(t); st.look(pos, None, lerp(40.0, 34.0, u), quat=q); st.key3(st.cam, cam_at, t, dt, True)
-        return t, dt, dict(samples=18, shutter=0.4, anchors={"bomb": tuple(bp)}, extra=dict(drop=float(max(store_world(t)[0][2] - bp[2], 0.0))))
+        pos, q = cam_at(t); st.look(pos, None, lerp(46.0, 40.0, u), quat=q); st.key3(st.cam, cam_at, t, dt, True)
+        return t, dt, dict(samples=40, shutter=0.18, anchors={"bomb": tuple(bp)}, extra=dict(drop=fallen))
     return n, frame
 
 def shot_fall(n=64):

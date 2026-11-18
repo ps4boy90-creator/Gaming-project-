@@ -43,7 +43,7 @@ def _fall(z0, dt=0.002):
 REL_Z = ALT + 1.15                                # height of the canister on its pylon
 TRAJ = _fall(REL_Z)
 T_HIT = float(TRAJ[-1, 0]); FWD = float(TRAJ[-1, 1]); V_IMP = TRAJ[-1, 3:5].copy(); V_HIT = float(np.hypot(*V_IMP)); FALL_ANGLE = math.atan2(-V_IMP[1], V_IMP[0])
-PYLON_Y = -2.95                                   # the dropped canister hangs on the right outboard pylon
+PYLON_Y = 2.95                                    # the dropped canister hangs on the left outboard pylon (the sunlit side)
 HELI_Y = -PYLON_Y                                 # so that pylon tracks down the middle of the aim line (y = 0)
 
 def bomb_state(t):

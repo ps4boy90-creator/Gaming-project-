@@ -17,7 +17,7 @@ this film's invention, and the film says so on its title card.
 |---|------|---------------|-------|
 | 1 | `card`     | The Black Hawk with four Mk 77s on a studio backdrop + spec panel | – |
 | 2 | `approach` | Air to air: the helicopter running in towards the ruins | real time |
-| 3 | `release`  | Beside the right stub wing: the rack lets go, the canister drops and starts to tumble | real time, then 4× slow |
+| 3 | `release`  | Close beside the left stub wing, in the sun: the rack lets go, the canister drops and starts to tumble (rendered at 1080p) | real time, then 4× slow |
 | 4 | `fall`     | The camera follows the tumbling canister down onto the street | real time |
 | 5 | `impact`   | From the far end of the street: the burst, and the fire rolling down the street | half speed, then real time |
 | 6 | `radius`   | From the air: the burning area, and the published footprint of a jet-delivered Mk 77 | real time |
@@ -70,6 +70,7 @@ flight, with dark sooty edges.
 - `npost.py` — title card, HUD, sound, encode.
 - `nlook.py` — renders the helicopter and a canister from several directions (model check).
 - `render_all.py` — bakes the fire if needed, renders every shot (resumable) and runs post.
+- `nremix.py` — re-cuts an existing video: swaps in newly rendered shots and rebuilds the soundtrack without re-rendering the rest.
 
 Mesh helpers (`qgeo.py`) and the smoke-column effect come from `../reaper-hellfire/`; the town from
 `../howitzer-explosion/`.
