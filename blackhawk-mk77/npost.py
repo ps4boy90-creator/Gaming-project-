@@ -92,7 +92,7 @@ def overlay_for(shot, i, n, m, info):
             callout(d, an["sim"][0] * W, an["sim"][1] * H, "%d × %d m" % (info["SMEAR_L"], info["SMEAR_W"]), "THIS DROP  ·  HELD IN BY THE STREET", RED, a1, dx=150, dy=-230)
         if a2 > 0 and len(pp) > 2:
             dashed(d, pp, (*INK, int(225 * a2)), 4)
-            callout(d, an["pub"][0] * W, an["pub"][1] * H, "%d × %d m" % (info["FOOT_L"], info["FOOT_W"]), "PUBLISHED FOOTPRINT, DROPPED FROM A JET", INK, a2, dx=-150, dy=170)
+            callout(d, an["pub"][0] * W, an["pub"][1] * H, "%d × %d m" % (info["FOOT_L"], info["FOOT_W"]), "PUBLISHED FOOTPRINT, DROPPED FROM A JET", INK, a2, dx=-700, dy=150)
         readout(d, "TIME", "T + %.1f s" % max(td, 0.0), 1.0, AMBER, "REAL TIME")
         lower(d, "THE BURNING AREA", "A slow helicopter throws the fuel a shorter way than a jet does", ease((td - 0.6) / 0.4))
     elif shot == "after":

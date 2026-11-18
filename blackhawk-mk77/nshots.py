@@ -69,7 +69,7 @@ class Stage(gshots.Stage):
                 if o.name.startswith("E_"):
                     bpy.data.objects.remove(o, do_unlink=True)
             self.dom = bpy.data.objects["BlastDomain"]; self.dom.data.materials.clear()
-            bm_ = blast_material(density=9.0, fire=14.0, ambient=0.04); self.dom.data.materials.append(bm_)
+            bm_ = blast_material(density=7.0, fire=5.5, ambient=0.03); self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]
             for nd in bm_.node_tree.nodes:
                 if nd.type == 'VECT_MATH' and nd.operation == 'POWER':
                     nd.inputs[1].default_value = (0.85, 0.85, 0.85)                    # keep the smoke black
@@ -121,6 +121,7 @@ class Stage(gshots.Stage):
             p.update(bool(opt.get("plume", False)), t + 3.3 * k)
         if self.dom is not None:
             self.dom.hide_render = not hit
+            self.fire_node.inputs[1].default_value = lerp(5.5, 13.0, smoothstep(0.4, 1.6, td))      # the first fireball is the brightest; later flames show through smoke
 
 # ----------------------------------------------------------------------------- shots
 def shot_approach(n=96):
