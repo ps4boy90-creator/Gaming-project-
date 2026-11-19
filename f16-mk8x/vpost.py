@@ -30,7 +30,7 @@ def card_frame(img, i, n):
     t = i / FPS; x0 = W // 2 + 96
     text(d, (x0, 150), "EXPLOSION COMPARISON  ·  07", F_SEMI(30), DIM, ease((t - 0.10) / 0.5), tracking=5)
     a = ease((t - 0.20) / 0.5); text(d, (x0 + int((1 - a) * 40), 196), "F-16", F_TITLE(210), INK, a)
-    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 446), "MK 82  ·  MK 83 GENERAL-PURPOSE BOMBS", F_TITLE(50), AMBER, a, tracking=2)
+    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 446), "MK 82 AND MK 83 BOMBS", F_TITLE(54), AMBER, a, tracking=2)
     a = ease((t - 0.45) / 0.5); d.rectangle([x0, 528, x0 + int(820 * a), 531], fill=(*AMBER, int(255 * a)))
     y = 562
     for k, (lab, val) in enumerate(SPECS):
@@ -54,7 +54,7 @@ def overlay_for(shot, i, n, m, info):
         if a1 > 0:
             callout(d, an["mk82"][0] * W, an["mk82"][1] * H, "MK 82", "500 lb CLASS  ·  87 kg OF EXPLOSIVE", AMBER, a1, dx=-520, dy=210)
         if a2 > 0:
-            callout(d, an["mk83"][0] * W, an["mk83"][1] * H, "MK 83", "1,000 lb CLASS  ·  202 kg OF EXPLOSIVE", RED, a2, dx=120, dy=-250)
+            text(d, (W - 64, 150), "MK 83", F_TITLE(64), RED, a2, anchor="ra"); text(d, (W - 64, 226), "UNDER THE FAR WING  ·  1,000 lb CLASS  ·  202 kg OF EXPLOSIVE", F_SEMI(28), INK, a2, anchor="ra", tracking=2)
     elif shot == "release":
         if t < 0:
             lower(d, "OVER THE RELEASE POINT", "Level at 1,500 m  ·  3.9 km short of the first bunker", ease((i - 2) / 6.0))
@@ -82,7 +82,7 @@ def overlay_for(shot, i, n, m, info):
         a1 = ease((i - 8) / 8.0) * (1 - ease((i - 50) / 8.0))
         if a1 > 0:
             callout(d, an["mk82"][0] * W, an["mk82"][1] * H, "MK 82", "ROOF HOLED  ·  STRUCTURE STANDING", AMBER, a1, dx=-120, dy=-250)
-            callout(d, an["mk83"][0] * W, an["mk83"][1] * H, "MK 83", "ROOF BROKEN OPEN  ·  WALLS STANDING", RED, a1, dx=-330, dy=-330)
+            callout(d, an["mk83"][0] * W, an["mk83"][1] * H, "MK 83", "ROOF BROKEN OPEN  ·  WALLS STANDING", RED, a1, dx=-560, dy=-330)
         lower(d, "WHAT THEY DO TO A BUNKER", "General-purpose bombs crater, spall and hole  ·  hardened targets need penetrating bombs", ease((i - 40) / 12.0))
     return ov
 
@@ -100,7 +100,7 @@ def compare_frame(im82, im83, i, n, m82, m83, info):
         ps = [P(q) for q in m.get("path_struct", [])]; pb = [P(q) for q in m.get("path_blast", [])]
         if a0 > 0 and len(ps) > 2:
             d.line([(x, y + 2) for x, y in ps], fill=(0, 0, 0, int(120 * a0)), width=7); d.line(ps, fill=(*RED, int(235 * a0)), width=5)
-            callout(d, *P(m["anchors"]["struct"]), "%d m" % round(info["R_STRUCT"][kind]), "CONCRETE BUILDINGS DESTROYED", RED, a0, dx=40, dy=190)
+            callout(d, *P(m["anchors"]["struct"]), "%d m" % round(info["R_STRUCT"][kind]), "STRUCTURES DESTROYED", RED, a0, dx=-300, dy=200)
         if a1 > 0 and len(pb) > 2:
             dashed(d, pb, (*AMBER, int(235 * a1)), 4)
             callout(d, *P(m["anchors"]["blast"]), "%d m" % round(info["R_BLAST"][kind]), "34 kPa BLAST", AMBER, a1, dx=-10, dy=-250)
