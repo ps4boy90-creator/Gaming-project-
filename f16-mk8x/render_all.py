@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Bake the two explosions and render every shot of the F-16 / Mk 82 / Mk 83 segment, then build the video.
+"""Bake the three explosions and render every shot of the F-16 / Mk 82 / Mk 83 / Mk 84 segment, then build the video.
 Works on Windows, macOS and Linux; resumable (existing frames and finished bakes are skipped).
 
-    python render_all.py <frames_root> <sim_root> [out.mp4]
+    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...]
+
+--only renders just the named shots and skips the final edit (for running two renders side by side on one card).
 
 Set RENDER_DEVICE=GPU to render with Cycles on the graphics card.  The bakes always run on the CPU.
 Needs `pip install bpy numpy pillow` (scipy speeds up the sound) and ffmpeg on the PATH.
@@ -10,10 +12,10 @@ Needs `pip install bpy numpy pillow` (scipy speeds up the sound) and ffmpeg on t
 import os, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SHOTS = [("card", 72), ("approach", 96), ("release", 130), ("fall", 64), ("impact82", 120), ("impact83", 120), ("radius82", 96), ("radius83", 96), ("after", 72)]
-RES = {"radius82": "640x720", "radius83": "640x720"}          # the two halves of the side-by-side comparison
-SIM = {"impact82": "mk82", "radius82": "mk82", "impact83": "mk83", "radius83": "mk83"}
-BAKE = {"mk82": ("112", "170"), "mk83": ("124", "170")}
+SHOTS = [("card", 72), ("approach", 96), ("release", 144), ("intro82", 108), ("fall", 64), ("impact82", 120), ("radius82", 96), ("intro83", 108), ("impact83", 120), ("radius83", 96),
+         ("intro84", 108), ("impact84", 120), ("radius84", 96), ("after", 192)]
+SIM = {s + t: "mk" + t for s in ("impact", "radius") for t in ("82", "83", "84")}
+BAKE = {"mk82": ("112", "170"), "mk83": ("124", "170"), "mk84": ("132", "170")}
 
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:1]), time.strftime("%H:%M:%S")), flush=True)
@@ -24,13 +26,18 @@ def run(script, *args):
     return p.wait()
 
 def main():
+    only = None
+    if "--only" in sys.argv:
+        k = sys.argv.index("--only"); only = sys.argv[k + 1].split(","); del sys.argv[k:k + 2]
     if len(sys.argv) < 3:
         sys.exit(__doc__)
     root, sim_root = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
-    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "f16_mk82_mk83.mp4")
+    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "f16_mk82_mk83_mk84.mp4")
     os.makedirs(root, exist_ok=True); os.makedirs(sim_root, exist_ok=True)
     for name, n in SHOTS:
-        extra = ["--res", RES.get(name, "1280x720")]
+        if only and name not in only:
+            continue
+        extra = ["--res", "1280x720"]
         if name in SIM:
             kind = SIM[name]; sim = os.path.join(sim_root, kind)
             if not os.path.exists(os.path.join(sim, "DONE")):
@@ -40,6 +47,8 @@ def main():
             b = min(a + 24, n) - 1
             if not all(os.path.exists(os.path.join(root, name, "f%04d.png" % i)) for i in range(a, b + 1)):
                 run("vshots.py", name, os.path.join(root, name), "--frames", "%d-%d" % (a, b), *extra)
+    if only:
+        print("PART DONE %s" % ",".join(only)); return
     if run("vpost.py", root, out) == 0:
         print("ALL DONE  %s" % out)
 

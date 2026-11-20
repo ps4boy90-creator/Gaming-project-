@@ -1,10 +1,10 @@
 """Bake the Mantaflow gas sim of one bomb bursting on a bunker roof to an OpenVDB cache.
 
-  python3 vsim.py mk82|mk83 <cache_dir> <resolution> <frames> [noise 0|1]
+  python3 vsim.py mk82|mk83|mk84 <cache_dir> <resolution> <frames> [noise 0|1]
 
 Instantaneous fuze on the concrete roof: a short fireball, a dark smoke column, grey concrete dust, and the sand of
-the earth bank thrown out as a skirt and in jets.  The Mk 83 is the same burst scaled up by the cube root of its
-filling.  Timeline: 1 frame = 1/60 s (scene fps 24 x time scale 0.4); frame 1 = detonation.
+the earth bank thrown out as a skirt and in jets.  The Mk 83 and Mk 84 are the same burst scaled up by the cube root of
+their filling.  Timeline: 1 frame = 1/60 s (scene fps 24 x time scale 0.4); frame 1 = detonation.
 """
 import bpy, sys, math, random, os
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -17,8 +17,8 @@ from msim import flow, ico, torus, box, collider, jet, DARK
 import vconst as C
 
 msim.TIME_SCALE = 0.4; msim.DT = C.SIM_DT
-SCALE = {"mk82": 2.0, "mk83": 2.0 * (202.0 / 87.0) ** (1 / 3)}
-SIZE = {"mk82": (70.0, 70.0, 54.0), "mk83": (92.0, 92.0, 70.0)}
+SCALE = {k: 2.0 * (v["fill"] / 87.0) ** (1 / 3) for k, v in C.SPEC.items()}
+SIZE = {"mk82": (70.0, 70.0, 54.0), "mk83": (92.0, 92.0, 70.0), "mk84": (120.0, 120.0, 90.0)}
 SAND = [(0.52, 0.44, 0.32), (0.46, 0.38, 0.27), (0.58, 0.50, 0.38)]; DUST = [(0.56, 0.55, 0.52), (0.48, 0.47, 0.45)]
 
 def build(kind):
@@ -45,7 +45,7 @@ def build(kind):
 if __name__ == "__main__":
     kind, cache_dir, res, frames = sys.argv[1], os.path.abspath(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
     noise = len(sys.argv) > 5 and sys.argv[5] == "1"
-    random.seed(41 if kind == "mk82" else 43)
+    random.seed({"mk82": 41, "mk83": 43, "mk84": 47}[kind])
     msim.DOMAINS["v_" + kind] = (SIZE[kind], (3.0, 0.0))
     bpy.ops.wm.read_factory_settings(use_empty=True)
     dom = msim.make_domain("v_" + kind, cache_dir, res, frames, noise)
