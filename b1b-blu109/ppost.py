@@ -14,7 +14,7 @@ from npost import readout, dashed, _mod, s_roar, s_crackle
 ORDER = ["card", "approach", "intro", "bay", "fall", "strike", "cutaway", "after", "summary"]
 N_SUMMARY = 216
 HOLD = {"cutaway": 40}                                               # the first frame of the section is held while its caption is read
-SPECS = [("AIRCRAFT", "Rockwell B-1B Lancer"), ("SIZE", "44.5 m long  ·  10.4 m high"), ("WINGS", "swing from 15° to 67.5°  ·  41.8 m to 24.1 m across"), ("ENGINES", "four F101-GE-102 turbofans"),
+SPECS = [("AIRCRAFT", "Rockwell B-1B Lancer"), ("SIZE", "44.5 m long  ·  10.4 m high"), ("WINGS", "swing from 15° to 67.5°  ·  41.8 m or 24.1 m across"), ("ENGINES", "four F101-GE-102 turbofans"),
          ("BOMB BAYS", "three  ·  up to 24 bombs of 2,000 lb"), ("BOMB", "GBU-31(V)3/B: a BLU-109 with a JDAM tail")]
 
 def tag(d, a=1.0):
@@ -92,7 +92,7 @@ def cut_overlay(d, i, n, m, info, hold):
         if tp < 0:
             lower(d, "IT ARRIVES AT %d m/s" % round(info["V_HIT"]), "%d km/h, %d° down  ·  about 874 kg of steel and explosive behind a solid steel nose" % (round(info["V_HIT"] * 3.6, -1), round(info["DIVE"])), ease((i - 1) / 5.0) * (1 - ease((i - pre + 4) / 4.0)))
         elif tp < TP[1]:
-            lower(d, "THROUGH THE COVER", "Earth and broken rock slow it from %d to about %d m/s" % (round(info["VS"][0]), round(info["VS"][1], -1)), io(0.0, TP[1]))
+            lower(d, "THROUGH THE COVER", "The tail kit is torn off at the surface  ·  earth and broken rock slow the warhead from %d to about %d m/s" % (round(info["VS"][0]), round(info["VS"][1], -1)), io(0.0, TP[1]))
         elif tp < TP[2]:
             lower(d, "THROUGH THE ROOF", "0.9 m of reinforced concrete takes it down to about %d m/s" % round(info["VS"][2], -1), io(TP[1], TP[2]))
         elif tp < TP[3]:
@@ -128,25 +128,15 @@ def overlay_for(shot, i, n, m, info, hold=None):
         if a > 0 and seen(an["nacelle"]):
             callout(d, *P(an["nacelle"]), "FOUR ENGINES", "TWO IN A NACELLE UNDER EACH WING ROOT", AMBER, a, dx=90, dy=170)
     elif shot == "intro":
-        lower(d, "WHAT IT DROPS: GBU-31(V)3/B", "A BLU-109 penetrator bomb with a JDAM guidance tail and strakes  ·  961 kg", io)
-        A = lambda k: ease((i - 8 - 7 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
+        lower(d, "WHAT IT DROPS: GBU-31(V)3/B", "A BLU-109 penetrator with a JDAM guidance tail  ·  961 kg  ·  the warhead alone: 2.40 m long, 368 mm across, 874 kg", io)
+        A = lambda k: ease((i - 8 - 8 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
         dim_line(d, (px["tail"][0], px["top"][1] - 70), (px["nose"][0], px["top"][1] - 70), "3.77 m WITH THE TAIL KIT", A(0))
-        a = A(1)
-        if a > 0:
-            callout(d, *px["kit"], "JDAM TAIL KIT", "GPS AND INERTIAL GUIDANCE  ·  THREE FINS MOVE", AMBER, a, dx=-40, dy=150)
-        a = A(2)
-        if a > 0:
-            callout(d, *px["strake"], "STRAKES", "STRAPPED ON, FOR LIFT", AMBER, a, dx=150, dy=-120)
-        dim_line(d, (px["ct"][0], px["cbot"][1] + 60), (px["cn"][0], px["cbot"][1] + 60), "BLU-109/B  ·  2.40 m  ·  368 mm ACROSS  ·  874 kg", A(3), off=14)
-        a = A(4)
-        if a > 0:
-            callout(d, *px["cnose"], "SOLID STEEL NOSE", "ONE FORGED CASE, AT LEAST 27 mm THICK", RED, a, dx=60, dy=-150)
-        a = A(5)
-        if a > 0:
-            callout(d, *px["cfill"], "243 kg OF EXPLOSIVE", "LESS THAN A THIRD OF THE BOMB'S WEIGHT", RED, a, dx=-330, dy=120)
-        a = A(6)
-        if a > 0:
-            callout(d, *px["cfuze"], "FUZE IN THE TAIL", "FIRES 0.06 s AFTER IMPACT", RED, a, dx=-250, dy=-130)
+        for k, (key, big, small, col, ex, ey) in enumerate((("kit", "JDAM TAIL KIT", "GPS AND INERTIAL GUIDANCE  ·  THREE FINS MOVE", AMBER, -40, 150), ("strake", "STRAKES", "STRAPPED ON, FOR LIFT", AMBER, 160, 70),
+                                                         ("cnose", "SOLID STEEL NOSE", "FORGED CASE AT LEAST 27 mm THICK", RED, -233, -123), ("cfill", "243 kg OF EXPLOSIVE", "LESS THAN A THIRD OF THE BOMB'S WEIGHT", RED, -557, -123),
+                                                         ("cfuze", "FUZE IN THE TAIL", "FIRES 0.06 s AFTER IMPACT", RED, -300, 95))):
+            a = A(k + 1)
+            if a > 0:
+                callout(d, *px[key], big, small, col, a, dx=ex, dy=ey)
     elif shot == "bay":
         a1 = ease((i - 4) / 8.0) * (1 - ease((t + 0.25) / 0.2)); a2 = ease((t + 0.05) / 0.15) * (1 - ease((i - (n - 8)) / 7.0))
         if a1 > 0:
@@ -235,8 +225,8 @@ def build_audio(path, starts, metas, lens, total, info):
         mx.add(0.65 + 0.12 * k, gp.s_tick(), 0.35, 0.3)
     la = L["approach"]; e = s_bomber(la + 0.4, 3); e *= np.minimum(1.0, np.arange(len(e)) / (0.5 * SR)); mx.add(T["approach"], e, 0.55, -0.15); mx.add(T["approach"], s_bomber(la + 0.4, 8) * np.minimum(1.0, np.arange(int((la + 0.4) * SR)) / (0.5 * SR)), 0.55, 0.15)
     mx.add(T["intro"], gp.s_drone(L["intro"]), 0.4); mx.add(T["intro"] + 0.05, gp.s_thud(0.8), 0.4)
-    for k in range(7):
-        mx.add(T["intro"] + (8 + 7 * k) / FPS, gp.s_tick(), 0.35, 0.3 - 0.1 * k)
+    for k in range(6):
+        mx.add(T["intro"] + (8 + 8 * k) / FPS, gp.s_tick(), 0.35, 0.3 - 0.1 * k)
     lb = L["bay"]; mx.add(T["bay"], s_bomber(lb, 11) * 0.8, 0.45); td_ = when("bay", lambda m: m.get("doors", 0) > 0.02)
     if td_:
         b = s_buffet(T["bay"] + lb - td_, 5); b *= np.minimum(1.0, np.arange(len(b)) / (1.2 * SR)); mx.add(td_, b, 0.5); mx.add(td_, gp.s_thud(0.7), 0.5, 0.2)

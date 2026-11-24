@@ -28,20 +28,30 @@ TRENCH = (X0 - 1.6, X1 + 1.6)
 XF = PX + (TH + LIN) / M                              # the portal's face: where the tunnel's lined roof meets the slope; in front of it an open cutting
 CUT_W = 2.6
 
-def ground(x, y, fine=2):
+def ground(x, y, fine=1):
     """Height of the mountainside.  Within 24 m of the bunker it is the plain 25 degree slope of the calculation."""
     x = np.asarray(x, float); y = np.asarray(y, float); r = np.hypot(x - 2.0, y)
     w = np.clip((r - 24.0) / 90.0, 0.0, 1.0); w = w * w * (3 - 2 * w)
-    steep = 0.42 * np.clip(x - 90.0, 0.0, None) - 0.30 * np.clip(x - 640.0, 0.0, None) * 2.2                  # steeper above, a crest far up
-    valley = np.clip(-(x + 60.0), 0.0, None) * M * 0.92                                                       # the slope runs out into a valley floor
+    sp = lambda u, k: k * np.logaddexp(0.0, u / k)                                                            # a bend instead of a crease
+    xx = x + 70.0 * np.clip((r - 40.0) / 60.0, 0.0, 1.0) * (fbm(y / 350.0 + 1.7, x / 900.0 + 0.3, 3, 3) - 0.5)       # the bends wander across the slope
+    steep = 0.42 * sp(xx - 90.0, 12.0) - 0.66 * sp(xx - 640.0, 40.0)                                          # steeper above, a crest far up
+    valley = sp(-(xx + 60.0), 8.0) * M * 0.92                                                                 # the slope runs out into a valley floor
     h = M * x + steep + valley + w * 70.0 * (fbm(x / 420.0 + 3.3, y / 420.0 + 1.1, 5, 5) - 0.5)
     if fine:                                                                                                  # detail that the coarse far sheet could not carry; it dies away with distance
-        near = 1.0 - np.clip((r - 1000.0) / 600.0, 0.0, 1.0); w2 = np.clip((r - 32.0) / 60.0, 0.0, 1.0); rib = np.abs(fbm(y / 260.0 + 5.1, x / 1500.0 + 2.2, 11, 3) - 0.5) * 2.0
-        h = h + near * (w * 9.0 * (fbm(x / 60.0, y / 60.0, 7, 3 if fine > 1 else 2) - 0.5) + (0.5 * w * (fbm(x / 6.0, y / 6.0, 9, 3) - 0.5) if fine > 1 else 0.0) - 16.0 * w2 * (1 - np.clip(rib * 3.0, 0, 1)) ** 2)   # hummocks, and ravines running down the slope
+        near = 1.0 - np.clip((r - 1000.0) / 600.0, 0.0, 1.0); close = 1.0 - np.clip((r - 140.0) / 160.0, 0.0, 1.0); w2 = np.clip((r - 32.0) / 60.0, 0.0, 1.0)
+        rib = np.abs(fbm(y / 260.0 + 5.1, x / 1500.0 + 2.2, 11, 3) - 0.5) * 2.0
+        h = h + near * (w * 9.0 * (fbm(x / 60.0, y / 60.0, 7, 2) - 0.5) - 16.0 * w2 * (1 - np.clip(rib * 3.0, 0, 1)) ** 2) + close * 0.5 * w * (fbm(x / 6.0, y / 6.0, 9, 3) - 0.5)   # hummocks, ravines down the slope, small roughness
     apron = np.clip((5.5 - np.abs(y)) / 2.0, 0.0, 1.0) * np.clip((x - (PX - 11.0)) / 4.0, 0.0, 1.0) * (x < PX)                         # a level apron built out in front
     cut = np.clip((CUT_W - np.abs(y)) / 0.04, 0.0, 1.0) * np.clip((XF - x) / 0.04, 0.0, 1.0) * (x >= PX)                               # and a cutting with upright sides back to the portal
     pad = np.maximum(apron, cut)
     return h * (1 - pad) + ZF * pad
+
+def _graded():
+    """Grid lines 1.25 m apart out to 150 m from the bunker, then widening by 6 % a step out to 1,800 m: one sheet, no seam near the target."""
+    g = [150.0]; step = 1.25
+    while g[-1] < 1800.0:
+        step *= 1.06; g.append(g[-1] + step)
+    g[-1] = 1800.0; g = np.array(g[1:]); return np.concatenate([-g[::-1], np.arange(-150.0, 150.0 + 1e-3, 1.25), g])
 
 def _terrain(col, ymax=None):
     m = tland.land_mat("MountainRock")
@@ -49,16 +59,16 @@ def _terrain(col, ymax=None):
         if nd.type == 'VALTORGB' and abs(nd.color_ramp.elements[0].color[0] - 0.170) < 1e-3:
             nd.color_ramp.elements[0].color = (0.150, 0.120, 0.090, 1); nd.color_ramp.elements[1].color = (0.360, 0.300, 0.220, 1)
     obs = []
-    for name, half, step, skirt, hole in (("Near", 150.0, 1.25, 4.0, 0.0), ("Mid", 1800.0, 15.0, 40.0, 150.0), ("Far", 26000.0, 220.0, 0.0, 1800.0)):
-        xs = np.arange(-half, half + 1e-3, step); ys = np.arange(-half, half + 1e-3, step)
+    for name, base, skirt, hole in (("Near", _graded(), 40.0, 0.0), ("Far", np.arange(-26000.0, 26000.0 + 1e-3, 220.0), 0.0, 1800.0)):
+        xs = base.copy(); ys = base.copy()
         if name == "Near":                                                 # grid lines on the edges of the cutting, so that its sides stand upright
             xs = np.array(sorted(set(xs) | {PX, XF - 0.04, XF})); ys = np.array(sorted(set(ys) | {-CUT_W, -CUT_W + 0.04, CUT_W - 0.04, CUT_W}))
         if ymax is not None:
             ys = np.append(ys[ys < ymax - 1e-6], ymax)
-        X, Y = np.meshgrid(xs, ys, indexing="ij"); Z = ground(X, Y, fine={"Near": 2, "Mid": 1, "Far": 0}[name]); V = np.stack([X, Y, Z], -1).reshape(-1, 3); F = [grid_faces(len(xs), len(ys))]; nx, ny = len(xs), len(ys)
-        if hole:                                                           # the coarser sheets are left open where a finer one lies, or their flat facets would stand proud of it
+        X, Y = np.meshgrid(xs, ys, indexing="ij"); Z = ground(X, Y, fine=int(name == "Near")); V = np.stack([X, Y, Z], -1).reshape(-1, 3); F = [grid_faces(len(xs), len(ys))]; nx, ny = len(xs), len(ys)
+        if hole:                                                           # the far sheet is left open where the near one lies, or its flat facets would stand proud of it
             c = V[F[0]].mean(1); F[0] = F[0][~((np.abs(c[:, 0]) < hole - 1e-3) & (np.abs(c[:, 1]) < hole - 1e-3))]
-        if skirt:                                                          # an apron hanging from the edge hides the small gaps where a fine sheet meets a coarse one
+        if skirt:                                                          # an apron hanging from the edge hides the small gaps where the two sheets meet
             for e in [np.arange(nx) * ny, (nx - 1) * ny + np.arange(ny), np.arange(ny)] + ([np.arange(nx) * ny + ny - 1] if ymax is None else []):
                 n0 = len(V); top = V[e]; bot = top - np.array([0.0, 0.0, skirt]); V = np.vstack([V, top, bot]); k = np.arange(len(e) - 1); F.append(np.stack([n0 + k, n0 + k + 1, n0 + len(e) + k + 1, n0 + len(e) + k], 1))
         obs.append(new_obj("Ground" + name, new_mesh("ground_" + name.lower(), V, F), col, m))
@@ -95,10 +105,16 @@ def hollow(x, y):
     x = np.asarray(x, float); y = np.asarray(y, float); e = ((x - 3.6) / 6.2) ** 2 + (y / 4.2) ** 2
     return -SURF_DROP * np.exp(-e) + 0.45 * np.exp(-((np.sqrt(e) - 1.35) / 0.35) ** 2) + 0.25 * np.exp(-e / 2.5) * (fbm(x * 0.9, y * 0.9, 5, 3) - 0.5) * 2
 
-def _hollow_key(ob):
-    me = ob.data; n = len(me.vertices); V = np.empty(n * 3, np.float32); me.vertices.foreach_get("co", V); V = V.reshape(-1, 3)
-    ob.shape_key_add(name="Basis"); sk = ob.shape_key_add(name="Collapse"); co = V.copy(); co[:, 2] += hollow(V[:, 0], V[:, 1])
-    sk.data.foreach_set("co", co.astype(np.float32).ravel()); sk.slider_min = -3.0; sk.value = 0.0; return sk
+class _Hollow:
+    """Moves the ground's own vertices for the lift and the fall of the cover.  (A shape key did this at first, but with
+    Cycles' persistent data the keyed mesh now and then rendered black for the rest of a run; plain vertex edits do not.)"""
+    def __init__(self, ob):
+        me = self.me = ob.data; n = len(me.vertices); V = np.empty(n * 3, np.float32); me.vertices.foreach_get("co", V); V = V.reshape(-1, 3)
+        dz = hollow(V[:, 0], V[:, 1]); self.idx = np.nonzero(np.abs(dz) > 1e-4)[0]; self.base = V; self.dz = dz[self.idx].astype(np.float32); self.k = 0.0
+    def set(self, k):
+        if abs(k - self.k) < 1e-6:
+            return
+        co = self.base.copy(); co[self.idx, 2] += k * self.dz; self.me.vertices.foreach_set("co", co.ravel()); self.me.update(); self.k = k
 
 def _rocks(col, rng, ymax=None):
     """Loose rock and boulders on the slope round the bunker (none on the ground the bomb goes through, or on the apron)."""
@@ -114,7 +130,7 @@ class Outside:
     def __init__(self, col):
         rng = np.random.default_rng(7); self.col = col; self.mat = bpy.data.materials.get("SitePaint") or paint_mat("SitePaint", rough=0.85, bump=0.4)
         self.ground = _terrain(col)[0]; _rocks(col, rng)
-        self.collapse = _hollow_key(self.ground)
+        self.collapse = _Hollow(self.ground)
         S = Shell(); _portal(S)
         S.add(*gbox((XF + 3.3, 0, ZF + TH / 2), (5.0, 2 * TW, TH)), color=DARKC)                                               # the dark of the tunnel behind the doors
         for (vx, vy) in ((1.0, 2.0), (6.5, -2.0)):                                                                              # ventilation pipes over the room
@@ -141,7 +157,7 @@ class Outside:
         td = tp - C.FUZE_DELAY; self.hole.hide_render = tp < 0.0 or td > 0.2; self.rubble.hide_render = td < 1.45
         for pc in self.doors:
             p, q = pc.at(td - 0.02); pc.ob.location = p; pc.ob.rotation_quaternion = q
-        self.collapse.value = surf_k(td)
+        self.collapse.set(surf_k(td))
 
 def _column(x):
     """What lies along a vertical line at x in the plane of the section: (z_low, z_high, kind) from the bottom up."""
@@ -179,7 +195,7 @@ class Section:
     """Everything on and behind the cut.  The solid ground is the half y <= 0; the camera stands on the +Y side."""
     def __init__(self, col):
         rng = np.random.default_rng(19); self.col = col; self.mat = bpy.data.materials.get("SitePaint") or paint_mat("SitePaint", rough=0.85, bump=0.4)
-        self.collapse = _hollow_key(_terrain(col, ymax=0.0)[0]); _rocks(col, rng, ymax=0.0)
+        self.collapse = _Hollow(_terrain(col, ymax=0.0)[0]); _rocks(col, rng, ymax=0.0)
         mats = self.mats = {"rock": _face_mat("CutRock", (0.050, 0.045, 0.042), (0.125, 0.110, 0.098), 0.55), "weath": _face_mat("CutWeathered", (0.115, 0.090, 0.066), (0.215, 0.170, 0.120), 1.2, stones=1.6),
                             "fill": _face_mat("CutFill", (0.26, 0.195, 0.125), (0.43, 0.335, 0.225), 2.2, stones=3.4), "conc": _face_mat("CutConcrete", (0.36, 0.355, 0.34), (0.52, 0.51, 0.49), 5.0, stones=14.0)}
         xs = sorted(set(list(np.arange(-150.0, 150.01, 1.0)) + [PX - 11, PX - 7, PX - 1e-3, PX + 1e-3, XF - 1e-3, XF + 1e-3, X0 - C.WALL - 1e-3, X0 - C.WALL + 1e-3, X0 - 1e-3, X0 + 1e-3, X1 - 1e-3, X1 + 1e-3, X1 + C.WALL - 1e-3, X1 + C.WALL + 1e-3]))
@@ -244,7 +260,7 @@ class Section:
         self.update(-1.0)
 
     def update(self, tp):
-        td = tp - C.FUZE_DELAY; s, _ = C.pen_state(tp); self.collapse.value = surf_k(td)
+        td = tp - C.FUZE_DELAY; s, _ = C.pen_state(tp); self.collapse.set(surf_k(td))
         # the cover over the roof: from the slab's top to the surface, both moving
         fx = self.fx; zb = ZR + roof_dz(fx, td); zt = ground(fx, np.zeros_like(fx)) + surf_k(td) * hollow(fx, np.zeros_like(fx)); zt = np.maximum(zt, zb + 0.05)
         V = np.concatenate([np.stack([fx, np.full_like(fx, 0.003), zb], 1), np.stack([fx, np.full_like(fx, 0.003), zt], 1)]); n = len(fx); k = np.arange(n - 1)

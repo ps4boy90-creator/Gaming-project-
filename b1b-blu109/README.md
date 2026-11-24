@@ -80,8 +80,8 @@ sound limestone.
   far — the roof thrown up about 1.5 m, down again after about 1.4 s, a 1.9 m hollow — is staging.
   The two gas simulations are driven by hand-placed sources; they show where the gas goes, not a
   measured blast.
-* **The bomb in the ground** is drawn with its tail kit and strakes still on. In reality these are
-  stripped off at the surface; only the steel warhead goes on.
+* **The tail kit** and strakes are shown torn off and crumpled at the surface while the steel
+  warhead goes on alone, which is what happens; exactly how they come off is staging.
 * **The B-1B model.** Proportioned from the published dimensions and photographs: fuselage sections,
   the glove, nacelles, fin and tailplanes are estimates; there are no panel lines, markings or
   landing gear, and the paint is plain dark grey. The bay's position and length, the doors (two

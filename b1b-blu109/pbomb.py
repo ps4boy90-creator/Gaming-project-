@@ -44,14 +44,18 @@ def _kit(S):
     for x in (0.38, -0.66):                                                                                                                  # the two bands that hold the strakes
         S.add(*revolve([(x + 0.035, R + 0.006), (x - 0.035, R + 0.006)], 32), color=STEEL)
 
-def _body():
+def _body(kit=True):
     S = Shell(); st = _stations()
     V, Q, T = revolve([(L / 2 - s, r_out(s)) for s in st][::-1], 36); S.add(V, Q, T, OLIVE)
     S.add(*revolve([(L / 2 - 0.70 + 0.04, R + 0.0015), (L / 2 - 0.70 - 0.04, R + 0.0015)], 36), color=YELLOW)                                    # high-explosive band
     for x in (0.381, -0.381):                                                                                                                  # lugs, 30 in apart
         S.add(*box((x, 0, R + 0.02), (0.07, 0.035, 0.05)), color=STEEL)
-    _kit(S)
-    return S.mesh("gbu31", sharp=math.radians(40))
+    if kit:
+        _kit(S)
+    return S.mesh("gbu31" if kit else "blu109", sharp=math.radians(40))
+
+def _kit_only():
+    S = Shell(); _kit(S); return S.mesh("jdam_kit", sharp=math.radians(40))
 
 def _cutaway():
     """The warhead alone with the near half cut away along the plane y = 0 (the far half, y > 0, is kept)."""
@@ -64,9 +68,10 @@ def _cutaway():
     return S.mesh("blu109_cut", sharp=math.radians(40))
 
 class Bomb:
-    def __init__(self, col=None, name="GBU31", cut=False):
-        col = col or bpy.context.scene.collection; D = bpy.data.meshes; nm = "blu109_cut" if cut else "gbu31"
-        me = D.get(nm) or (_cutaway() if cut else _body())
+    def __init__(self, col=None, name="GBU31", cut=False, part="all"):
+        """part: "all" = the bomb as dropped; "warhead" = the BLU-109 alone; "kit" = the tail kit and strakes alone."""
+        col = col or bpy.context.scene.collection; D = bpy.data.meshes; nm = "blu109_cut" if cut else {"all": "gbu31", "warhead": "blu109", "kit": "jdam_kit"}[part]
+        me = D.get(nm) or (_cutaway() if cut else _kit_only() if part == "kit" else _body(part == "all"))
         if not me.materials:
             me.materials.append(bpy.data.materials.get("BombPaint") or paint_mat("BombPaint", rough=0.55))
         self.ob = bpy.data.objects.new(name, me); col.objects.link(self.ob); self.ob.rotation_mode = 'QUATERNION'

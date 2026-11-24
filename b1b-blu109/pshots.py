@@ -37,6 +37,7 @@ JET_Q = Quaternion((0, 1, 0), D(-2.0))                               # two degre
 T_DOORS = (-2.7, -1.3)                                              # the bay doors open
 T_TURN = (0.85, 1.5)                                                # the launcher turns the next bomb to the bottom
 XF = psite.XF; ZF = C.Z_FLOOR
+T_TORN = float(np.interp(C.BLU_L, [0.0, C.S1], [0.0, C.TP[1]]))        # roughly when the tail kit meets the ground (the nose is 2.4 m in)
 
 def bomb_xform(tp):
     """Centre and attitude of the bomb, site coordinates: falling, then going through the ground."""
@@ -82,6 +83,7 @@ class Stage(gshots.Stage):
         else:
             ec = self.env_col = bpy.data.collections.new("ENV"); sc.collection.children.link(ec); env.make_world(sc)
             self.site = psite.Outside(ec) if kind == "out" else psite.Section(ec); self.bomb = pbomb.Bomb(col, "Falling")
+            self.bare = pbomb.Bomb(col, "Warhead", part="warhead"); self.kit = pbomb.Bomb(col, "TornKit", part="kit")           # the tail kit and strakes do not follow the warhead into the ground
             if kind == "out":
                 self.l_hit = ms.point_light(col, "MouthFlash", (1.0, 0.58, 0.26), 1.2); self.l_hit.location = (XF - 3.0, 0.0, ZF + 1.6)
                 self.plumes = []
@@ -121,15 +123,18 @@ class Stage(gshots.Stage):
             self.key3(self.bomb.ob, lambda tt: rel_xform(self, tt), t, dt_out, mb)
             self.floor.location = (-C.V_REL * t, 0.0, 0.0); return
         tp = t; td = tp - C.FUZE_DELAY
-        self.key3(self.bomb.ob, bomb_xform, tp, dt_out, mb)
+        self.key3(self.bomb.ob, bomb_xform, tp, dt_out, mb); self.key3(self.bare.ob, bomb_xform, tp, dt_out, mb)
         self.site.update(tp)
+        s_now = C.pen_state(tp)[0]; torn = s_now >= C.BLU_L                # the tail kit has reached the surface
+        kq = 1.0 - 0.68 * smoothstep(0.0, 0.004, tp - T_TORN); self.kit.ob.hide_render = not torn or td >= 0
+        self.kit.ob.location = tuple(C.U * (C.BLU_L / 2 * kq)); self.kit.ob.rotation_quaternion = Quaternion((0, 1, 0), D(C.DIVE)); self.kit.ob.scale = (kq, 1.5 - 0.5 * kq, 1.5 - 0.5 * kq)
         if k == "out":
-            self.bomb.ob.hide_render = tp > 0.0125                       # buried
+            self.bomb.ob.hide_render = torn; self.bare.ob.hide_render = True  # the warhead is under ground from then on
             self.l_hit.data.energy = 9.0e5 * math.exp(-td / 0.05) if 0 <= td < 0.4 else 0.0; self.l_hit.hide_render = self.l_hit.data.energy < 5.0
             for pl in self.plumes:
                 pl.update(bool(opt.get("plume", False)), tp); pl.fl.hide_render = True; pl.glow.hide_render = True
         else:
-            self.bomb.ob.hide_render = td > 0.002                        # it has burst
+            self.bomb.ob.hide_render = torn; self.bare.ob.hide_render = not torn or td > 0.002   # the warhead alone goes on, until it bursts
         if self.dom is not None:
             self.dom.hide_render = tp < 0 if k == "out" else td < 0
             self.fire_node.inputs[1].default_value = self.fire0 * (0.10 + 0.90 * math.exp(-max(td, 0.0) / (0.24 if k == "out" else 0.45)))
@@ -216,11 +221,11 @@ def shot_cutaway(n=N_OF["cutaway"]):
 SHOTS = {"approach": shot_approach, "bay": shot_bay, "fall": shot_fall, "strike": shot_strike, "after": shot_after, "cutaway": shot_cutaway}
 
 # ----------------------------------------------------------------------------- studio shots: the aircraft, the bomb
-def _studio(scale, world=0.30):
+def _studio(scale, world=0.30, backdrop=(0.64, 0.61, 0.56)):
     bpy.ops.wm.read_factory_settings(use_empty=True); sc = bpy.context.scene; k = scale
     prof = [(-160.0, 0.0), (16.0, 0.0)] + [(16.0 + 5.0 * math.sin(a), 5.0 * (1 - math.cos(a))) for a in np.linspace(0, math.pi / 2, 12)[1:]] + [(21.0, 80.0)]
     V = np.array([[x, y, z] for (y, z) in prof for x in (-120.0, 120.0)]) * k
-    new_obj("Backdrop", new_mesh("bd", V, [grid_faces(len(prof), 2)]), None, simple_mat("BackdropMat", (0.64, 0.61, 0.56), rough=0.85))
+    new_obj("Backdrop", new_mesh("bd", V, [grid_faces(len(prof), 2)]), None, simple_mat("BackdropMat", backdrop, rough=0.85))
     w = bpy.data.worlds.new("Studio"); sc.world = w; w.use_nodes = True
     w.node_tree.nodes["Background"].inputs[0].default_value = (0.75, 0.78, 0.82, 1); w.node_tree.nodes["Background"].inputs[1].default_value = world
     def area(loc, size, power, color=(1, 1, 1)):
@@ -251,17 +256,18 @@ def render_card(out_dir, res, spp, frames, n=N_OF["card"]):
         sc.render.filepath = os.path.join(out_dir, "f%04d.png" % i); t = time.time(); bpy.ops.render.render(write_still=True)
         print("FRAME card %d %.1fs" % (i, time.time() - t)); sys.stdout.flush()
 
-INTRO_X = 0.65; INTRO_Z = (2.75, 1.45)
+INTRO_X = 0.65; INTRO_Z = (2.75, 1.60)
 
 def render_intro(out_dir, res, spp, frames, n=N_OF["intro"]):
     """The bomb as it is dropped (above) and the warhead alone, cut open along its length (below)."""
     from bpy_extras.object_utils import world_to_camera_view
-    sc, cam = _studio(1.0, world=0.34); sc.cycles.samples = spp or 48
+    sc, cam = _studio(1.0, world=0.24, backdrop=(0.105, 0.11, 0.12)); sc.cycles.samples = spp or 48          # dark, so that the labels read
+    bpy.data.objects["Backdrop"].location = (0, 0, -3.4)                                                                                           # the floor out of sight: only the dark wall is behind the bombs
     g = pbomb.Bomb(name="Whole"); g.ob.location = (INTRO_X, 0, INTRO_Z[0]); g.ob.rotation_quaternion = Quaternion((1, 0, 0), D(45))            # fins in an X, as it hangs
     c = pbomb.Bomb(name="Cut", cut=True); c.ob.location = (INTRO_X, 0, INTRO_Z[1])
     sc.render.resolution_x, sc.render.resolution_y = res; os.makedirs(out_dir, exist_ok=True)
     L = C.BLU_L; R = C.BLU_D / 2; zt, zb = INTRO_Z; x0 = INTRO_X
-    pts = {"nose": (x0 + L / 2, 0, zt), "tail": (x0 + L / 2 - C.GBU_L, 0, zt), "top": (x0, 0, zt + R), "bot": (x0, 0, zt - R), "kit": (x0 - L / 2 - 0.75, 0, zt + 0.17), "strake": (x0 - 0.15, 0, zt + R + 0.05),
+    pts = {"nose": (x0 + L / 2, 0, zt), "tail": (x0 + L / 2 - C.GBU_L, 0, zt), "top": (x0, 0, zt + R), "bot": (x0, 0, zt - R), "kit": (x0 - L / 2 - 0.75, 0, zt + 0.17), "strake": (x0 + 0.30, -0.17, zt - 0.17),
            "cnose": (x0 + L / 2 - 0.20, -R, zb), "ccase": (x0 + 0.3, -0.0, zb + R - C.CASE / 2), "cfill": (x0 - 0.1, 0, zb), "cfuze": (x0 - L / 2 + 0.17, 0, zb), "cn": (x0 + L / 2, 0, zb), "ct": (x0 - L / 2, 0, zb), "cbot": (x0, 0, zb - R)}
     meta_path = os.path.join(out_dir, "meta.json"); meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
     for i in (frames if frames is not None else range(n)):
