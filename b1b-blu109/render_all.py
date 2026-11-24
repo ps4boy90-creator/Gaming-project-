@@ -2,7 +2,7 @@
 """Bake the two explosions and render every shot of the B-1B / BLU-109 segment, then build the video.
 Works on Windows, macOS and Linux; resumable (existing frames and finished bakes are skipped).
 
-    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:160:200,in:256:384]
+    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:224:200,in:320:384]
 
 --only renders just the named shots and skips the final edit (for running two renders side by side on one card).
 --res / --spp / --bake make a quick draft (for example --res 640x360 --spp 6 --bake out:72:200,in:112:384).
@@ -14,7 +14,7 @@ import os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("bay", 152), ("fall", 84), ("strike", 144), ("cutaway", 328), ("after", 96)]
 SIM = {"strike": "out", "cutaway": "in"}
-BAKE = {"out": ("160", "200"), "in": ("256", "384")}                 # resolution, frames
+BAKE = {"out": ("224", "200"), "in": ("320", "384")}                 # resolution, frames (no noise pass: at these sizes it is not needed, and it shifted the dust colour)
 
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)
@@ -46,7 +46,7 @@ def main():
         if name in SIM:
             sim = os.path.join(sim_root, SIM[name])
             if not os.path.exists(os.path.join(sim, "DONE")):
-                run("psim.py", SIM[name], sim, bake[SIM[name]][0], bake[SIM[name]][1], "1")
+                run("psim.py", SIM[name], sim, bake[SIM[name]][0], bake[SIM[name]][1], "0")
             extra += ["--sim", sim_root]
         for a in range(0, n, 24):
             b = min(a + 24, n) - 1

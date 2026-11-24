@@ -130,14 +130,15 @@ class Stage(gshots.Stage):
         self.kit.ob.location = tuple(C.U * (C.BLU_L / 2 * kq)); self.kit.ob.rotation_quaternion = Quaternion((0, 1, 0), D(C.DIVE)); self.kit.ob.scale = (kq, 1.5 - 0.5 * kq, 1.5 - 0.5 * kq)
         if k == "out":
             self.bomb.ob.hide_render = torn; self.bare.ob.hide_render = True  # the warhead is under ground from then on
-            self.l_hit.data.energy = 9.0e5 * math.exp(-td / 0.05) if 0 <= td < 0.4 else 0.0; self.l_hit.hide_render = self.l_hit.data.energy < 5.0
+            self.l_hit.data.energy = 2.2e5 * math.exp(-td / 0.05) if 0 <= td < 0.4 else 0.0; self.l_hit.hide_render = self.l_hit.data.energy < 5.0
             for pl in self.plumes:
                 pl.update(bool(opt.get("plume", False)), tp); pl.fl.hide_render = True; pl.glow.hide_render = True
         else:
             self.bomb.ob.hide_render = torn; self.bare.ob.hide_render = not torn or td > 0.002   # the warhead alone goes on, until it bursts
         if self.dom is not None:
             self.dom.hide_render = tp < 0 if k == "out" else td < 0
-            self.fire_node.inputs[1].default_value = self.fire0 * (0.10 + 0.90 * math.exp(-max(td, 0.0) / (0.24 if k == "out" else 0.45)))
+            lo, tau = (0.012, 0.22) if k == "out" else (0.10, 0.45)         # outside, the dust must not go on glowing once the flame at the tunnel mouth is out
+            self.fire_node.inputs[1].default_value = self.fire0 * (lo + (1 - lo) * math.exp(-max(td, 0.0) / tau))
 
 # ----------------------------------------------------------------------------- shots: in the air
 def shot_approach(n=N_OF["approach"]):
