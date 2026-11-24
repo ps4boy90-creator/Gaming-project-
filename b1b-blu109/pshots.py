@@ -60,7 +60,7 @@ class Stage(gshots.Stage):
                 if o.name.startswith("E_"):
                     bpy.data.objects.remove(o, do_unlink=True)
             self.dom = bpy.data.objects["BlastDomain"]; self.dom.data.materials.clear()
-            self.fire0 = 34.0 if kind == "out" else 26.0; bm_ = blast_material(density=7.5 if kind == "out" else 11.0, fire=self.fire0, ambient=0.06); self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]
+            self.fire0 = 34.0 if kind == "out" else 26.0; bm_ = blast_material(density=7.5 if kind == "out" else 16.0, fire=self.fire0, ambient=0.06); self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]
             for nd in bm_.node_tree.nodes:
                 if nd.type == 'VECT_MATH' and nd.operation == 'POWER':
                     nd.inputs[1].default_value = (0.72, 0.72, 0.72)
