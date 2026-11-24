@@ -29,7 +29,7 @@ not measured.**
 | 4 | `release`  | The pylon lets go; the tail wings spring open | real time, then half speed |
 | 5 | `fall`     | Riding down behind the bomb through its last 3.5 s | real time |
 | 6 | `strike`   | From the ground: a spurt of soil; then smoke from the air shafts and the entrance | 2.5× slow, then 1.25× |
-| 7 | `cutaway`  | The section: penetration with a depth scale, speed and time; the burst; where the gas goes | 0.5 ms per frame; then 10× and 3× slow |
+| 7 | `cutaway`  | The section: penetration with a depth scale, speed and time; the burst; where the gas goes | 0.5 ms per frame through the soil, 0.2 ms from the slab on; then 10× and 3× slow |
 | 8 | `after`    | Twenty seconds later, from outside | real time |
 | 9 | summary    | How deep the same bomb goes in four kinds of ground (made in post) | – |
 

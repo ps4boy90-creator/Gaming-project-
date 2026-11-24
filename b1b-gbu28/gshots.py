@@ -32,7 +32,7 @@ D = math.radians
 shake = gsh.shake
 SET_OF = {"approach": "air", "release": "air", "fall": "out", "strike": "out", "after": "out", "cutaway": "sec"}
 SIM_OF = {"strike": "out", "cutaway": "in"}
-N_OF = {"card": 72, "approach": 96, "intro": 96, "release": 132, "fall": 84, "strike": 156, "cutaway": 340, "after": 96}
+N_OF = {"card": 72, "approach": 96, "intro": 96, "release": 132, "fall": 84, "strike": 156, "cutaway": 0, "after": 96}
 JET_Q = Quaternion((0, 1, 0), D(-2.0))
 T_WINGS = (0.35, 0.60)                                               # the tail wings spring open after release
 T_FRONT = -gbomb.FRONT / C.V_HIT                                     # the guidance unit meets the ground this long before the steel nose
@@ -198,17 +198,19 @@ def shot_after(n=N_OF["after"]):
     return n, frame
 
 # ----------------------------------------------------------------------------- shot: the section
-CUT_PRE = 16; CUT_PEN = 120; CUT_ONE = 108; CUT_MS = 0.0005
+CUT_PRE = 16; CUT_ONE = 108; CUT_MS = 0.0005; CUT_MS2 = 0.0002       # half a millisecond per frame through the soil, a fifth of one from the slab on
+CUT_K1 = int(math.ceil(C.layer_at("slab")[6] / CUT_MS)); CUT_PEN = CUT_K1 + int(math.ceil((C.FUZE_DELAY - CUT_K1 * CUT_MS) / CUT_MS2))
 VIEW_A = (2.5, -11.7, 54.0); VIEW_B = (-4.5, -9.6, 78.0)             # centre x, centre z and width of the view: the way down, then the whole bunker
 
 def cut_clock(i):
-    """(sim frame, tp, seconds per frame): half a millisecond per frame until the fuze fires, then 1/240 s, then 1/80 s."""
+    """(sim frame, tp, seconds per frame): ultra-slow until the fuze fires (see above), then 1/240 s, then 1/80 s."""
     if i < CUT_PRE + CUT_PEN:
-        return 0, (i - CUT_PRE) * CUT_MS, CUT_MS
+        k = i - CUT_PRE; return (0, k * CUT_MS, CUT_MS) if k <= CUT_K1 else (0, CUT_K1 * CUT_MS + (k - CUT_K1) * CUT_MS2, CUT_MS2)
     j = i - CUT_PRE - CUT_PEN
     sf = j + 1 if j < CUT_ONE else CUT_ONE + 1 + 3 * (j - CUT_ONE); return sf, C.FUZE_DELAY + (sf - 1) * IDT, IDT if j < CUT_ONE else 3 * IDT
 
-def shot_cutaway(n=N_OF["cutaway"]):
+def shot_cutaway(n=None):
+    n = n or N_OF["cutaway"]
     """The ground cut along the bomb's path, the camera square on to the cut: down through the soil, the slab and the roof; the burst; where the gas goes."""
     def frame(st, i):
         sf, tp, dt = cut_clock(i); st.set_time(tp, dt, dict(haze=0.6)); td = tp - C.FUZE_DELAY
@@ -218,6 +220,7 @@ def shot_cutaway(n=N_OF["cutaway"]):
         return tp, dt, dict(samples=40 if sf == 0 else 28, sim=sf, shutter=0.3, anchors={"o": (0, 0, 0), "ex": (1, 0, 0), "ez": (0, 0, 1)}, extra=dict(s=float(max(s, 0.0)), v=float(v), tp=float(tp)))
     return n, frame
 
+N_OF["cutaway"] = CUT_PRE + CUT_PEN + CUT_ONE + 96
 SHOTS = {"approach": shot_approach, "release": shot_release, "fall": shot_fall, "strike": shot_strike, "after": shot_after, "cutaway": shot_cutaway}
 
 # ----------------------------------------------------------------------------- studio shots
@@ -300,7 +303,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     tl = dict(TOF=C.TOF, THROW=C.THROW, V_REL=C.V_REL, V_HIT=C.V_HIT, MACH_HIT=C.MACH_HIT, DIVE=C.DIVE, H_REL=C.H_REL, FUZE=C.FUZE_DELAY, RUN=[list(r) for r in C.RUN], U=[float(x) for x in C.U], S_BURST=C.S_BURST, V_BURST=C.V_BURST,
               DEPTH=C.DEPTH_BURST, Z=dict(slab=C.Z_SLAB, roof=C.Z_ROOF, ceil=C.Z_CEIL, floor=C.Z_FLOOR), ROOM_A=list(C.ROOM_A), ROOM_B=list(C.ROOM_B), VENTS=list(VENTS), HUT=list(HUT), S0=C.STAIR_X[0], TABLE=C.TABLE,
-              CUT=[CUT_PRE, CUT_PEN, CUT_ONE, CUT_MS], T_DOOR=gsite.T_DOOR, T_WINGS=list(T_WINGS), fps=FPS)
+              CUT=[CUT_PRE, CUT_PEN, CUT_ONE, CUT_MS, CUT_K1, CUT_MS2], T_DOOR=gsite.T_DOOR, T_WINGS=list(T_WINGS), fps=FPS)
     json.dump(tl, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "timeline.json"), "w"))
     meta_path = os.path.join(a.out, "meta.json")
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}

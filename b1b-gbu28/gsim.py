@@ -43,7 +43,7 @@ def build_out():
     flow(hole, 'SMOKE', f0 + 14, f0 + 150, dens=1.4, temp=1.8, color=DARK[1], vn=2.0, vinit=tuple(up * 14.0))
     for k, xv in enumerate(VENTS):                                                                          # the air shafts: a hard jet, then steady smoke
         t0 = f0 + (5 if k == 0 else 9)
-        v1 = ico("E_vent%da" % k, 0.5, (xv, 0, 1.6), rough=0.2); flow(v1, 'BOTH', t0, t0 + 4, dens=2.2, temp=2.0, fuel=0.5, color=DARK[0], vn=2.0, vinit=(0.0, 0.0, 70.0))
+        v1 = ico("E_vent%da" % k, 0.5, (xv, 0, 1.6), rough=0.2); flow(v1, 'SMOKE', t0, t0 + 4, dens=2.6, temp=2.0, color=DARK[0], vn=2.0, vinit=(0.0, 0.0, 70.0))
         v2 = ico("E_vent%db" % k, 0.55, (xv, 0, 1.7), rough=0.2); flow(v2, 'SMOKE', t0 + 3, t0 + 60, dens=2.4, temp=1.8, color=DARK[0], vn=2.0, vinit=(0.0, 0.0, 34.0))
         v3 = ico("E_vent%dc" % k, 0.5, (xv, 0, 1.6), rough=0.2); flow(v3, 'SMOKE', t0 + 60, 400, dens=1.0, temp=2.2, color=DARK[1], vn=1.0, vinit=(0.0, 0.0, 13.0))
     t0 = f0 + 10; mx = HUT[0] - 1.0                                                                          # the entrance: flame, then smoke, out of the doorway

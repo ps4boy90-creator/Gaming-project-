@@ -106,8 +106,7 @@ def hollow(x, y):
     return -SURF_DROP * np.exp(-e) + 0.45 * np.exp(-((np.sqrt(e) - 1.35) / 0.35) ** 2) + 0.25 * np.exp(-e / 2.5) * (fbm(x * 0.9, y * 0.9, 5, 3) - 0.5) * 2
 
 class _Hollow:
-    """Moves the ground's own vertices for the lift and the fall of the cover.  (A shape key did this at first, but with
-    Cycles' persistent data the keyed mesh now and then rendered black for the rest of a run; plain vertex edits do not.)"""
+    """Moves the ground's own vertices for the lift and the fall of the cover."""
     def __init__(self, ob):
         me = self.me = ob.data; n = len(me.vertices); V = np.empty(n * 3, np.float32); me.vertices.foreach_get("co", V); V = V.reshape(-1, 3)
         dz = hollow(V[:, 0], V[:, 1]); self.idx = np.nonzero(np.abs(dz) > 1e-4)[0]; self.base = V; self.dz = dz[self.idx].astype(np.float32); self.k = 0.0

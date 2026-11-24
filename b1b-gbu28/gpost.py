@@ -67,8 +67,8 @@ def cut_overlay(d, i, n, m, info, hold):
     """The section: a depth scale that follows the nose, the layers named as the bomb reaches them, speed and time."""
     an = m["anchors"]; o, ex, ez = an["o"], an["ex"], an["ez"]
     PX = lambda x, z: ((o[0] + x * (ex[0] - o[0]) + z * (ez[0] - o[0])) * W, (o[1] + x * (ex[1] - o[1]) + z * (ez[1] - o[1])) * H)
-    pre, pen, one, ms = info["CUT"]; RUN = {r[0]: r for r in info["RUN"]}; U = info["U"]; tp = m["tp"]; td = tp - info["FUZE"]; s = m["s"]; v = m["v"]; Z = info["Z"]; sinD = -U[2]
-    A0, A1 = info["ROOM_A"]; B0, B1 = info["ROOM_B"]; V0, V1 = info["VENTS"]; fi = lambda t_: pre + t_ / ms
+    pre, pen, one, ms, k1, ms2 = info["CUT"]; RUN = {r[0]: r for r in info["RUN"]}; U = info["U"]; tp = m["tp"]; td = tp - info["FUZE"]; s = m["s"]; v = m["v"]; Z = info["Z"]; sinD = -U[2]
+    A0, A1 = info["ROOM_A"]; B0, B1 = info["ROOM_B"]; V0, V1 = info["VENTS"]; fi = lambda t_: pre + (t_ / ms if t_ <= k1 * ms else k1 + (t_ - k1 * ms) / ms2)
     out = 1 - ease((td - 0.03) / 0.06)                                # the drawing clears as the view pulls back
     lab = lambda x, z, big, small, a, col=INK: (text(d, PX(x, z), big, F_SEMI(30), col, a, tracking=2), text(d, (PX(x, z)[0], PX(x, z)[1] + 36), small, F_MED(27), INK, a)) if a > 0 else None
     if hold is not None:
@@ -110,7 +110,7 @@ def cut_overlay(d, i, n, m, info, hold):
             readout(d, "SPEED", "%d m/s" % round(v), ease((i - pre) / 4.0), AMBER, "T + %.1f ms" % (tp * 1000))
         elif td >= 0:
             readout(d, "AFTER THE IMPACT", "{:,} ms".format(int(round(tp * 1000))), 1.0, INK, "THE CHARGE HAS FIRED")
-        slow = "1 SECOND OF FILM = 12 THOUSANDTHS OF A SECOND" if td < 0 else ("SLOWED 10 TIMES" if i < pre + pen + one else "SLOWED 3 TIMES")
+        slow = ("1 SECOND OF FILM = 12 THOUSANDTHS OF A SECOND" if i <= pre + k1 else "1 SECOND OF FILM = 5 THOUSANDTHS OF A SECOND") if td < 0 else ("SLOWED 10 TIMES" if i < pre + pen + one else "SLOWED 3 TIMES")
         text(d, (W - 64, 60), slow, F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
         text(d, (W - 64, 94), "DEPTHS AND SPEEDS ARE CALCULATED (YOUNG / SANDIA EQUATIONS)", F_SEMI(22), DIM, 1.0, anchor="ra", tracking=2)
 
@@ -165,7 +165,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
             callout(d, *P(an["vent"]), "AIR SHAFTS", "", AMBER, a, dx=-250, dy=-210)
         a = ease((td - 0.35) / 0.1) * (1 - ease((td - 1.4) / 0.3))
         if a > 0 and seen(an["hut"]):
-            callout(d, *P(an["hut"]), "ENTRANCE", "THE DOOR IS BLOWN OUT", AMBER, a, dx=-120, dy=-240)
+            callout(d, *P(an["hut"]), "ENTRANCE", "THE DOOR IS BLOWN OUT", AMBER, a, dx=-520, dy=-230)
     elif shot == "cutaway":
         cut_overlay(d, i, n, m, info, hold)
     elif shot == "after":
@@ -255,10 +255,11 @@ def build_audio(path, starts, metas, lens, total, info):
         mx.add(tv, s_hiss(4.0, 4), 0.55, 0.3); mx.add(tv + 0.15, s_hiss(4.0, 9), 0.45, 0.5)
     if te:
         mx.add(te, gp.s_boom(0.5, 1.0), 0.4, -0.5); mx.add(te, s_hiss(4.0, 13), 0.5, -0.5)
-    tc = T["cutaway"]; lc = L["cutaway"]; mx.add(tc, gp.s_drone(lc), 0.35); pre, pen, one, ms = info["CUT"]; hold = HOLD.get("cutaway", 0) / FPS; RUN = {r[0]: r for r in info["RUN"]}
+    tc = T["cutaway"]; lc = L["cutaway"]; mx.add(tc, gp.s_drone(lc), 0.35); pre, pen, one, ms, k1, ms2 = info["CUT"]; hold = HOLD.get("cutaway", 0) / FPS; RUN = {r[0]: r for r in info["RUN"]}
+    fi = lambda t_: t_ / ms if t_ <= k1 * ms else k1 + (t_ - k1 * ms) / ms2
     for name, g_ in (("soil", 1.6), ("slab", 1.4), ("roof", 1.4)):
-        mx.add(tc + hold + (pre + RUN[name][6] / ms) / FPS, gp.s_thud(g_), 0.8, 0.0)
-    ng = int((pen / FPS) * SR); grind = gp.lp(gp.noise(ng), 180, 2) * 3.0; t_room = RUN["room"][6] / ms / FPS
+        mx.add(tc + hold + (pre + fi(RUN[name][6])) / FPS, gp.s_thud(g_), 0.8, 0.0)
+    ng = int((pen / FPS) * SR); grind = gp.lp(gp.noise(ng), 180, 2) * 3.0; t_room = fi(RUN["room"][6]) / FPS
     grind *= np.interp(np.arange(ng) / SR, [0, 0.2, t_room, t_room + 0.25, pen / FPS], [0, 1, 0.6, 0, 0]); mx.add(tc + hold + pre / FPS, grind, 0.6)
     tb = tc + hold + (pre + pen) / FPS; mx.add(tb, s_muffled(1.4, 2.2), 1.0); mx.add(tb, gp.s_boom(0.9, 2.5), 0.5); mx.add(tb + 0.4, s_hiss(5.0, 21) * 0.6, 0.4, -0.3); mx.add(tb + 1.5, gp.s_debris(6.0, 40, 3.0), 0.5, 0.1)
     ta = T["after"]; la_ = L["after"] + L["summary"]; mx.add(ta, gp.s_wind(la_) * 0.16, 1.0, -0.1); mx.add(ta, s_hiss(L["after"] + 1.0, 31) * 0.25, 0.3, 0.2)

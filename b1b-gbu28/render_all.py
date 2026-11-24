@@ -12,7 +12,7 @@ Needs `pip install bpy numpy pillow` (scipy speeds up the sound) and ffmpeg on t
 import os, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("release", 132), ("fall", 84), ("strike", 156), ("cutaway", 340), ("after", 96)]
+SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("release", 132), ("fall", 84), ("strike", 156), ("cutaway", 399), ("after", 96)]
 SIM = {"strike": "out", "cutaway": "in"}
 BAKE = {"out": ("224", "260"), "in": ("352", "400")}                 # resolution, frames (no noise pass: at these sizes it is not needed, and it shifted the dust colour)
 
