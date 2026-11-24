@@ -43,6 +43,7 @@ def _fall(dt=0.005):
             g_now = math.atan2(-vz, vx); err = math.radians(66.0) - g_now; an = max(min(err * 6.0, 1.0), -1.0) * G
             ax += an * (vz / v); az += -an * (vx / v)                                # normal to the path, towards the ground
         vx += ax * dt; vz += az * dt; x += vx * dt; z += vz * dt; t += dt; out.append((t, x, z, vx, vz))
+    a, b = np.array(out[-2]), np.array(out[-1]); out[-1] = tuple(a + (b - a) * (a[2] / (a[2] - b[2])))           # end exactly on the ground, not a step below it
     return np.array(out)
 
 FALL = _fall()

@@ -215,7 +215,7 @@ def shot_cutaway(n=N_OF["cutaway"]):
     """The ground cut along the bomb's path, the camera square on to the cut: through the cover, the roof, the room and into the floor; then the burst."""
     def frame(st, i):
         sf, tp, dt = cut_clock(i); st.set_time(tp, dt, dict(haze=0.6)); td = tp - C.FUZE_DELAY
-        pos = np.array([-0.6, 30.0, -3.2]); off, rq = shake(td - 0.004, 0.9); st.look(pos + off, pos + np.array([0.0, -30.0, 0.0]), 38.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
+        pos = np.array([-0.6, 30.0, -3.2]); st.look(pos, pos + np.array([0.0, -30.0, 0.0]), 38.0)   # a steady camera: this is a drawing, and at 10x slow motion a shake reads as stutter
         s, v = C.pen_state(tp)
         return tp, dt, dict(samples=40 if sf == 0 else 28, sim=sf, shutter=0.3, anchors={"o": (0, 0, 0), "ex": (1, 0, 0), "ez": (0, 0, 1)}, extra=dict(s=float(max(s, 0.0)), v=float(v), tp=float(tp)))
     return n, frame
@@ -297,6 +297,8 @@ def main():
     st = Stage(SET_OF[a.shot], os.path.join(a.sim, SIM_OF[a.shot]) if (a.sim and a.shot in SIM_OF) else None)
     sc = st.sc; sc.render.resolution_x, sc.render.resolution_y = res
     use_device(sc)
+    if os.environ.get("VOL_STEP"):                                  # coarser volume steps for a quick draft on a CPU
+        sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
     tl = dict(TOF=C.TOF, THROW=C.THROW, V_REL=C.V_REL, V_HIT=C.V_HIT, DIVE=C.DIVE, H_REL=C.H_REL, FUZE=C.FUZE_DELAY, TP=list(C.TP), S=[0.0, C.S1, C.S2, C.S3, C.S4, C.S_END], VS=[C.V_HIT, C.V1, C.V2, C.V2, C.V3, 0.0],
               U=[float(x) for x in C.U], S_BURST=C.S_BURST, DEPTH=C.DEPTH_BURST, Z=[C.Z_ROOF_TOP, C.Z_CEIL, C.Z_FLOOR], ROOM_X=list(C.ROOM_X), XF=XF, PX=C.PORTAL_X, TABLE=C.TABLE,
