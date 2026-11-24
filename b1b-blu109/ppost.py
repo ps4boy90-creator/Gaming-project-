@@ -85,7 +85,7 @@ def cut_overlay(d, i, n, m, info, hold):
         nose = PX(U[0] * s, U[2] * s)
         if depth > 0.3:
             dashed(d, [(nose[0] + (bot[0] - nose[0]) * q / 60.0, bot[1]) for q in range(61)], c, 2); d.line([(bot[0] - 14, bot[1]), (bot[0] + 14, bot[1])], fill=c, width=4)
-        text(d, (bot[0] + 26, bot[1] - 40), "%.1f m" % depth, F_TITLE(66), AMBER, a); text(d, (bot[0] + 26, bot[1] + 36), "BELOW WHERE IT WENT IN", F_SEMI(24), INK, a, tracking=2)
+        text(d, (bot[0] - 24, bot[1] - 84), "%.1f m" % depth, F_TITLE(66), AMBER, a, anchor="ra"); text(d, (bot[0] - 24, bot[1] + 12), "BELOW WHERE IT WENT IN", F_SEMI(24), INK, a, anchor="ra", tracking=2)
     # ---- captions, speed and time
     if hold is None:
         io = lambda t0, t1: ease((i - fi(t0)) / 6.0) * (1 - ease((i - fi(t1) + 5) / 5.0))
@@ -168,7 +168,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
     elif shot == "after":
         a = ease((i - 16) / 10.0) * (1 - ease((i - (n - 14)) / 10.0))
         if a > 0 and seen(an["hollow"]):
-            callout(d, *P(an["hollow"]), "HOLLOW", "THE COVER FELL INTO THE ROOM", RED, a, dx=-420, dy=-230)
+            callout(d, *P(an["hollow"]), "HOLLOW", "THE COVER FELL INTO THE ROOM", RED, a, dx=-470, dy=-150)
         lower(d, "TWENTY SECONDS LATER", "From outside there is little to see: a hollow, a hole, smoke  ·  the room under it is gone", ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
     return ov
 

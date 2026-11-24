@@ -87,10 +87,11 @@ class Stage(gshots.Stage):
             if kind == "out":
                 self.l_hit = ms.point_light(col, "MouthFlash", (1.0, 0.58, 0.26), 1.2); self.l_hit.location = (XF - 3.0, 0.0, ZF + 1.6)
                 self.plumes = []
-                for (loc, s) in (((3.6, 0.0, float(psite.ground(3.6, 0.0)) - 2.6), 1.25), ((XF - 0.6, 0.0, ZF - 0.2), 0.62)):
-                    pl = Plume(col); pl.ob.location = loc; pl.ob.scale = (s, s, s); pl.fl.hide_render = True; pl.glow.hide_render = True; self.plumes.append(pl)
+                for (loc, s) in (((3.6, 0.0, float(psite.ground(3.6, 0.0)) - 2.6), 1.25), ((XF - 0.6, 0.0, ZF - 0.2), 0.46)):
+                    pl = Plume(col); pl.ob.location = loc; pl.ob.scale = (s if s > 1 else -s, s, s);      # the tunnel's smoke leans away down the valley, clear of the hollow
+                    pl.fl.hide_render = True; pl.glow.hide_render = True; self.plumes.append(pl)
                     for mt in pl.mats:                                  # dust and smoke from a wrecked room, not an oil fire: thinner, and brown-grey over the hollow
-                        f = mt.node_tree.nodes["Fade"]; f.inputs["To Min"].default_value = 0.22 if s > 1 else 0.55; f.inputs["To Max"].default_value = 0.05 if s > 1 else 0.09
+                        f = mt.node_tree.nodes["Fade"]; f.inputs["To Min"].default_value = 0.22 if s > 1 else 0.34; f.inputs["To Max"].default_value = 0.05 if s > 1 else 0.05
                         for nd in mt.node_tree.nodes:
                             if nd.type == 'PRINCIPLED_VOLUME':
                                 nd.inputs["Color"].default_value = (0.50, 0.44, 0.37, 1) if s > 1 else (0.10, 0.095, 0.09, 1)

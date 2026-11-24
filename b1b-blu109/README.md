@@ -8,6 +8,10 @@ the concrete roof, across the room and into the floor, where its fuze fires it 6
 after the impact. Everything is procedural (Blender as a Python module, Cycles) and shares the render
 setup, effects and post tools with the earlier segments. Nobody is modelled anywhere.
 
+**Status: not rendered at full quality yet.** The code is complete and has been checked end to end with a
+low-resolution draft rendered on a CPU (640 × 360, a few samples a pixel); the 1080p render on a GPU is still
+to do, so there is no `renders/` folder here yet.
+
 **The bunker, the mountain and the strike are invented, and the depths are calculated, not measured.**
 The film says so on its title card, on the section and in the closing table.
 
@@ -36,7 +40,7 @@ path, about square to the 25° slope. It arrives at **352 m/s (about 1,270 km/h)
 | The room, 3 m high | 3.28 m | 150 m/s | 21.9 ms |
 | Floor: 0.6 m of concrete on weathered rock | stops after 0.72 m | 150 → 0 m/s | 8.6 ms |
 
-It comes to rest 47 ms after the impact, its nose about 0.7 m into the floor and **7.9 m below the
+It comes to rest 47 ms after the impact, its nose about 0.7 m into the floor and **7.8 m below the
 point where it went in**; the fuze fires at 60 ms. With nearly the whole bomb still inside the room,
 243 kg of explosive goes off in a closed space of 180 m³.
 
