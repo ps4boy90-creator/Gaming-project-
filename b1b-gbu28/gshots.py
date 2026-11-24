@@ -216,7 +216,7 @@ def shot_cutaway(n=None):
         sf, tp, dt = cut_clock(i); st.set_time(tp, dt, dict(haze=0.6)); td = tp - C.FUZE_DELAY
         u = smoothstep(0.0, 1.0, (i - (CUT_PRE + CUT_PEN) + 4) / 44.0); cx, cz, w = [lerp(a, b, u) for a, b in zip(VIEW_A, VIEW_B)]; dist = w * 38.0 / 36.0
         pos = np.array([cx, dist, cz]); st.look(pos, pos + np.array([0.0, -dist, 0.0]), 38.0)        # a steady camera: this is a drawing
-        s, v = C.pen_state(tp)
+        s, v = C.pen_state(min(tp, C.FUZE_DELAY))
         return tp, dt, dict(samples=40 if sf == 0 else 28, sim=sf, shutter=0.3, anchors={"o": (0, 0, 0), "ex": (1, 0, 0), "ez": (0, 0, 1)}, extra=dict(s=float(max(s, 0.0)), v=float(v), tp=float(tp)))
     return n, frame
 

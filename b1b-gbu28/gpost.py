@@ -67,14 +67,14 @@ def cut_overlay(d, i, n, m, info, hold):
     """The section: a depth scale that follows the nose, the layers named as the bomb reaches them, speed and time."""
     an = m["anchors"]; o, ex, ez = an["o"], an["ex"], an["ez"]
     PX = lambda x, z: ((o[0] + x * (ex[0] - o[0]) + z * (ez[0] - o[0])) * W, (o[1] + x * (ex[1] - o[1]) + z * (ez[1] - o[1])) * H)
-    pre, pen, one, ms, k1, ms2 = info["CUT"]; RUN = {r[0]: r for r in info["RUN"]}; U = info["U"]; tp = m["tp"]; td = tp - info["FUZE"]; s = m["s"]; v = m["v"]; Z = info["Z"]; sinD = -U[2]
+    pre, pen, one, ms, k1, ms2 = info["CUT"]; RUN = {r[0]: r for r in info["RUN"]}; U = info["U"]; tp = m["tp"]; td = tp - info["FUZE"]; s = min(m["s"], info["S_BURST"]); v = m["v"]; Z = info["Z"]; sinD = -U[2]
     A0, A1 = info["ROOM_A"]; B0, B1 = info["ROOM_B"]; V0, V1 = info["VENTS"]; fi = lambda t_: pre + (t_ / ms if t_ <= k1 * ms else k1 + (t_ - k1 * ms) / ms2)
     out = 1 - ease((td - 0.03) / 0.06)                                # the drawing clears as the view pulls back
     lab = lambda x, z, big, small, a, col=INK: (text(d, PX(x, z), big, F_SEMI(30), col, a, tracking=2), text(d, (PX(x, z)[0], PX(x, z)[1] + 36), small, F_MED(27), INK, a)) if a > 0 else None
     if hold is not None:
         lower(d, "THE SAME STRIKE, WITH THE GROUND CUT OPEN", "Chambers of reinforced concrete under a concrete slab and 15 m of soil  ·  the bunker is invented, on the pattern of those of 1991", ease(hold * 6) * (1 - ease((hold - 0.88) / 0.12)))
         a = ease((hold - 0.15) * 5) * (1 - ease((hold - 0.88) / 0.12))
-        lab(A1 - 1.0, Z["ceil"] - 0.45, "TARGET CHAMBER", "", a, AMBER); lab(B1 - 0.5, Z["ceil"] - 0.45, "SECOND CHAMBER", "", a)
+        lab(A1 - 1.0, Z["ceil"] - 0.45, "TARGET CHAMBER", "", a, AMBER); lab(B1 - 3.2, Z["ceil"] - 0.45, "SECOND CHAMBER", "", a)
         lab((V0 + V1) / 2 + 4.2, -4.0, "AIR SHAFTS", "", a); lab(info["S0"] - 3.0, -6.2, "STAIR TO THE ENTRANCE", "", a)
     a0 = (ease((i - 2) / 8.0) if hold is None else ease((hold - 0.15) * 5)) * out
     lab(A1 + 2.9, -7.6, "SOIL: 15 m", "sand and silt", a0)
@@ -99,7 +99,7 @@ def cut_overlay(d, i, n, m, info, hold):
         elif tp < t_slab:
             lower(d, "THROUGH 15 m OF SOIL", "Guidance unit and tail are torn off at the surface  ·  the soil slows the warhead from %d to about %d m/s" % (round(info["V_HIT"]), round(RUN["soil"][5], -1)), io(0.0, t_slab))
         elif tp < t_room:
-            lower(d, "THROUGH THE SLAB AND THE ROOF", "0.6 m and 0.5 m of reinforced concrete take it down to about %d m/s" % round(RUN["roof"][5], -1), io(t_slab, t_room))
+            lower(d, "THROUGH THE SLAB AND THE ROOF", "0.6 m and 0.5 m of reinforced concrete take it down to about %d m/s" % (5 * round(RUN["roof"][5] / 5)), io(t_slab, t_room))
         elif td < 0:
             lower(d, "INTO THE CHAMBER", "The fuze counts 60 thousandths of a second from the impact  ·  it fires here, about %d m down" % round(info["DEPTH"]), ease((i - fi(t_room)) / 5.0) * (1 - ease((i - (pre + pen) + 4) / 4.0)))
         elif td < 0.62:
