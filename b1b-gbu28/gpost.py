@@ -132,7 +132,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
         lower(d, "GBU-28/B", "A 3.9 m steel penetrator, a laser guidance unit on its nose, folding wings at its tail  ·  the fuze in the tail fires 0.06 s after impact", io)
         A = lambda k: ease((i - 8 - 9 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
         dim_line(d, (px["tail"][0], px["top"][1] - 62), (px["nose"][0], px["top"][1] - 62), "5.84 m  ·  ABOUT 2,130 kg", A(0))
-        for k, (key, big, small, col, ex_, ey_) in enumerate((("seeker", "LASER GUIDANCE UNIT", "PAVEWAY III SEEKER AND CANARDS", AMBER, -260, 125), ("wings", "FOLDING WINGS", "0.72 m SHUT  ·  1.68 m OPEN", AMBER, 60, 80),
+        for k, (key, big, small, col, ex_, ey_) in enumerate((("seeker", "LASER GUIDANCE UNIT", "PAVEWAY III SEEKER AND CANARDS", AMBER, -470, 125), ("wings", "FOLDING WINGS", "0.72 m SHUT  ·  1.68 m OPEN", AMBER, 60, 80),
                                                            ("cwall", "WALL 58 mm THICK", "FIRST MADE FROM 8-INCH GUN BARRELS", RED, 120, 150), ("cfill", "286 kg OF EXPLOSIVE", "A SEVENTH OF THE WARHEAD'S WEIGHT", RED, -330, 135))):
             a = A(k + 1)
             if a > 0:

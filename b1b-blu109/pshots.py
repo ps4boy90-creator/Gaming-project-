@@ -297,6 +297,7 @@ def main():
     st = Stage(SET_OF[a.shot], os.path.join(a.sim, SIM_OF[a.shot]) if (a.sim and a.shot in SIM_OF) else None)
     sc = st.sc; sc.render.resolution_x, sc.render.resolution_y = res
     use_device(sc)
+    sc.render.use_persistent_data = os.environ.get("PERSIST", "0") == "1"   # off: with data kept between frames the ground now and then rendered black for the rest of a run
     if os.environ.get("VOL_STEP"):                                  # coarser volume steps for a quick draft on a CPU
         sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
