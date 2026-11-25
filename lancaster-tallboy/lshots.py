@@ -160,7 +160,7 @@ def shot_release(n=N_OF["release"]):
     def frame(st, i):
         t, dt = (-1.5 + i / FPS, 1.0 / FPS) if i < 30 else (-1.5 + 30 / FPS + (i - 30) / 48.0, 1.0 / 48.0)
         st.set_time(t, dt, dict(shutter=0.3)); u = i / (n - 1); home = np.array(JET_Q @ Vector(llanc.STORE)); p, _ = rel_xform(t)
-        follow = smoothstep(0.05, 0.9, t); aim = home + follow * 0.62 * (np.array([p[0], home[1], max(p[2], home[2] - 16.0)]) - home)
+        follow = 0.62 * smoothstep(0.05, 0.9, t) + 0.33 * smoothstep(0.8, 1.7, t); aim = home + follow * (np.array([p[0], home[1], p[2]]) - home)
         pos = home + np.array([lerp(8.5, 7.0, u), lerp(11.0, 9.5, u), lerp(-4.4, -6.8, u)]); st.look(pos, aim + np.array([-0.4, 0, 0]), 30.0)
         return t, dt, dict(samples=44, shutter=0.3, anchors={"bomb": tuple(p), "bay": tuple(home + np.array([-1.0, 0, 0.5]))}, extra=dict(rpm=float(np.interp(max(t, 0.0), C.SPIN[:, 0], C.SPIN[:, 2]) * 60 / (2 * math.pi))))
     return n, frame
@@ -188,10 +188,10 @@ def _out_clock(i, pre, one):
     sf = one + 2 * (i - pre - one + 1); return sf, (sf - 1) * SDT, 2 * SDT
 
 def shot_impact(n=N_OF["impact"]):
-    """From the ground, 220 m off: the bomb goes into the yard; half a second later the yard is thrown into the air."""
+    """From a watch tower's height, 220 m off: the bomb goes into the yard; half a second later the yard is thrown into the air."""
     def frame(st, i):
         sf, tp, dt = _out_clock(i, 16, 104); st.set_time(tp, dt, {}); u = i / (n - 1); td = tp - C.FUZE_DELAY
-        pos = np.array([-70.0 + 8.0 * u, -205.0 - 12.0 * u, 3.4 + 1.5 * u]); tgt = np.array([0.0, 0.0, 12.0 + 44.0 * smoothstep(0.26, 0.9, u)])
+        pos = np.array([-70.0 + 8.0 * u, -205.0 - 12.0 * u, 17.0 + 2.0 * u]); tgt = np.array([0.0, 0.0, 10.0 + 40.0 * smoothstep(0.26, 0.9, u)])
         off, rq = shake(td - 0.75, 3.0); st.look(pos + off, tgt, lerp(36.0, 22.0, smoothstep(0.24, 0.6, u))); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
         return tp, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0.5), "top": (0, 0, 100.0), "lorry": (52.0, 16.0, 2.6), "barracks": (56.0, 96.0, 8.0)})
     return n, frame

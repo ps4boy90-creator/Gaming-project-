@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(HERE, "..", "grenade-explosion")); sys.path.insert(0, os.path.join(HERE, "..", "blackhawk-mk77"))
 import post as gp
-from post import W, H, FPS, SR, AMBER, RED, INK, DIM, PANEL, F_TITLE, F_SEMI, F_MED, ease, text, shadowed, lower, callout
+from post import W, H, FPS, SR, AMBER, RED, INK, DIM, PANEL, F_TITLE, F_SEMI, F_MED, ease, text, shadowed, callout
 from npost import readout, dashed, _mod
 
 ORDER = ["card", "approach", "intro", "release", "fall", "impact", "radius", "after", "summary"]
@@ -16,6 +16,12 @@ N_SUMMARY = 228
 SPECS = [("BOMB", "Tallboy  ·  12,000 lb, medium capacity"), ("SIZE", "21 ft (6.4 m) long  ·  38 in (0.97 m) across"), ("WEIGHT", "about 5,440 kg (12,000 lb)"), ("EXPLOSIVE", "2,360 kg (5,200 lb) of Torpex"),
          ("FUZE", "three tail pistols, here set to 0.5 s"), ("CARRIED BY", "Avro Lancaster, one bomb each"), ("FIRST USED", "June 1944  ·  designed by Barnes Wallis")]
 KMH = lambda v: int(round(v * 3.6, -1))
+SUB = (214, 214, 206)                                                                                       # the caption's second line: lighter than DIM, most of these shots are against a bright sky
+
+def lower(d, title, sub, a=1.0, y=H - 150):
+    d.rectangle([64, y + 8, 70, y + 96], fill=(*AMBER, int(255 * a)))
+    text(d, (88, y), title, F_TITLE(54), INK, a)
+    text(d, (88, y + 66), sub, F_MED(32), SUB, a, tracking=1)
 MK84 = (120, 170, 215)
 
 def tag(d, a=1.0):
@@ -48,6 +54,14 @@ def card_frame(img, i, n):
     base.alpha_composite(ov)
     return base.convert("RGB")
 
+def callout_l(d, px, py, big, small, color, a=1.0, dx=-150, dy=-120):
+    """A leader line to a label that sits to the left of its elbow (post.callout puts it to the right)."""
+    ex, ey = px + dx, py + dy
+    d.line([(px, py), (ex, ey), (ex - 28, ey)], fill=(*color, int(255 * a)), width=3)
+    d.ellipse([px - 7, py - 7, px + 7, py + 7], outline=(*color, int(255 * a)), width=3)
+    text(d, (ex - 40, ey - 46), big, F_TITLE(64), color, a, anchor="ra")
+    text(d, (ex - 40, ey + 28), small, F_SEMI(32), INK, a, anchor="ra", tracking=3)
+
 def dim_line(d, p0, p1, label, a, color=INK, off=-46, tick=14):
     """A dimension line between two screen points with end ticks and a centred label."""
     if a <= 0:
@@ -78,19 +92,21 @@ def overlay_for(shot, i, n, m, info):
         lower(d, "AVRO LANCASTER", "18,000 ft up at 200 mph  ·  on the run-up the bulged bomb doors open on a single 12,000 lb bomb", io)
         a = ease((i - 62) / 8.0) * (1 - ease((i - (n - 10)) / 7.0))
         if a > 0 and seen(an["bomb"]):
-            callout(d, *P(an["bomb"]), "TALLBOY", "6.4 m LONG  ·  ABOUT 5.4 t", AMBER, a, dx=-160, dy=220)
+            callout_l(d, *P(an["bomb"]), "TALLBOY", "6.4 m LONG  ·  ABOUT 5.4 t", AMBER, a, dx=-100, dy=220)
         a = ease((i - 12) / 10.0) * (1 - ease((i - (n - 10)) / 7.0))
         text(d, (W - 64, 60), "FOUR MERLIN ENGINES  ·  SPAN 102 ft (31.1 m)", F_SEMI(28), INK, a, anchor="ra", tracking=3)
         text(d, (W - 64, 98), "MARKINGS OF No. 617 SQUADRON; THE AIRCRAFT LETTER IS NOT A PARTICULAR MACHINE", F_SEMI(24), DIM, a, anchor="ra", tracking=2)
     elif shot == "intro":
         lower(d, "TALLBOY", "A streamlined steel case built to reach the ground at nearly the speed of sound and go deep into it before it bursts", io)
         A = lambda k: ease((i - 8 - 9 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
-        dim_line(d, (px["tail"][0], px["top"][1] - 70), (px["nose"][0], px["top"][1] - 70), "21 ft  ·  6.4 m  ·  ABOUT 5,440 kg", A(0))
-        for k, (key, big, small, col, ex_, ey_) in enumerate((("case", "CAST STEEL CASE", "2,360 kg OF TORPEX INSIDE", RED, 150, 235), ("fins", "FOUR FINS SET AT 5°", "THEY SPIN THE BOMB: 300 rpm AT IMPACT", AMBER, -60, 230),
-                                                           ("joint", "LIGHT-ALLOY TAIL", "ABOUT HALF THE BOMB'S LENGTH", AMBER, -200, -215), ("lorry", "3-TON LORRY, 6 m", "FOR SCALE", INK, -330, 60))):
+        dim_line(d, (px["tail"][0], px["top"][1] - 150), (px["nose"][0], px["top"][1] - 150), "21 ft  ·  6.4 m  ·  ABOUT 5,440 kg", A(0))
+        for k, (key, big, small, col, ex_, ey_) in enumerate((("case", "CAST STEEL CASE", "2,360 kg OF TORPEX INSIDE", RED, 150, -130), ("fins", "FOUR FINS SET AT 5°", "THEY SPIN THE BOMB: 300 rpm AT IMPACT", AMBER, -60, 230),
+                                                           ("joint", "LIGHT-ALLOY TAIL", "ABOUT HALF THE BOMB'S LENGTH", AMBER, -420, -140))):
             a = A(k + 1)
             if a > 0:
                 callout(d, *px[key], big, small, col, a, dx=ex_, dy=ey_)
+        a = A(4)
+        text(d, (W - 64, 880), "3-TON LORRY, 6 m", F_TITLE(48), INK, a, anchor="ra"); text(d, (W - 64, 940), "BEHIND IT, FOR SCALE", F_SEMI(30), INK, a, anchor="ra", tracking=3)
     elif shot == "release":
         a1 = ease((i - 4) / 8.0) * (1 - ease((t + 0.12) / 0.1)); a2 = ease((t - 0.02) / 0.15) * (1 - ease((i - (n - 8)) / 7.0))
         if a1 > 0:
@@ -105,7 +121,7 @@ def overlay_for(shot, i, n, m, info):
         if a > 0 and seen(an["target"]):
             callout(d, *P(an["target"]), "AIM POINT", "THE DEPOT'S YARD", RED, a, dx=170, dy=-170)
         if a > 0 and seen(an["barracks"]) and i > 44:
-            callout(d, *P(an["barracks"]), "BARRACKS", "", AMBER, a * ease((i - 44) / 8.0), dx=-330, dy=-90)
+            callout_l(d, *P(an["barracks"]), "BARRACKS", "", AMBER, a * ease((i - 44) / 8.0), dx=-90, dy=-90)
     elif shot == "impact":
         tp = t; td = tp - info["FUZE"]
         readout(d, "SLOW MOTION", "T + {:,} ms".format(max(0, int(round(tp * 1000)))), ease((i - 2) / 6.0), INK, "5.4 t BOMB  ·  2,360 kg OF TORPEX")
@@ -122,17 +138,17 @@ def overlay_for(shot, i, n, m, info):
     elif shot == "radius":
         paths = m.get("paths", {}); A = lambda k: ease((i - 22 - 12 * k) / 10.0) * (1 - ease((i - (n - 8)) / 7.0))
         lower(d, "HOW FAR IT REACHES", "Crater about %d m across (published)  ·  the two outer circles are scaled from the Mk 82's, for a burst at the surface" % cr, io)
-        for k, (key, col, big, small, dx, dy) in enumerate((("crater", RED, "CRATER: %d m ACROSS" % cr, "PUBLISHED: 100 ft", 260, -60), ("struct", AMBER, "BUILDINGS DESTROYED", "TO ABOUT %d m" % rs, 250, 110), ("blast", INK, "5 psi BLAST", "TO ABOUT %d m" % rb, -330, 130))):
+        for k, (key, col, big, small, dx, dy) in enumerate((("crater", RED, "CRATER: %d m ACROSS" % cr, "PUBLISHED: 100 ft", 260, -60), ("struct", AMBER, "BUILDINGS DESTROYED", "TO ABOUT %d m" % rs, 110, 150), ("blast", INK, "5 psi BLAST", "TO ABOUT %d m" % rb, -90, -80))):
             a = A(k)
             if key in paths:
                 ring(d, paths[key], col, a, 5 if key == "crater" else 4, dash=key != "crater")
             if a > 0 and key in an and seen(an[key]):
-                callout(d, *P(an[key]), big, small, col, a, dx=dx, dy=dy)
+                (callout_l if dx < 0 else callout)(d, *P(an[key]), big, small, col, a, dx=dx, dy=dy)
         a = A(3)
         if "mk84" in paths:
             ring(d, paths["mk84"], MK84, a * 0.9, 3)
         if a > 0 and seen(an["mk84"]):
-            callout(d, *P(an["mk84"]), "Mk 84 (2,000 lb): 5 psi", "TO ABOUT %d m, FOR COMPARISON" % round(info["R_MK84"]), MK84, a, dx=-470, dy=-150)
+            callout_l(d, *P(an["mk84"]), "Mk 84 (2,000 lb): 5 psi", "TO ABOUT %d m, FOR COMPARISON" % round(info["R_MK84"]), MK84, a, dx=-80, dy=-110)
         text(d, (W - 64, 60), "SLOWED ABOUT 1.5 TIMES", F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
         text(d, (W - 64, 94), "A BURST THIS DEEP SENDS LESS OF ITS FORCE INTO THE AIR AND MORE INTO THE GROUND", F_SEMI(22), DIM, 1.0, anchor="ra", tracking=2)
     elif shot == "after":
@@ -140,7 +156,7 @@ def overlay_for(shot, i, n, m, info):
         if a > 0 and seen(an["a"]) and seen(an["b"]):
             dim_line(d, P(an["a"]), P(an["b"]), "ABOUT %d m" % cr, a, RED, off=-58)
         if a > 0 and seen(an["lorry"]):
-            callout(d, *P(an["lorry"]), "A LORRY, 6 m LONG", "", INK, a, dx=120, dy=-150)
+            callout_l(d, *P(an["lorry"]), "A LORRY, 6 m LONG", "", INK, a, dx=-110, dy=-150)
         lower(d, "HALF A MINUTE LATER", "A crater about %d m across where the vehicle park was  ·  published for the Tallboy: 100 ft across, 80 ft deep" % cr, ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
     return ov
 

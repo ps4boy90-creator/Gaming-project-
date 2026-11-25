@@ -5,8 +5,8 @@ Eleventh segment of the series, and the first set in the Second World War. An Av
 12,000 lb "earthquake" bomb. The bomb falls for 34 seconds, spinning on its offset fins, and reaches
 the yard of a German army depot at about 330 m/s, just under the speed of sound. It goes some 15 m
 into the ground and stops; half a second later its fuze fires 2,360 kg of Torpex under the yard. The
-film shows the burst from the ground and from the air with its radii, as the other bomb segments
-do, and then the crater. Everything is procedural (Blender as a Python module, Cycles) and shares
+film shows the burst from just above the ground and from the air with its radii, as the other bomb
+segments do, and then the crater. Everything is procedural (Blender as a Python module, Cycles) and shares
 the render setup, effects and post tools with the earlier segments. Nobody is modelled anywhere, and
 there are no flags or insignia on the depot.
 
@@ -24,7 +24,7 @@ is the published one; the two outer radii are scaled from the Mk 82's, as in seg
 | 3 | `intro`    | The bomb with its dimensions, a 6 m lorry beside it for scale | – |
 | 4 | `release`  | The links let go; the bomb drops and begins to turn | real time, then half speed |
 | 5 | `fall`     | Riding down behind the bomb through its last 3.5 s | real time |
-| 6 | `impact`   | From the ground: into the yard; half a second later the yard is thrown into the air | 2.5× slow, then 1.25× |
+| 6 | `impact`   | From a watch tower's height, 220 m off: into the yard; half a second later the yard is thrown into the air | 2.5× slow, then 1.25× |
 | 7 | `radius`   | From the air: the burst and its circles, with a Mk 84's for comparison | about 1.5× slow |
 | 8 | `after`    | Half a minute later: the crater and the wrecked buildings round it | real time |
 | 9 | summary    | Table of the numbers (made in post) | – |
