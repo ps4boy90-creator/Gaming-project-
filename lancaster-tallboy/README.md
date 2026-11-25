@@ -45,7 +45,7 @@ to the depth at which a buried charge throws out the widest crater.
 | Circle in the radius shot | Radius | Basis |
 |---|---|---|
 | Crater | 15 m (100 ft across) | published |
-| Brick wall-bearing buildings demolished | about 37 m (120 ft) | published, for a burst at ground level |
+| Brick wall-bearing buildings demolished | about 37 m (120 ft) | published as a rough estimate, for a burst at ground level |
 | 5 psi (34 kPa) blast | about 93 m | the Mk 82's 31 m × cube root of the fillings' ratio; for a burst at the surface |
 | Mk 84, 5 psi, for comparison | about 53 m | as in segment 07 |
 
@@ -59,7 +59,7 @@ to the depth at which a buried charge throws out the widest crater.
 | Fall | released at 18,000 ft and 200 mph: striking velocity 1,097 ft/s, spin 300 rpm; 37 s of fall | OP 1665; Bomber Command Museum of Canada |
 | Fuze delays | 0.5 s and 11 s on the Tallboys that hit the Brest U-boat bunker | US Strategic Bombing Survey, Physical Damage Division |
 | Crater | 100 ft across and 80 ft deep | Wikipedia, "Tallboy (bomb)" (not traced further) |
-| Damage to buildings | brick wall-bearing buildings demolished to about 120 ft by a burst at ground level (about 150 ft for the 22,000 lb bomb) | Th. von Kármán, *Explosives and Terminal Ballistics* (1946) |
+| Damage to buildings | "rough estimates of the distance from detonations at ground level ... at which brick wall-bearing buildings will be demolished": about 120 ft for the 12,000 lb bomb, about 150 ft for the 22,000 lb bomb; also a crater 88 ft across for a 12,000 lb bomb burst 16.5 ft down | Th. von Kármán, *Explosives and Terminal Ballistics* (1946) |
 | Against concrete | 5 ft 7 in (1.7 m) into reinforced concrete at maximum striking velocity (Farge, 1946); at Brest nine direct hits, none through the roof before bursting | Project Ruby report (quoted second-hand); US Strategic Bombing Survey |
 | Lancaster | span 102 ft; length 69 ft 6 in; wing area about 1,300 sq ft; root chord 16 ft, chord at the tip joint 9 ft 2 9/16 in; NACA 23018 to 23012; outer panels at 7° dihedral; tailplane 33 ft; track 23 ft 9 in; bomb bay 33 ft; three-blade propellers 13 ft across; bulged doors for the Tallboy; mid-upper turret still fitted in August 1944; code KC for No. 617 Squadron | lancaster-archive.com; Wikipedia, "Avro Lancaster"; avrolancaster.co.uk; IBCC Digital Archive |
 | Penetration equations | Young, *Penetration Equations*, Sandia report SAND97-2426 (1997) | the report |

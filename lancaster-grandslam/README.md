@@ -45,7 +45,7 @@ burst is the same.
 | Circle in the radius shot | Radius | Basis |
 |---|---|---|
 | Crater | 19 m (124 ft across) | published, for the trial drop at Ashley Walk on 13 March 1945 |
-| Brick wall-bearing buildings demolished | about 46 m (150 ft) | published, for a burst at ground level |
+| Brick wall-bearing buildings demolished | about 46 m (150 ft) | published as a rough estimate, for a burst at ground level |
 | 5 psi (34 kPa) blast | about 112 m | the Mk 82's 31 m × cube root of the fillings' ratio; for a burst at the surface |
 | Tallboy, brick buildings demolished, for comparison | about 37 m (120 ft) | published, as above |
 
@@ -62,7 +62,7 @@ burst is the same.
 | Release | the first one, at Bielefeld on 14 March 1945, from 11,965 ft; others from 12,000 to 15,000 ft; 200 mph | Wikipedia, after Flower; Bomber Command Museum of Canada |
 | Striking velocity | 1,049 ft/s (320 m/s), release height not stated | Wikipedia, after Webster and Frankland |
 | Crater | 124 ft across and 34 ft deep at the trial of 13 March 1945 (a 1945 Air Ministry caption: 120 ft and "more than 35 ft") | Wikipedia, after Flower; Bomber Command Museum of Canada; IWM CH 15368 |
-| Damage to buildings | brick wall-bearing buildings demolished to about 150 ft by a burst at ground level (about 120 ft for the 12,000 lb bomb) | Th. von Kármán, *Explosives and Terminal Ballistics* (1946) |
+| Damage to buildings | "rough estimates of the distance from detonations at ground level ... at which brick wall-bearing buildings will be demolished": about 150 ft for the 22,000 lb bomb, about 120 ft for the 12,000 lb bomb | Th. von Kármán, *Explosives and Terminal Ballistics* (1946) |
 | Against concrete | at Farge on 27 March 1945 two hits on the 4.5 m part of the roof went about 2 m in before bursting and brought part of it down; in the 1946 trials 7 ft 8 in at 1,150 ft/s, and no bomb could go through the 23 ft part | Wikipedia, "Valentin submarine pens"; Project Ruby report |
 | Number | 42 released: 40 on targets, 2 jettisoned (41 in other accounts) | R. Owen, thesis on No. 617 Squadron |
 | Lancaster B.I (Special) | bomb doors removed and the bay faired; front and mid-upper turrets removed; Merlin 24 engines; maximum weight 72,000 lb; code YZ; the first four delivered in the standard night finish | Wikipedia, after Flower; Bomber Command Museum of Canada; R. Owen; Profile Publications No. 65 |
