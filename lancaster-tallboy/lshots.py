@@ -1,4 +1,5 @@
-"""Shot definitions and frame renderer for the Lancaster / Tallboy segment.
+"""Shot definitions and frame renderer for the Lancaster / Tallboy segment and, with LANC_BOMB=grandslam in the
+environment, the Lancaster / Grand Slam segment (the same shots, scaled to the larger bomb and its larger burst).
 
   python3 lshots.py <shot> <out_dir> [--sim <sim_root>] [--res 1280x720] [--spp N] [--frames a-b | i,j,k]
 
@@ -34,6 +35,7 @@ SIM_OF = {"impact": "out", "radius": "out"}
 N_OF = {"card": 72, "approach": 108, "intro": 96, "release": 132, "fall": 84, "impact": 180, "radius": 108, "after": 108}
 JET_Q = Quaternion((0, 1, 0), D(0.0))
 T_DOORS = (-8.6, -6.4)                                               # the bomb doors open on the run-up
+K = C.K_W; KL = C.K_L; TOP_H = round(100.0 * K, -1)                   # the burst's scale against a Tallboy's; the bomb's length against a Tallboy's; the height marked in the impact shot
 L = C.TB_L; T_UNDER = L / C.V_HIT                                    # the tail has gone below the surface this long after the nose touched
 
 def bomb_xform(tp):
@@ -105,8 +107,8 @@ class Stage(gsh.Stage):
             ec = self.env_col = bpy.data.collections.new("ENV"); sc.collection.children.link(ec)
             self.site = lsite.Base(sc, ec)
             self.bomb = lbomb.Bomb(col, "Falling")
-            self.l_hit = ms.point_light(col, "BurstFlash", (1.0, 0.60, 0.30), 5.0); self.l_hit.location = (0.0, 0.0, 9.0)
-            self.plume = Plume(col); self.plume.ob.location = (0.0, 0.0, -6.0); self.plume.ob.scale = (4.0, 4.0, 3.0); self.plume.fl.hide_render = True; self.plume.glow.hide_render = True
+            self.l_hit = ms.point_light(col, "BurstFlash", (1.0, 0.60, 0.30), 5.0); self.l_hit.location = (0.0, 0.0, 9.0 * K)
+            self.plume = Plume(col); self.plume.ob.location = (0.0, 0.0, -6.0); self.plume.ob.scale = (4.0 * K, 4.0 * K, 3.0 * K); self.plume.fl.hide_render = True; self.plume.glow.hide_render = True
             for mt in self.plume.mats:                                   # dust and thin smoke out of the crater, not an oil fire
                 f = mt.node_tree.nodes["Fade"]; f.inputs["To Min"].default_value = 0.05; f.inputs["To Max"].default_value = 0.006
                 for nd in mt.node_tree.nodes:
@@ -171,7 +173,7 @@ def shot_fall(n=N_OF["fall"]):
     t1 = -0.07; t0 = t1 - (n - 1) / FPS
     def cam_at(st, tp, u):
         p, q = bomb_xform(tp); d = np.array(q @ Vector((1, 0, 0))); up = np.array([-1.0, 0, 0]) - d * (-d[0]); up /= np.linalg.norm(up)
-        pos = p - d * lerp(16.0, 11.5, u) + up * lerp(3.4, 2.4, u) + np.array([0, 2.0, 0]); return pos, (Vector(p + d * 22.0) - Vector(pos)).to_track_quat('-Z', 'Y')
+        pos = p - d * lerp(16.0, 11.5, u) * KL + up * lerp(3.4, 2.4, u) * KL + np.array([0, 2.0 * KL, 0]); return pos, (Vector(p + d * 22.0) - Vector(pos)).to_track_quat('-Z', 'Y')
     def frame(st, i):
         tp = t0 + i / FPS; dt = 1.0 / FPS; st.set_time(tp, dt, dict(haze=1.0)); u = i / (n - 1); pos, q = cam_at(st, tp, u); st.look(pos, None, 28.0, quat=q)
         st.key3(st.cam, lambda tt: cam_at(st, tt, u), tp, dt, True); p, v = C.fall_state(C.TOF + tp)
@@ -191,33 +193,35 @@ def shot_impact(n=N_OF["impact"]):
     """From a watch tower's height, 220 m off: the bomb goes into the yard; half a second later the yard is thrown into the air."""
     def frame(st, i):
         sf, tp, dt = _out_clock(i, 16, 104); st.set_time(tp, dt, {}); u = i / (n - 1); td = tp - C.FUZE_DELAY
-        pos = np.array([-70.0 + 8.0 * u, -205.0 - 12.0 * u, 17.0 + 2.0 * u]); tgt = np.array([0.0, 0.0, 10.0 + 40.0 * smoothstep(0.26, 0.9, u)])
+        pos = np.array([(-70.0 + 8.0 * u) * K, (-205.0 - 12.0 * u) * K, 17.0 + 2.0 * u]); tgt = np.array([0.0, 0.0, (10.0 + 40.0 * smoothstep(0.26, 0.9, u)) * K])
         off, rq = shake(td - 0.75, 3.0); st.look(pos + off, tgt, lerp(36.0, 22.0, smoothstep(0.24, 0.6, u))); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
-        return tp, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0.5), "top": (0, 0, 100.0), "lorry": (52.0, 16.0, 2.6), "barracks": (56.0, 96.0, 8.0)})
+        return tp, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0.5), "top": (0, 0, TOP_H), "lorry": (52.0, 16.0, 2.6), "barracks": (56.0, 96.0, 8.0)})
     return n, frame
 
 def _circle(r):
     return [(r * math.cos(a), r * math.sin(a), 0.3) for a in np.linspace(0, 2 * np.pi, 97)]
 
 def shot_radius(n=N_OF["radius"]):
-    """From the air: the burst and its circles (the crater, buildings destroyed, 5 psi), with a Mk 84's 5 psi circle for comparison."""
+    """From the air: the burst and its circles (the crater, buildings destroyed, 5 psi), with a smaller bomb's 5 psi circle for
+    comparison (a Mk 84's in the Tallboy film, a Tallboy's in the Grand Slam film)."""
     def frame(st, i):
         sf = 27 + int(1.55 * i); tp = (sf - 1) * SDT; dt = 1.55 * SDT; st.set_time(tp, dt, dict(haze=0.5)); u = i / (n - 1)
-        pos = np.array([-50.0 + 5 * u, -205.0, 232.0 + 5 * u]); st.look(pos, np.array([3.0, -22.0, 6.0]), 30.0)
+        pos = np.array([-50.0 + 5 * u, -205.0, 232.0 + 5 * u]) * K; st.look(pos, np.array([3.0, -22.0, 6.0]) * K, 30.0)
         at = lambda r, a: (r * math.cos(D(a)), r * math.sin(D(a)), 0.3)
-        an = {"crater": at(C.CRATER_R, -62), "struct": at(C.R_STRUCT, -32), "blast": at(C.R_BLAST, -142), "mk84": at(C.R_MK84, 96)}
-        paths = {"crater": _circle(C.CRATER_R), "struct": _circle(C.R_STRUCT), "blast": _circle(C.R_BLAST), "mk84": _circle(C.R_MK84)}
+        an = {"crater": at(C.CRATER_R, -62), "struct": at(C.R_STRUCT, -32), "blast": at(C.R_BLAST, -142), "cmp": at(C.R_CMP, 96)}
+        paths = {"crater": _circle(C.CRATER_R), "struct": _circle(C.R_STRUCT), "blast": _circle(C.R_BLAST), "cmp": _circle(C.R_CMP)}
         return tp, dt, dict(samples=12, sim=sf, shutter=0.25, anchors=an, paths=paths)
     return n, frame
 
 def shot_after(n=N_OF["after"]):
     """Half a minute later, circling low: the crater, the wrecked buildings round it, a lorry for scale."""
     def cam_at(st, t, u):
-        a = D(lerp(232.0, 285.0, u)); r = lerp(120.0, 98.0, u); pos = np.array([r * math.cos(a), r * math.sin(a), lerp(46.0, 36.0, u)]); return pos, (Vector((2.0, 4.0, -2.0)) - Vector(pos)).to_track_quat('-Z', 'Y')
+        a = D(lerp(232.0, 285.0, u)); r = lerp(120.0, 98.0, u) * K; pos = np.array([r * math.cos(a), r * math.sin(a), lerp(46.0, 36.0, u) * K]); return pos, (Vector((2.0, 4.0, -2.0)) - Vector(pos)).to_track_quat('-Z', 'Y')
     def frame(st, i):
         tp = 30.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tp, dt, dict(plume=True, haze=0.8)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(st, tp, u); st.look(pos, None, 30.0, quat=q)
         st.key3(st.cam, lambda tt: cam_at(st, tt, u), tp, dt, True); a0 = D(20.0)
-        return tp, dt, dict(samples=32, shutter=0.35, anchors={"a": (C.CRATER_R * math.cos(a0), C.CRATER_R * math.sin(a0), 1.6), "b": (-C.CRATER_R * math.cos(a0), -C.CRATER_R * math.sin(a0), 1.6), "mid": (0, 0, -C.CRATER_D), "lorry": (52.0, 16.0, 2.6), "wreck": (-42.0, 36.0, 1.5)})
+        lp = next((tuple(ob.location) for ob, pc, q0, d in st.site.lorries if abs(pc.p0[0] - 52.0) < 0.1 and abs(pc.p0[1] - 16.0) < 0.1), (52.0, 16.0, 0.0))     # where that lorry came to rest
+        return tp, dt, dict(samples=32, shutter=0.35, anchors={"a": (C.CRATER_R * math.cos(a0), C.CRATER_R * math.sin(a0), 1.6), "b": (-C.CRATER_R * math.cos(a0), -C.CRATER_R * math.sin(a0), 1.6), "mid": (0, 0, -C.CRATER_D), "lorry": (lp[0], lp[1], lp[2] + 1.6), "wreck": (-42.0, 36.0, 1.5)})
     return n, frame
 
 SHOTS = {"approach": shot_approach, "release": shot_release, "fall": shot_fall, "impact": shot_impact, "radius": shot_radius, "after": shot_after}
@@ -245,7 +249,7 @@ def render_card(out_dir, res, spp, frames, n=N_OF["card"]):
     sc, cam = _studio(1.0); sc.cycles.samples = spp or 40
     pivot = bpy.data.objects.new("Pivot", None); sc.collection.objects.link(pivot); pivot.location = (0.2, 0, 2.2)
     B = lbomb.Bomb(name="Card"); B.root.parent = pivot; B.root.rotation_quaternion = Quaternion((1, 0, 0), D(-10)) @ Quaternion((0, 1, 0), D(-5))
-    cam.data.lens = 85; cam.location = (0.0, -29.0, 2.7); cam.rotation_euler = (math.radians(88.9), 0, 0); cam.data.shift_x = 0.25
+    cam.data.lens = 85; cam.location = (0.0, -29.0 * KL, 2.7); cam.rotation_euler = (math.radians(88.9), 0, 0); cam.data.shift_x = 0.25
     sc.render.resolution_x, sc.render.resolution_y = res; sc.render.use_border = True; sc.render.use_crop_to_border = True
     sc.render.border_min_x = 0.0; sc.render.border_max_x = 0.50; sc.render.border_min_y = 0.0; sc.render.border_max_y = 1.0
     os.makedirs(out_dir, exist_ok=True)
@@ -268,10 +272,10 @@ def render_intro(out_dir, res, spp, frames, n=N_OF["intro"]):
     lo = bpy.data.objects.new("Lorry", lsite._lorry_mesh()); sc.collection.objects.link(lo); lo.data.materials.append(bpy.data.materials.get("BombPaint")); lo.location = (-0.2, 2.6, -0.62)
     sc.render.resolution_x, sc.render.resolution_y = res; os.makedirs(out_dir, exist_ok=True)
     R = C.TB_D / 2; zt = INTRO_Z; x0 = INTRO_X; X = lambda s: x0 + L / 2 - s
-    pts = {"nose": (X(0), 0, zt), "tail": (X(L), 0, zt), "top": (X(1.6), 0, zt + R), "bot": (X(1.6), 0, zt - R), "case": (X(1.9), -R, zt + 0.1), "fins": (X(L - 0.8), -0.3, zt - 0.36), "joint": (X(C.CASE_L + 0.9), -0.3, zt + 0.1), "band": (X(1.04), -0.38, zt + 0.2), "lorry": (-1.4, 2.6, 2.0)}
+    pts = {"nose": (X(0), 0, zt), "tail": (X(L), 0, zt), "top": (X(1.6 * KL), 0, zt + R), "bot": (X(1.6 * KL), 0, zt - R), "case": (X(1.9 * KL), -R, zt + 0.1), "fins": (X(L - 0.8 * KL), -0.3, zt - 0.36 * KL), "joint": (X(C.CASE_L + 0.9 * KL), -0.3, zt + 0.1), "band": (X(1.04 * KL), -0.38, zt + 0.2), "lorry": (-1.4, 2.6, 2.0)}
     meta_path = os.path.join(out_dir, "meta.json"); meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
     for i in (frames if frames is not None else range(n)):
-        u = smoothstep(0.0, 1.0, i / (n - 1)); cam.data.lens = 50; cam.location = (lerp(0.30, -0.20, u), -12.6, 2.05); cam.rotation_euler = (math.radians(90.0), 0, 0)
+        u = smoothstep(0.0, 1.0, i / (n - 1)); cam.data.lens = 50; cam.location = (lerp(0.30, -0.20, u), -12.6 * KL, 2.05); cam.rotation_euler = (math.radians(90.0), 0, 0)
         g.turn(0.5 * u)
         bpy.context.view_layer.update(); proj = lambda p: (lambda v: [float(v.x), float(1 - v.y), float(v.z)])(world_to_camera_view(sc, cam, Vector(p)))
         meta[str(i)] = dict(t=i / FPS, anchors={kk: proj(p) for kk, p in pts.items()}); json.dump(meta, open(meta_path, "w"))
@@ -301,7 +305,7 @@ def main():
         sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
     tl = dict(TOF=C.TOF, THROW=C.THROW, V_REL=C.V_REL, V_HIT=C.V_HIT, MACH_HIT=C.MACH_HIT, DIVE=C.DIVE, H_REL=C.H_REL, FUZE=C.FUZE_DELAY, RPM=C.RPM_HIT, D_PATH=C.D_PATH, T_STOP=C.T_STOP, DEPTH=C.DEPTH_BURST,
-              CRATER_R=C.CRATER_R, R_STRUCT=C.R_STRUCT, R_BLAST=C.R_BLAST, R_MK84=C.R_MK84, T_DOORS=list(T_DOORS), T_UNDER=T_UNDER, fps=FPS)
+              CRATER_R=C.CRATER_R, R_STRUCT=C.R_STRUCT, R_BLAST=C.R_BLAST, R_MK84=C.R_MK84, R_CMP=C.R_CMP, R_TALLBOY=C.R_TALLBOY, BOMB=C.BOMB, NAME=C.NAME, TOP=TOP_H, CRATER_PUB_D=C.CRATER_PUB_D, T_DOORS=list(T_DOORS), T_UNDER=T_UNDER, fps=FPS)
     json.dump(tl, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "timeline.json"), "w"))
     meta_path = os.path.join(a.out, "meta.json")
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}

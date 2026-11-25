@@ -11,6 +11,9 @@ red squadron codes, Type C1 roundels on the fuselage and Type B above the wings.
 Section shapes, the outline of nose, canopy, nacelles and fins, the wing's chords and the places of the turrets are
 proportioned from drawings and photographs.  The landing gear is up (the tail wheel does not retract); there are no
 panel lines, aerials or crew.
+
+With LANC_BOMB=grandslam this is the B.I (Special) of 1945 that carried the 22,000 lb Grand Slam: no bomb doors (the
+opening is faired at its ends and the bomb hangs partly below the belly), no nose or mid-upper turret.
 """
 import bpy, math, os, sys
 import numpy as np
@@ -22,6 +25,7 @@ import lconst as C, lbomb
 
 X0 = 7.6
 FT = 0.3048
+SPECIAL = C.BOMB == "grandslam"                                      # the B.I (Special)
 SPAN = 102.0 * FT; LENGTH = 69.5 * FT
 NIGHT = (0.012, 0.012, 0.013, 1); CAMO = (0.09, 0.10, 0.07, 0.0)       # alpha 0: the material paints the disruptive pattern there
 INSIDE = (0.10, 0.13, 0.10, 1); METAL = (0.11, 0.105, 0.10, 1); EXH = (0.05, 0.035, 0.03, 1); TYRE = (0.02, 0.02, 0.022, 1); YELLOW = (0.62, 0.45, 0.03, 1)
@@ -29,8 +33,10 @@ R_RED = (0.33, 0.035, 0.03, 1); R_BLUE = (0.022, 0.035, 0.11, 1); R_WHITE = (0.6
 # ---- fuselage: s, centre z, half width, height up, depth down, squareness
 _FUS = [(0.55, -0.20, 0.50, 0.62, 0.62, 2.2), (1.2, -0.12, 0.74, 0.86, 0.90, 2.4), (2.3, -0.04, 0.85, 1.00, 1.14, 2.7), (3.6, 0.0, 0.875, 1.12, 1.26, 3.0), (9.0, 0.0, 0.875, 1.12, 1.26, 3.0),
         (12.4, 0.02, 0.86, 1.06, 1.18, 3.0), (15.0, 0.12, 0.76, 0.94, 0.98, 2.8), (17.8, 0.26, 0.64, 0.80, 0.76, 2.6), (19.8, 0.36, 0.54, 0.70, 0.62, 2.5), (20.75, 0.40, 0.48, 0.62, 0.56, 2.4)]
-BAY = (2.95, 2.95 + 33.0 * FT); BAY_W = 0.80; BULGE = 0.14; BAY_ROOF = -0.22       # the 33 ft bomb bay; how far the bulged doors stand below the normal belly
 STORE_S = 8.60                                                       # station of the middle of the bomb's length
+BAY = (2.95, 2.95 + 33.0 * FT); BAY_W = 0.80; BULGE = 0.14; BAY_ROOF = -0.22       # the 33 ft bomb bay; how far the bulged doors stand below the normal belly
+if SPECIAL:                                                          # no doors: the opening is closed in ahead of and behind the bomb
+    BAY = (STORE_S - C.TB_L / 2 - 0.40, STORE_S + C.TB_L / 2 + 0.22); BULGE = 0.0
 STORE = None                                                         # filled in below (aircraft frame)
 # ---- wing
 INC = math.radians(4.0); DIH = math.radians(7.0)
@@ -82,10 +88,14 @@ def _fuselage(S):
         pts = [_canopy_pt(s, sg * 0.62, 0.014) for s in np.linspace(2.52, 5.6, 14)]
         for a, b in zip(pts[:-1], pts[1:]):
             d = b - a; L_ = np.linalg.norm(d); ex = d / L_; ey = np.array([0, 1.0, 0]); ez = np.cross(ex, ey); S.add(*box((a + b) / 2, (L_, 0.04, 0.02), rot=np.stack([ex, ey, ez], 1)), color=CAMO)
-    S.add(*revolve([(0.0, 0.50), (0.16, 0.47)], 28, axis=EZ, origin=P(MID_S, 0, _top(MID_S) - 0.06)), color=CAMO)                     # fairing round the mid-upper turret
+    if SPECIAL:                                                        # the nose turret's place is faired over; there is no mid-upper turret
+        S.add(*ellipsoid(P(0.66, 0, -0.20 + 0.40), (0.50, 0.44, 0.42), 20, 10), color=CAMO)
+    else:
+        S.add(*revolve([(0.0, 0.50), (0.16, 0.47)], 28, axis=EZ, origin=P(MID_S, 0, _top(MID_S) - 0.06)), color=CAMO)                 # fairing round the mid-upper turret
     for sg in (1, -1):                                                 # nose guns (FN5: two .303s), tail guns (FN20: four), mid-upper (FN50: two, trained aft)
-        S.add(*revolve([(0.0, 0.016), (0.62, 0.013)], 8, axis=EX, origin=P(0.50, sg * 0.10, -0.20 + 0.36)), color=METAL)
-        S.add(*revolve([(0.0, 0.016), (0.60, 0.013)], 8, axis=-EX + 0.25 * EZ, origin=P(MID_S + 0.25, sg * 0.10, _top(MID_S) + 0.24)), color=METAL)
+        if not SPECIAL:
+            S.add(*revolve([(0.0, 0.016), (0.62, 0.013)], 8, axis=EX, origin=P(0.50, sg * 0.10, -0.20 + 0.36)), color=METAL)
+            S.add(*revolve([(0.0, 0.016), (0.60, 0.013)], 8, axis=-EX + 0.25 * EZ, origin=P(MID_S + 0.25, sg * 0.10, _top(MID_S) + 0.24)), color=METAL)
         for dz in (-0.07, 0.11):
             S.add(*revolve([(0.0, 0.016), (0.66, 0.013)], 8, axis=-EX, origin=P(21.02, sg * 0.14, 0.40 + dz)), color=METAL)
     zt = fus(19.3)[0] - fus(19.3)[3]                                   # the fixed tail wheel
@@ -112,9 +122,10 @@ def _canopy_pt(s, f, out=0.0):
 def _glass():
     S = Shell(); G = (0.03, 0.04, 0.05, 1)
     V, Q, T = loft([_canopy_ring(s) for s in np.linspace(2.30, 5.9, 26)]); S.add(V, Q, T, G)
-    S.add(*ellipsoid(P(0.66, 0, -0.20 + 0.40), (0.50, 0.44, 0.42), 20, 10), color=G)                    # nose turret
+    if not SPECIAL:
+        S.add(*ellipsoid(P(0.66, 0, -0.20 + 0.40), (0.50, 0.44, 0.42), 20, 10), color=G)                # nose turret
+        S.add(*ellipsoid(P(MID_S, 0, _top(MID_S) + 0.10), (0.44, 0.42, 0.40), 20, 10), color=G)         # mid-upper turret
     S.add(*ellipsoid(P(0.62, 0, -0.20 - 0.34), (0.62, 0.47, 0.50), 20, 10), color=G)                    # the bomb aimer's blister
-    S.add(*ellipsoid(P(MID_S, 0, _top(MID_S) + 0.10), (0.44, 0.42, 0.40), 20, 10), color=G)             # mid-upper turret
     S.add(*ellipsoid(P(6.75, 0, _top(6.75) - 0.02), (0.30, 0.30, 0.24), 16, 8), color=G)                # astrodome
     S.add(*ellipsoid(P(20.82, 0, 0.42), (0.42, 0.44, 0.52), 20, 10), color=G)                           # tail turret
     return S.mesh("lanc_glass", sharp=math.radians(50))
@@ -258,9 +269,9 @@ def _hinge_z():
     zc, w, up, dn, e = fus(6.0); a = _bay_angle(6.0); return zc - (dn + _bulge(6.0)) * math.sin(a) ** (2.0 / e)
 
 HINGE_Z = _hinge_z()
-STORE = P(STORE_S, 0.0, BAY_ROOF - 0.035 - C.TB_D / 2)                # the middle of the bomb's length, aircraft frame
+STORE = P(STORE_S, 0.0, BAY_ROOF - (0.14 if SPECIAL else 0.035) - C.TB_D / 2)   # the middle of the bomb's length, aircraft frame
 
-LINK_X = (2.0, 0.8)                                                    # the two suspension links, in the bomb's frame (round the steel case)
+LINK_X = (2.0 * C.K_L, 0.8 * C.K_L)                                                 # the two suspension links, in the bomb's frame (round the steel case)
 
 def _link(sg, x):
     """Half of one suspension link in its own frame: hinged at the top of the bomb, hanging round one side to meet its twin beneath."""
@@ -285,7 +296,7 @@ def lanc_mat(name="LancPaint"):
     return m
 
 class Lancaster:
-    def __init__(self, col=None, name="Lanc", store=False, code="KC", letter="A"):
+    def __init__(self, col=None, name="Lanc", store=False, code="YZ" if SPECIAL else "KC", letter="A"):
         col = col or bpy.context.scene.collection; M = bpy.data.materials
         self.root = bpy.data.objects.new(name, None); col.objects.link(self.root); self.root.rotation_mode = 'QUATERNION'
         pm = M.get("LancPaint") or lanc_mat()
@@ -302,7 +313,7 @@ class Lancaster:
                 le, c, t, up = wing_at(sg * ENG_Y[k]); o = new_obj(name + "_Prop%+d%d" % (sg, k), bpy.data.meshes.get("lanc_prop") or _spinner_prop(), col, pm); o.parent = self.root
                 o.location = tuple(P(PROP_S[k], sg * ENG_Y[k], le[2] - 0.34)); o.rotation_mode = 'XYZ'; self.props.append((o, 0.9 * (2 * k + (sg > 0))))
         self.doors = []
-        for sg in (1, -1):
+        for sg in (() if SPECIAL else (1, -1)):
             d = new_obj(name + "_Door%+d" % sg, bpy.data.meshes.get("lanc_door%+d" % sg) or _door(sg), col, pm); d.parent = self.root
             d.location = (X0 - (BAY[0] + BAY[1]) / 2, sg * BAY_W, HINGE_Z); self.doors.append((d, sg))
         self.store = None

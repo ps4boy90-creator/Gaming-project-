@@ -1,5 +1,6 @@
 """Shared numbers, the bomb's fall, how deep it goes into the ground and the size of what follows, for the
-Lancaster / Tallboy segment (no bpy imports).
+Lancaster / Tallboy segment and, with LANC_BOMB=grandslam in the environment, the Lancaster / Grand Slam segment
+(no bpy imports).
 
 Site coordinates: the bomb meets the ground at the origin; +Z is up; the bomb travels in the X-Z plane.
 Times: t = seconds after release; tp = seconds after the nose touches the ground; the charge fires at tp = FUZE_DELAY.
@@ -7,30 +8,54 @@ Times: t = seconds after release; tp = seconds after the nose touches the ground
 The target is an invented German army depot of 1944 on open ground.  How deep the bomb goes before its fuze fires
 is calculated with the Young / Sandia penetration equations (SAND97-2426); the crater's width is the published one.
 """
-import math
+import math, os
 import numpy as np
 
 FPS = 24
 G = 9.81
 FT = 0.3048; LB = 0.45359237; MPH = 0.44704
-# ---- Tallboy: Bomb, H.E., M.C., 12,000 lb (sources: see README)
-TB_L = 21.0 * FT                                       # 21 ft overall (6.40 m)
-TB_D = 38.0 * 0.0254                                   # 38 in across the body (0.965 m)
-TB_M = 12000.0 * LB                                    # about 12,000 lb (5,443 kg)
-FILL = 5200.0 * LB                                     # 5,200 lb of Torpex D1 (2,359 kg)
-CASE_L = 10.0 * FT                                     # the steel case: some 10 ft (3.05 m); the rest is the light-alloy tail
+# ---- the two bombs (sources: see each segment's README).  Every other module reads the chosen one through the names below.
+BOMB = os.environ.get("LANC_BOMB", "tallboy").lower()
+_SPEC = {
+    "tallboy": dict(                                   # Bomb, H.E., M.C., 12,000 lb
+        name="Tallboy", length=21.0 * FT, dia=38.0 * 0.0254, mass=12000.0 * LB, fill=5200.0 * LB,
+        case=10.0 * FT,                                # the steel case: some 10 ft (3.05 m); the rest is the light-alloy tail
+        nose=1.45, charge_back=1.70,                   # length of the ogival nose (from drawings; estimated); the middle of the filling behind the tip
+        h_rel=18000.0 * FT, v_rel=200.0 * MPH,         # the release: level, 18,000 ft above the target at 200 mph (the case given in OP 1665)
+        spin=300.0,                                    # published spin at impact (OP 1665)
+        crater_r=50.0 * FT, crater_pub_d=80.0 * FT,    # published: a crater 100 ft across and 80 ft deep
+        crater_d=9.0,                                  # the open crater as drawn (the published depth includes the broken ground beneath it)
+        published=dict(v_fps=1097.0, tof=37.0, ruby_m=1.70)),   # OP 1665: 1,097 ft/s; 37 s of fall (BCMC); Project Ruby: 5 ft 7 in into concrete
+    "grandslam": dict(                                 # Bomb, H.E., M.C., 22,000 lb
+        name="Grand Slam", length=26.5 * FT, dia=46.0 * 0.0254, mass=22000.0 * LB, fill=9135.0 * LB,
+        case=13.0 * FT,
+        nose=1.75, charge_back=2.10,
+        h_rel=12000.0 * FT, v_rel=200.0 * MPH,
+        spin=300.0,
+        crater_r=62.0 * FT, crater_pub_d=34.0 * FT,
+        crater_d=10.4,
+        published=dict()),
+}
+SPEC = _SPEC[BOMB]; NAME = SPEC["name"]
+TB_L = SPEC["length"]                                  # overall length
+TB_D = SPEC["dia"]                                     # across the body
+TB_M = SPEC["mass"]
+FILL = SPEC["fill"]                                    # Torpex D1
+CASE_L = SPEC["case"]                                  # the steel case; the rest is the light-alloy tail
 TAIL_L = TB_L - CASE_L
 FIN_CANT = 5.0                                         # the four fins are set at 5 degrees so that the bomb spins as it falls
 FUZE_DELAY = 0.5                                       # three No. 58 tail pistols; delays of 0.5 s and 11 s are recorded for Tallboys (USSBS, Brest)
-SPIN_RPM = 300.0                                       # published spin at impact (OP 1665)
-PUBLISHED = dict(v_fps=1097.0, tof=37.0, ruby_m=1.70)   # OP 1665: 1,097 ft/s from 18,000 ft at 200 mph; 37 s of fall (BCMC); Project Ruby: 5 ft 7 in into concrete
-# ---- the release: a Lancaster level 18,000 ft above the target at 200 mph (the case given in OP 1665)
-H_REL = 18000.0 * FT; TARGET_ELEV = 60.0
+SPIN_RPM = SPEC["spin"]
+PUBLISHED = SPEC["published"]
+K_L = TB_L / _SPEC["tallboy"]["length"]; K_D = TB_D / _SPEC["tallboy"]["dia"]     # how much longer and fatter than a Tallboy (the two bombs are nearly the same shape)
+K_W = (FILL / _SPEC["tallboy"]["fill"]) ** (1.0 / 3.0)     # cube root of the fillings' ratio: the scale of the burst against a Tallboy's
+# ---- the release
+H_REL = SPEC["h_rel"]; TARGET_ELEV = 60.0
 
 def _air(h):
     T = max(288.15 - 0.0065 * h, 216.65); return 1.225 * (T / 288.15) ** 4.256 if h < 11000 else 0.3639 * math.exp(-(h - 11000) / 6341.6), math.sqrt(1.4 * 287.05 * T)
 
-V_REL = 200.0 * MPH
+V_REL = SPEC["v_rel"]
 
 def cd(M):
     """Drag coefficient on the body's frontal area: a very clean shape, with the usual rise towards Mach 1 (estimated)."""
@@ -72,7 +97,7 @@ def jet_pos(t):
     return np.array([-THROW + V_REL * t, 0.0, H_REL])
 
 # ---- the Young / Sandia penetration equations, SI form (D in metres, V in m/s, mass in kg, area in m2)
-NOSE_L = 1.45                                          # length of the ogival nose (from drawings; estimated)
+NOSE_L = SPEC["nose"]                                 # length of the ogival nose (from drawings; estimated)
 N_NOSE = 0.18 * NOSE_L / TB_D + 0.56
 
 def young_depth(S, V, N=N_NOSE, m=TB_M, d=TB_D):
@@ -95,20 +120,22 @@ def pen_state(tp):
     return V_HIT * tp * (1.0 - tp / (2.0 * T_STOP)), V_HIT * (1.0 - tp / T_STOP)
 
 S_BURST, V_BURST = pen_state(FUZE_DELAY)
-CHARGE_BACK = 1.70                                     # the middle of the filling lies about this far behind the tip of the nose
+CHARGE_BACK = SPEC["charge_back"]                      # the middle of the filling lies about this far behind the tip of the nose
 BURST = U * (S_BURST - CHARGE_BACK)                    # the middle of the charge when it fires
 DEPTH_BURST = -float(BURST[2])
 # ---- what the burst does
-CRATER_R = 50.0 * FT; CRATER_PUB_D = 80.0 * FT         # published: a crater 100 ft across and 80 ft deep
-CRATER_D = 9.0                                         # the open crater as drawn (the published depth includes the broken ground beneath it)
+CRATER_R = SPEC["crater_r"]; CRATER_PUB_D = SPEC["crater_pub_d"]
+CRATER_D = SPEC["crater_d"]                            # the open crater as drawn
 _K = (FILL / 87.0) ** (1.0 / 3.0)                      # radii scaled from the Mk 82's published ones by the cube root of the filling, as in segment 07
 R_STRUCT = 16.0 * _K                                   # reinforced-concrete buildings destroyed within (estimate)
 R_BLAST = 31.0 * _K                                    # 34 kPa (5 psi) reaches (estimate, for a burst at the surface)
 R_MK84 = 31.0 * (428.0 / 87.0) ** (1.0 / 3.0)          # the same radius for a 2,000 lb Mk 84, for comparison
+R_TALLBOY = 31.0 * (_SPEC["tallboy"]["fill"] / 87.0) ** (1.0 / 3.0)   # and for a Tallboy
+R_CMP = R_MK84 if BOMB == "tallboy" else R_TALLBOY     # the comparison circle drawn in the radius shot
 TNT_EQ = FILL * 1.5                                    # Torpex is about half as powerful again as TNT, weight for weight
 
 if __name__ == "__main__":
-    print("release %.0f m (%.0f ft) up at %.0f m/s (%.0f mph)   fall %.1f s   throw %.0f m" % (H_REL, H_REL / FT, V_REL, V_REL / MPH, TOF, THROW))
+    print(NAME); print("release %.0f m (%.0f ft) up at %.0f m/s (%.0f mph)   fall %.1f s   throw %.0f m" % (H_REL, H_REL / FT, V_REL, V_REL / MPH, TOF, THROW))
     print("impact %.0f m/s (%.0f ft/s, %.0f mph, %.0f km/h, Mach %.2f) at %.1f deg; spin %.0f rpm" % (V_HIT, V_HIT / FT, V_HIT / MPH, V_HIT * 3.6, MACH_HIT, DIVE, RPM_HIT))
     print("soil S %.1f, N %.3f: stops after %.1f m along its path (%.1f m down) in %.0f ms; charge fires at %.0f ms, %.1f m down" % (S_SOIL, N_NOSE, D_PATH, D_PATH * sinD, T_STOP * 1e3, FUZE_DELAY * 1e3, DEPTH_BURST))
     print("the same bomb into 5 m of reinforced concrete: %.1f m (Project Ruby, 1946: 1.7 m)" % (young_depth(s_concrete(5.0), V_HIT) * sinD))

@@ -145,10 +145,11 @@ def overlay_for(shot, i, n, m, info):
             if a > 0 and key in an and seen(an[key]):
                 (callout_l if dx < 0 else callout)(d, *P(an[key]), big, small, col, a, dx=dx, dy=dy)
         a = A(3)
-        if "mk84" in paths:
-            ring(d, paths["mk84"], MK84, a * 0.9, 3)
-        if a > 0 and seen(an["mk84"]):
-            callout_l(d, *P(an["mk84"]), "Mk 84 (2,000 lb): 5 psi", "TO ABOUT %d m, FOR COMPARISON" % round(info["R_MK84"]), MK84, a, dx=-80, dy=-110)
+        cmp_p = paths.get("cmp", paths.get("mk84")); cmp_a = an.get("cmp", an.get("mk84"))
+        if cmp_p:
+            ring(d, cmp_p, MK84, a * 0.9, 3)
+        if a > 0 and cmp_a and seen(cmp_a):
+            callout_l(d, *P(cmp_a), "Mk 84 (2,000 lb): 5 psi", "TO ABOUT %d m, FOR COMPARISON" % round(info["R_MK84"]), MK84, a, dx=-80, dy=-110)
         text(d, (W - 64, 60), "SLOWED ABOUT 1.5 TIMES", F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
         text(d, (W - 64, 94), "A BURST THIS DEEP SENDS LESS OF ITS FORCE INTO THE AIR AND MORE INTO THE GROUND", F_SEMI(22), DIM, 1.0, anchor="ra", tracking=2)
     elif shot == "after":
@@ -256,7 +257,8 @@ def _load(root, shot):
     meta = json.load(open(os.path.join(d, "meta.json"))) if shot != "card" else {}
     return d, files, ({str(k): meta[str(int(f[1:5]))] for k, f in enumerate(files)} if shot != "card" else {})
 
-def main():
+def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_frame):
+    """The three frame makers can be replaced: the Grand Slam segment passes its own (the same film with other words)."""
     root = sys.argv[1]; out = sys.argv[2]; draft = "--draft" in sys.argv
     info = json.load(open(os.path.join(root, "timeline.json")))
     stage = os.path.join(root, "_master"); os.makedirs(stage, exist_ok=True)

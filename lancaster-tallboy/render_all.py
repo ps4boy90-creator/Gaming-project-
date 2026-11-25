@@ -15,10 +15,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = [("card", 72), ("approach", 108), ("intro", 96), ("release", 132), ("fall", 84), ("impact", 180), ("radius", 108), ("after", 108)]
 SIM = {"impact": "out", "radius": "out"}
 BAKE = {"out": ("224", "250")}                                       # resolution, frames (no noise pass)
+POST = os.path.join(HERE, "lpost.py"); OUT_NAME = "lancaster_tallboy.mp4"   # the Grand Slam segment's render_all.py replaces these two
 
 def run(script, *args):
-    print("=== %s %s  %s" % (script, " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)
-    p = subprocess.Popen([sys.executable, os.path.join(HERE, script)] + list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    print("=== %s %s  %s" % (os.path.basename(script), " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)
+    p = subprocess.Popen([sys.executable, script if os.path.isabs(script) else os.path.join(HERE, script)] + list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
     for line in p.stdout:
         if line.startswith(("FRAME", "RENDER_DEVICE", "Traceback", "  File", "BAKE")) or "Error" in line:
             print(line.rstrip(), flush=True)
@@ -37,7 +38,7 @@ def main():
     if len(sys.argv) < 3:
         sys.exit(__doc__)
     root, sim_root = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
-    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "lancaster_tallboy.mp4")
+    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, OUT_NAME)
     os.makedirs(root, exist_ok=True); os.makedirs(sim_root, exist_ok=True)
     for name, n in SHOTS:
         if only and name not in only:
@@ -54,7 +55,7 @@ def main():
                 run("lshots.py", name, os.path.join(root, name), "--frames", "%d-%d" % (a, b), *extra)
     if only:
         print("PART DONE %s" % ",".join(only)); return
-    if run("lpost.py", root, out) == 0:
+    if run(POST, root, out) == 0:
         print("ALL DONE  %s" % out)
 
 if __name__ == "__main__":

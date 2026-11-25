@@ -1,4 +1,4 @@
-"""Bake the Mantaflow gas sim of the Tallboy bursting under the depot's yard to an OpenVDB cache.
+"""Bake the Mantaflow gas sim of the bomb (Tallboy, or the Grand Slam with LANC_BOMB=grandslam) bursting under the depot's yard to an OpenVDB cache.
 
   python3 lsim.py out <cache_dir> <resolution> <frames> [noise 0|1]
 
@@ -22,7 +22,8 @@ from util import new_mesh, new_obj, grid_faces
 import lconst as C
 
 SOIL = [(0.34, 0.26, 0.17), (0.27, 0.205, 0.135), (0.40, 0.32, 0.22), (0.22, 0.17, 0.115)]; DUST = [(0.56, 0.50, 0.41), (0.48, 0.42, 0.34)]
-OUT_BOX = ((-130.0, 130.0), (-130.0, 130.0), (-0.15, 190.0)); OUT_DT = 1.0 / 60.0; OUT_DET = int(round(C.FUZE_DELAY / OUT_DT)) + 1
+K = C.K_W                                                            # 1 for a Tallboy; the Grand Slam's burst is this much larger in every direction
+OUT_BOX = ((-130.0 * K, 130.0 * K), (-130.0 * K, 130.0 * K), (-0.15, 190.0 * K)); OUT_DT = 1.0 / 60.0; OUT_DET = int(round(C.FUZE_DELAY / OUT_DT)) + 1
 RC = C.CRATER_R
 
 def _place(dom, box):
@@ -30,20 +31,20 @@ def _place(dom, box):
 
 def build_out():
     f0 = OUT_DET; up = -C.U
-    puff = ico("E_puff", 1.8, (0, 0, 1.0), rough=0.4)                                                        # five tons at 330 m/s goes into the ground: a spurt of soil
+    puff = ico("E_puff", 1.8 * K, (0, 0, 1.0), rough=0.4)                                                        # five tons at 330 m/s goes into the ground: a spurt of soil
     flow(puff, 'SMOKE', 1, 5, dens=1.8, temp=0.25, color=SOIL[0], vn=16.0, vinit=tuple(up * 22.0))
     for i in range(18):
         az = random.uniform(0, math.tau); el = math.radians(random.uniform(35, 82)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
-        jet("E_i%02d" % i, (0.6 * d[0], 0.6 * d[1], 0.5), d, random.uniform(20, 50), random.uniform(2.2, 3.6), random.randint(18, 36), random.uniform(0.5, 0.9), random.choice(SOIL), start=random.randint(1, 3), dens=1.6)
-    dome = ico("E_dome", 1.0, (0, 0, 2.0), rough=0.3, scale=(RC * 0.8, RC * 0.8, 4.0)); flow(dome, 'SMOKE', f0, f0 + 5, dens=2.6, temp=0.4, color=SOIL[1], vn=20.0, vinit=(0.0, 0.0, 55.0))       # the ground lifting over the burst
-    col = ico("E_col", 9.0, (0, 0, 6.0), rough=0.4); flow(col, 'SMOKE', f0 + 2, f0 + 16, dens=2.8, temp=1.0, color=SOIL[1], vn=30.0, vinit=(0.0, 0.0, 120.0))                                     # the column of earth
-    fire = ico("E_fire", 6.0, (0, 0, 5.0), rough=0.4); flow(fire, 'BOTH', f0 + 3, f0 + 8, dens=2.0, temp=2.4, fuel=0.7, color=DARK[0], vn=40.0, vinit=(0.0, 0.0, 95.0))                            # the gas of the burst breaking through
-    gas = ico("E_gas", 8.0, (0, 0, 7.0), rough=0.4); flow(gas, 'SMOKE', f0 + 6, f0 + 60, dens=2.2, temp=1.8, color=DARK[1], vn=10.0, vinit=(0.0, 0.0, 40.0))
-    skirt = msim.torus("E_skirt", RC * 1.0, 3.2, (0, 0, 2.6), lobes=0.3); flow(skirt, 'SMOKE', f0 + 1, f0 + 14, dens=2.4, temp=0.3, color=DUST[0], vn=48.0)                                         # dust driven out along the ground
+        jet("E_i%02d" % i, (0.6 * d[0], 0.6 * d[1], 0.5), d, random.uniform(20, 50), random.uniform(2.2, 3.6), random.randint(18, 36), random.uniform(0.5, 0.9) * K, random.choice(SOIL), start=random.randint(1, 3), dens=1.6)
+    dome = ico("E_dome", 1.0, (0, 0, 2.0), rough=0.3, scale=(RC * 0.8, RC * 0.8, 4.0 * K)); flow(dome, 'SMOKE', f0, f0 + 5, dens=2.6, temp=0.4, color=SOIL[1], vn=20.0, vinit=(0.0, 0.0, 55.0 * K))       # the ground lifting over the burst
+    col = ico("E_col", 9.0 * K, (0, 0, 6.0 * K), rough=0.4); flow(col, 'SMOKE', f0 + 2, f0 + 16, dens=2.8, temp=1.0, color=SOIL[1], vn=30.0, vinit=(0.0, 0.0, 120.0 * K))                                     # the column of earth
+    fire = ico("E_fire", 6.0 * K, (0, 0, 5.0 * K), rough=0.4); flow(fire, 'BOTH', f0 + 3, f0 + 8, dens=2.0, temp=2.4, fuel=0.7, color=DARK[0], vn=40.0, vinit=(0.0, 0.0, 95.0 * K))                            # the gas of the burst breaking through
+    gas = ico("E_gas", 8.0 * K, (0, 0, 7.0 * K), rough=0.4); flow(gas, 'SMOKE', f0 + 6, f0 + 60, dens=2.2, temp=1.8, color=DARK[1], vn=10.0, vinit=(0.0, 0.0, 40.0))
+    skirt = msim.torus("E_skirt", RC * 1.0, 3.2 * K, (0, 0, 2.6 * K), lobes=0.3); flow(skirt, 'SMOKE', f0 + 1, f0 + 14, dens=2.4, temp=0.3, color=DUST[0], vn=48.0)                                         # dust driven out along the ground
     for i in range(70):                                                                                     # earth thrown out, each mass trailing soil
         az = random.uniform(0, math.tau); el = math.radians(random.uniform(38, 87)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el)); r0 = random.uniform(2.0, RC * 0.7)
-        jet("E_j%02d" % i, (r0 * math.cos(az), r0 * math.sin(az), 1.5), d, random.uniform(70, 175), random.uniform(1.0, 2.0), random.randint(50, 110), random.uniform(1.6, 3.2), random.choice(SOIL), start=f0 + random.randint(1, 5), dens=1.9)
-    late = ico("E_late", 1.0, (0, 0, 1.0), rough=0.4, scale=(RC * 0.7, RC * 0.7, 3.0)); flow(late, 'SMOKE', f0 + 60, 900, dens=0.9, temp=0.8, color=DUST[1], vn=2.0, vinit=(0.0, 0.0, 5.0))
+        jet("E_j%02d" % i, (r0 * math.cos(az), r0 * math.sin(az), 1.5), d, random.uniform(70, 175) * K, random.uniform(1.0, 2.0), random.randint(50, 110), random.uniform(1.6, 3.2) * K, random.choice(SOIL), start=f0 + random.randint(1, 5), dens=1.9)
+    late = ico("E_late", 1.0, (0, 0, 1.0), rough=0.4, scale=(RC * 0.7, RC * 0.7, 3.0 * K)); flow(late, 'SMOKE', f0 + 60, 900, dens=0.9, temp=0.8, color=DUST[1], vn=2.0, vinit=(0.0, 0.0, 5.0))
 
 if __name__ == "__main__":
     kind = sys.argv[1]; cache_dir, res, frames = os.path.abspath(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
