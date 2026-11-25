@@ -18,10 +18,10 @@ FT = 0.3048; LB = 0.45359237; MPH = 0.44704
 BOMB = os.environ.get("LANC_BOMB", "tallboy").lower()
 _SPEC = {
     "tallboy": dict(                                   # Bomb, H.E., M.C., 12,000 lb
-        name="Tallboy", length=21.0 * FT, dia=38.0 * 0.0254, mass=12000.0 * LB, fill=5200.0 * LB,
-        case=10.0 * FT,                                # the steel case: some 10 ft (3.05 m); the rest is the light-alloy tail
+        name="Tallboy", length=21.0 * FT, dia=38.0 * 0.0254, mass=11885.0 * LB, fill=5200.0 * LB,   # OP 1665: 21 ft; 3 ft 2 in; 11,885 lb all up; about 5,200 lb of Torpex
+        case=(10.0 + 4.0 / 12.0) * FT,                 # body 10 ft 4 in; the light-alloy tail is the other 10 ft 8 in
         tail_w=42.0 * 0.0254,                          # across the fins: 3 ft 6 in (OP 1665), a little more than the body
-        nose=1.45, charge_back=1.70,                   # length of the ogival nose (from drawings; estimated); the middle of the filling behind the tip
+        nose=1.65, charge_back=1.75,                   # length of the ogival nose (measured off IWM CH 15363 and CH 15369); the middle of the filling behind the tip (estimated)
         h_rel=18000.0 * FT, v_rel=200.0 * MPH,         # the release: level, 18,000 ft above the target at 200 mph (the case given in OP 1665)
         spin=300.0,                                    # published spin at impact (OP 1665)
         fuze=0.5,                                      # delays of 0.5 s and 11 s are recorded for Tallboys (USSBS, Brest)
@@ -33,7 +33,7 @@ _SPEC = {
         name="Grand Slam", length=(25.0 + 5.0 / 12.0) * FT, dia=46.0 * 0.0254, mass=22400.0 * LB, fill=9135.0 * LB,   # 25 ft 5 in; 3 ft 10 in; 22,400 lb all up; 9,135 lb of Torpex (BBMF; 9,200 lb in Flower)
         case=12.5 * FT,                                # body 12 ft 6 in; the 13 ft 4 in tail overlaps it by 5 in
         tail_w=52.0 * 0.0254,                          # 4 ft 4 in across the fins
-        nose=1.45 * 46.0 / 38.0, charge_back=1.70 * 25.417 / 21.0,   # the Tallboy's outline scaled up (estimated)
+        nose=1.65 * 46.0 / 38.0, charge_back=1.75 * 25.417 / 21.0,   # the same proportions as the Tallboy's
         h_rel=12000.0 * FT, v_rel=200.0 * MPH,         # the first one, at Bielefeld on 14 March 1945, was released at 11,965 ft; 200 mph was the usual bombing speed
         spin=60.0,                                     # published spin at impact (OP 1665)
         fuze=11.0,                                     # the delay used at Bielefeld and Arnsberg

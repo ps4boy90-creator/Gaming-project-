@@ -4,7 +4,7 @@ Twelfth segment of the series, and the companion to segment 11. An Avro Lancaste
 March 1945, 12,000 ft up at 200 mph, releases one Grand Slam: Barnes Wallis's 22,000 lb bomb, the
 Tallboy's design made larger and the heaviest bomb used in the war. It has no bomb doors to open;
 the bomb is too big for them and hangs partly below the belly. The bomb falls for 27 seconds and
-reaches the yard of a German army depot at about 279 m/s. It goes some 15 m into the ground and
+reaches the yard of a German army depot at about 279 m/s. It goes some 16 m into the ground and
 stops; eleven seconds later its fuze fires 4,144 kg of Torpex under the yard. The film shows the
 burst from just above the ground and from the air with its radii, as the other bomb segments do,
 and then the crater. The depot is the one of segment 11, so the two films can be set side by side.
@@ -36,8 +36,8 @@ Release: level at 200 mph (89 m/s), 12,000 ft (3,658 m) above the target. The bo
 and travels about 2.4 km forward. It arrives at **279 m/s (915 ft/s, about 1,000 km/h, Mach 0.82)**
 on a path 72° below the horizontal, turning at about 60 rpm.
 
-In the ground (moist clay and loam): about 16 m along its path, 15 m down, in just over 0.1 s. The
-fuze fires 11 s after impact with the middle of the charge about 13 m down. The film does not make
+In the ground (moist clay and loam): about 16.5 m along its path, nearly 16 m down, in just over
+0.1 s. The fuze fires 11 s after impact with the middle of the charge about 14 m down. The film does not make
 the viewer wait: the frames run on from the bomb going in to the burst half a second later, and a
 card between them says "11 seconds later". The bomb has stopped long before either moment, so the
 burst is the same.
@@ -88,12 +88,12 @@ burst is the same.
   Slams were dropped on railway viaducts and bridges, U-boat shelters and coastal batteries. None was
   spent on a depot like this one.
 * **How deep the bomb goes.** Calculated with Young's equation for soil. Guesses: the soil number
-  (S = 7, moist clay and loam), the length of the nose and that the bomb stays whole and straight.
-  For reinforced concrete at 1,150 ft/s the same equation gives 2.0 m, against 7 ft 8 in (2.3 m) in
+  (S = 7, moist clay and loam) and that the bomb stays whole and straight.
+  For reinforced concrete at 1,150 ft/s the same equation gives 2.1 m, against 7 ft 8 in (2.3 m) in
   the 1946 trials.
 * **The 5 psi circle.** Scaled from the Mk 82's published radius by the cube root of the
   fillings' weights. Like the published radius for brick buildings it is for a burst at the surface:
-  a charge 13 m down sends less of its force into the air and more into the ground. The film says
+  a charge 14 m down sends less of its force into the air and more into the ground. The film says
   so on screen.
 * **The burst.** That a charge at this depth throws up earth rather than flame, and leaves a crater
   about 38 m across, follows the published crater. The height and speed of the column, how long the
@@ -101,10 +101,14 @@ burst is the same.
   thrown are staging. The simulation is the Tallboy's with every size and speed multiplied by 1.21,
   the cube root of the fillings' ratio.
 * **The fall.** A point mass with an estimated drag curve, as in segment 11.
-* **The bomb model.** The Tallboy's outline of segment 11 drawn to the Grand Slam's published
-  lengths and widths. The body is modelled 12 ft 6 in long and the tail as the rest (12 ft 11 in);
-  the published tail is 5 in longer because it overlaps the body. The red band's place and width
-  are a guess from "red band near nose".
+* **The bomb model.** Lengths, widths and weight are OP 1665's. The outline between them is drawn
+  to a wartime photograph of a Grand Slam being slung at Woodhall Spa (IWM CH 15369): the pointed
+  ogival nose, the dark body, a dark band at the joint, a light-coloured tail with its hand-holes
+  and "No 82 Mk I" stencilled on it, running out nearly to a point, and four short swept fins set a
+  little forward of that point. The body is modelled 12 ft 6 in long and the tail as the rest
+  (12 ft 11 in); the published tail is 5 in longer because it overlaps the body. The red band is
+  put where a photograph of the Tallboy shows a light ring round the point of the nose. The exact
+  green and the grey of the tail are guesses (the photograph is black and white).
 * **The Lancaster model.** Segment 11's, with the bomb doors left off, the opening closed in ahead
   of and behind the bomb, the nose turret's place faired over and no mid-upper turret. How far the
   bomb hangs below the belly (about 0.25 m here) is not from a source. The finish is the night

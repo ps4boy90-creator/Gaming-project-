@@ -13,7 +13,7 @@ from npost import readout, dashed, _mod
 
 ORDER = ["card", "approach", "intro", "release", "fall", "impact", "radius", "after", "summary"]
 N_SUMMARY = 228
-SPECS = [("BOMB", "Tallboy  ·  12,000 lb, medium capacity"), ("SIZE", "21 ft (6.4 m) long  ·  38 in (0.97 m) across"), ("WEIGHT", "about 5,440 kg (12,000 lb)"), ("EXPLOSIVE", "2,360 kg (5,200 lb) of Torpex"),
+SPECS = [("BOMB", "Tallboy  ·  12,000 lb, medium capacity"), ("SIZE", "21 ft (6.4 m) long  ·  38 in (0.97 m) across"), ("WEIGHT", "5,390 kg (11,885 lb)"), ("EXPLOSIVE", "2,360 kg (5,200 lb) of Torpex"),
          ("FUZE", "three tail pistols, here set to 0.5 s"), ("CARRIED BY", "Avro Lancaster, one bomb each"), ("FIRST USED", "June 1944  ·  designed by Barnes Wallis")]
 KMH = lambda v: int(round(v * 3.6, -1))
 SUB = (214, 214, 206)                                                                                       # the caption's second line: lighter than DIM, most of these shots are against a bright sky
@@ -99,7 +99,7 @@ def overlay_for(shot, i, n, m, info):
     elif shot == "intro":
         lower(d, "TALLBOY", "A streamlined steel case built to reach the ground at nearly the speed of sound and go deep into it before it bursts", io)
         A = lambda k: ease((i - 8 - 9 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
-        dim_line(d, (px["tail"][0], px["top"][1] - 150), (px["nose"][0], px["top"][1] - 150), "21 ft  ·  6.4 m  ·  ABOUT 5,440 kg", A(0))
+        dim_line(d, (px["tail"][0], px["top"][1] - 150), (px["nose"][0], px["top"][1] - 150), "21 ft  ·  6.4 m  ·  ABOUT 5,400 kg", A(0))
         for k, (key, big, small, col, ex_, ey_) in enumerate((("case", "CAST STEEL CASE", "2,360 kg OF TORPEX INSIDE", RED, 150, -130), ("fins", "FOUR FINS SET AT 5°", "THEY SPIN THE BOMB: 300 rpm AT IMPACT", AMBER, -60, 230),
                                                            ("joint", "LIGHT-ALLOY TAIL", "ABOUT HALF THE BOMB'S LENGTH", AMBER, -420, -140))):
             a = A(k + 1)
@@ -165,10 +165,10 @@ def summary_frame(bg, i, n, info):
     frame = bg.copy(); ov = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(ov); t = i / FPS; tag(d, 1.0); v = round(info["V_HIT"])
     text(d, (120, 140), "TALLBOY: THE NUMBERS", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
     a = ease((t - 0.4) / 0.5); d.rectangle([120, 248, 120 + int(1680 * a), 251], fill=(*AMBER, int(255 * a)))
-    rows = [("THE BOMB", "21 ft (6.4 m)  ·  38 in (0.97 m) across  ·  about 5,440 kg  ·  2,360 kg of Torpex", DIM),
+    rows = [("THE BOMB", "21 ft (6.4 m)  ·  38 in (0.97 m) across  ·  about 5,400 kg  ·  2,360 kg of Torpex", DIM),
             ("RELEASE", "18,000 ft (5,490 m) at 200 mph  ·  falls %d s (published: 37 s)" % round(info["TOF"]), DIM),
             ("AT IMPACT", "%d m/s ({:,} km/h)  ·  published: 1,097 ft/s (334 m/s), 300 rpm".format(KMH(info["V_HIT"])) % v, AMBER),
-            ("INTO THE GROUND", "about %d m in moist clay and loam (calculated), in under a tenth of a second" % round(info["D_PATH"] * math.sin(math.radians(info["DIVE"]))), DIM),
+            ("INTO THE GROUND", "about %d m in moist clay and loam (calculated), in about a tenth of a second" % round(info["D_PATH"] * math.sin(math.radians(info["DIVE"]))), DIM),
             ("FUZE", "0.5 s after impact  ·  delays of 0.5 s and 11 s are recorded for Tallboys", DIM),
             ("CRATER", "about %d m across  ·  published: 100 ft across, 80 ft deep" % round(2 * info["CRATER_R"]), RED),
             ("BRICK BUILDINGS", "demolished to about %d m (published: 120 ft), for a burst at the surface" % round(info["R_STRUCT"]), DIM),
