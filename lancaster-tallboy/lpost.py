@@ -257,10 +257,11 @@ def _load(root, shot):
     meta = json.load(open(os.path.join(d, "meta.json"))) if shot != "card" else {}
     return d, files, ({str(k): meta[str(int(f[1:5]))] for k, f in enumerate(files)} if shot != "card" else {})
 
-def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_frame, seq_of=None):
+def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_frame, seq_of=None, audio=None):
     """The three frame makers can be replaced: the Grand Slam segment passes its own (the same film with other words).
     seq_of(shot, n, meta, info) may return the order of a shot's frames: indices, or (index, hold) pairs for a frame
-    that is held (the overlay then finds hold, 0..1, in its meta)."""
+    that is held (the overlay then finds hold, 0..1, in its meta).  audio, if given, builds the sound track instead of
+    build_audio (same arguments)."""
     root = sys.argv[1]; out = sys.argv[2]; draft = "--draft" in sys.argv
     info = json.load(open(os.path.join(root, "timeline.json")))
     stage = os.path.join(root, "_master"); os.makedirs(stage, exist_ok=True)
@@ -291,7 +292,7 @@ def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_f
             frame.convert("RGB").save(os.path.join(stage, "m%05d.png" % g), compress_level=1); g += 1
         print("staged", shot, len(seq)); sys.stdout.flush()
     total = g / FPS
-    wav = os.path.join(root, "mix.wav"); build_audio(wav, starts, metas, lens, total, info)
+    wav = os.path.join(root, "mix.wav"); (audio or build_audio)(wav, starts, metas, lens, total, info)
     vf = "unsharp=5:5:0.55:5:5:0.0,vignette=PI/7,noise=alls=4:allf=t+u,format=yuv420p"
     cmd = ["ffmpeg", "-y", "-v", "error", "-framerate", str(FPS), "-i", os.path.join(stage, "m%05d.png"), "-i", wav,
            "-vf", vf, "-c:v", "libx264", "-preset", "medium" if draft else "slow", "-crf", "21" if draft else "18",
