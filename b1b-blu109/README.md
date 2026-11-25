@@ -93,7 +93,11 @@ sound limestone.
 * **Under the aircraft** the ground is the open desert of the earlier air segments, not mountains.
 * The cut-open warhead's inside (how far the nose is solid, the shape of the cavity, the fuze well)
   is drawn from the published wall thickness and photographs, not from a drawing.
-* The sound is synthesized.
+* **The sound** is mixed from recorded effects that stand in for the real thing (a jet engine on a
+  runway for the bomber, a rock driven into earth for the impact, a distant muffled explosion for the
+  burst, steam for venting gas, a wall coming down for the roof). They are from the Epidemic Sound
+  catalogue, are licensed and are not in this repository; `b1b-gbu28/gsfx.py` lists them. Without them
+  the post script falls back to a synthesized track.
 
 ## Files
 

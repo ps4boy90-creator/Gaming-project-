@@ -95,18 +95,27 @@ about 1.2 m of sound limestone.
   goes, not a measured blast.
 * **Guidance unit and tail** are shown crushed and stripped at the surface while the steel warhead
   goes on alone, which is what happens; exactly how is staging. No laser spot or designator is shown.
-* **The bomb model.** The lengths of the guidance unit and the tail, the canards, the wings' shape
-  and the inside of the warhead (how far the nose is solid, the fuze well) are estimated from
-  photographs.
+* **The bomb model** follows a profile photograph of the GBU-28: the slim seeker housing, the
+  control section with four large swept canards, the collar over the steel nose, the boxy tail fins
+  with panels that spring out to the full span, the strip with the two lugs and the cable conduit
+  along the body. Exact lengths of these parts, the canards' and fins' outlines and the inside of the
+  warhead (how far the nose is solid, the fuze well) are read off that photograph or estimated. The
+  paint (olive body, yellow band, grey guidance unit and tail) is the usual live-bomb scheme; the
+  bomb in the photograph is an all-grey inert one with a blue band.
 * The B-1B is the model of segment 09, with the same limits. Under the aircraft the ground is the
   open desert of the earlier air segments.
-* The sound is synthesized.
+* **The sound** is mixed from recorded effects that stand in for the real thing (a jet engine on a
+  runway for the bomber, a rock driven into earth for the impact, a distant muffled explosion for the
+  burst, steam for venting gas, a wall coming down for the roof). They are from the Epidemic Sound
+  catalogue, are licensed and are not in this repository; `b1b-gbu28/gsfx.py` lists them. Without them
+  the post script falls back to a synthesized track.
 
 ## Files
 
 - `gconst.py` — published figures, the fall, Young's equations and the layer-by-layer result (no bpy;
   `python3 gconst.py` prints the numbers above).
 - `gbomb.py` — the GBU-28/B in parts (warhead, guidance unit, tail with folding wings) and the cut-open BLU-113.
+- `gsfx.py` — loads and cuts the recorded sound effects (used by the post scripts of segments 09 and 10).
 - `gcarry.py` — the B-1B of `../b1b-blu109/` with a pylon and the bomb.
 - `gsite.py` — the plain from outside, and the same ground cut along the bomb's path.
 - `gsim.py` — the two Mantaflow bakes (`out`: seen from the surface; `in`: the section).
