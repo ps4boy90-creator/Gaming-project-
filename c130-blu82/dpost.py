@@ -99,7 +99,7 @@ def cut_overlay(d, i, n, m, info, hold):
         q = PX(rf, 48.5); text(d, (q[0], q[1] - 30), "BLAST FRONT", F_SEMI(24), INK, a * (1 - ease((rf - 120.0) / 20.0)), anchor="ma", tracking=2)
     a = ease((tb - 0.30) / 0.12) * (1 - ease((i - (n - 8)) / 7.0))
     if a > 0:
-        p0 = PX(-R, 0.0); p1 = PX(R, 0.0); y = p0[1] + 46; dim_line(d, (p0[0], y), (p1[0], y), "79 m (260 ft): NOTHING LEFT STANDING", a, AMBER, off=14)
+        p0 = PX(-R, 0.0); p1 = PX(R, 0.0); y = p0[1] + 40; dim_line(d, (p0[0], y), (p1[0], y), "79 m (260 ft): NOTHING LEFT STANDING", a, AMBER, off=-44)
     if tb < 0.34:
         lower(d, "THE BLAST GOES OUT SIDEWAYS", "About 1,000 lb per square inch near the centre (published)  ·  the trees nearest the burst are broken up altogether", ease(tb / 0.02) * (1 - ease((tb - 0.29) / 0.05)))
     else:
@@ -329,7 +329,10 @@ def main():
             elif shot == "summary":
                 a = ease(k / 14.0); frame = Image.blend(last, summary_frame(bg, k, n, info), a) if a < 1 else summary_frame(bg, k, n, info)
             else:
-                frame = grade(Image.open(os.path.join(d1, f1[k])).convert("RGB"), shot).resize((W, H), Image.LANCZOS).convert("RGBA")
+                src = Image.open(os.path.join(d1, f1[k])).convert("RGB")
+                if shot == "cutaway" and 0 < k < n - 1 and 0.0 <= m1[str(k)]["t"] <= 0.12:      # the fireball's first frames: the flame goes out in one step of the simulation; spread that over three frames
+                    src = Image.blend(Image.blend(Image.open(os.path.join(d1, f1[k - 1])).convert("RGB"), Image.open(os.path.join(d1, f1[k + 1])).convert("RGB"), 0.5), src, 0.5)
+                frame = grade(src, shot).resize((W, H), Image.LANCZOS).convert("RGBA")
                 if shot == "after" and k == n - 1:
                     last = frame.copy()
                 shadowed(frame, overlay_for(shot, k, n, m1[str(k)], info, hold=(j / hold) if j < hold else None))

@@ -107,7 +107,7 @@ python render_all.py frames sims c130_blu82.mp4
 A quick draft on a CPU (about an hour on four cores):
 
 ```bash
-VOL_STEP=3 python render_all.py frames sims draft.mp4 --res 640x360 --spp 5 --bake out:96:300,sec:96:260
+VOL_STEP=3 NO_PLUMES=1 python render_all.py frames sims draft.mp4 --res 640x360 --spp 5 --bake out:96:300,sec:96:260
 ```
 
 Set `RENDER_DEVICE=GPU` to render with Cycles on a graphics card. Frames and simulation caches are not

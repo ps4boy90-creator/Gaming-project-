@@ -165,7 +165,7 @@ def shot_release(n=N_OF["release"]):
 # ----------------------------------------------------------------------------- shots: the jungle from the air
 def shot_fall(n=N_OF["fall"]):
     """Beside the bomb through its last three and a half seconds: nearly upright under its parachute, the canopy coming up."""
-    t1 = -0.05; t0 = t1 - (n - 1) / FPS
+    t1 = -STRIKE[0] * ODT; t0 = t1 - (n - 1) / FPS                 # it ends where the next shot begins, with the camera still above the tree tops
     def cam_at(tb, u):
         p, q = bomb_site(C.T_BURST + tb); pos = p + np.array([lerp(-10.0, -5.0, u), lerp(30.0, 22.0, u), lerp(17.0, 12.0, u)]); return pos, (Vector(p + np.array([0.6, 0, -2.5])) - Vector(pos)).to_track_quat('-Z', 'Y')
     def frame(st, i):
@@ -190,7 +190,7 @@ def shot_strike(n=N_OF["strike"]):
     def frame(st, i):
         sf, tb, dt = strike_clock(i); st.set_time(tb, dt, {}); u = i / (n - 1)
         pos = np.array([-250.0 + 14.0 * u, -165.0 - 8.0 * u, 92.0 + 6.0 * u]); tgt = np.array([0.0, 0.0, 26.0 + 34.0 * smoothstep(0.15, 1.0, u)])
-        off, rq = shake(tb - float(C.t_front(300.0)), 1.6); st.look(pos + off, tgt, 30.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
+        off, rq = shake(tb - float(C.t_front(300.0)), 0.55); st.look(pos + off, tgt, 30.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
         p = C.bomb_state(C.T_BURST + min(tb, 0.0))[0]
         return tb, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"gz": (0, 0, 0), "bomb": tuple(p), "top": (0, 0, 45.0), "edge": (0.0, -C.R_LZ, 30.0), "edge2": (0.0, C.R_LZ, 30.0)})
     return n, frame
@@ -200,7 +200,7 @@ def shot_after(n=N_OF["after"]):
     def cam_at(tb, u):
         a = D(lerp(205.0, 252.0, u)); r = lerp(150.0, 132.0, u); pos = np.array([r * math.cos(a), r * math.sin(a), lerp(118.0, 100.0, u)]); return pos, (Vector((0.0, 0.0, -4.0)) - Vector(pos)).to_track_quat('-Z', 'Y')
     def frame(st, i):
-        tb = 60.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tb, dt, dict(plume=True, haze=0.6, no_sim=True)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(tb, u); st.look(pos, None, 28.0, quat=q)
+        tb = 60.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tb, dt, dict(plume=os.environ.get("NO_PLUMES") != "1", haze=0.6, no_sim=True)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(tb, u); st.look(pos, None, 28.0, quat=q)      # NO_PLUMES=1 leaves out the wisps of smoke, which are slow to render on a CPU
         st.key3(st.cam, lambda tt: cam_at(tt, u), tb, dt, True)
         an = {"c": (0, 0, 0.3)}; an.update({"r%02d" % k: (C.R_LZ * math.cos(k * math.pi / 24), C.R_LZ * math.sin(k * math.pi / 24), 0.5) for k in range(48)})
         return tb, dt, dict(samples=32, shutter=0.35, anchors=an)
