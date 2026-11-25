@@ -192,7 +192,7 @@ def _spinner_prop():
         for r0, r1 in zip(rr[:-1], rr[1:]):
             pts = []
             for r, sgn in ((r0, -1), (r1, -1), (r1, 1), (r0, 1)):
-                u = (r - 0.30) / (PROP_R - 0.30); ch = 0.10 + 0.24 * math.sin(math.pi * min(u * 1.25 + 0.1, 1.0)) ** 0.8 * (1.0 if u < 0.92 else 0.75); beta = math.radians(62.0 - 40.0 * u)
+                u = (r - 0.30) / (PROP_R - 0.30); ch = (0.10 + 0.24 * math.sin(math.pi * min(u * 1.25 + 0.1, 1.0)) ** 0.8 * (1.0 if u < 0.92 else 0.75)) * (1.3 if SPECIAL else 1.0)   # the Specials had broad "paddle" blades; beta = math.radians(62.0 - 40.0 * u)
                 pts.append(er * r + sgn * ch / 2 * (et * math.cos(beta) + EX * math.sin(beta)))
             nrm = np.cross(pts[1] - pts[0], pts[3] - pts[0]); S.add(*plate(pts, nrm, 0.035 * (1.2 - 0.8 * (r0 - 0.3) / PROP_R)), color=YELLOW if r0 > PROP_R - 0.12 * 2 else NIGHT)
     return S.mesh("lanc_prop", sharp=math.radians(40))

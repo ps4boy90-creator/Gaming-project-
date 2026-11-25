@@ -115,8 +115,8 @@ burst is the same.
   scheme of segment 11 with the code YZ in dull red, which is what the first four aircraft are said
   to have worn; photographs could not be consulted, so the letter "C" and the look of the faired
   nose are not checked against one. Later aircraft had a day scheme. The four-gun tail turret is
-  kept (accounts differ on whether two of its guns were removed). The propellers are segment 11's,
-  not the broad "paddle" blades fitted to these aircraft.
+  kept (accounts differ on whether two of its guns were removed). The propeller blades are made
+  broader than segment 11's for the "paddle" blades these aircraft had; by how much is a guess.
 * **The sound** is synthesized.
 
 ## Files
