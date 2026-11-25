@@ -1,0 +1,115 @@
+# Explosion Comparison · 11 — Tallboy from an Avro Lancaster on a German army depot
+
+Eleventh segment of the series, and the first set in the Second World War. An Avro Lancaster of
+1944, 18,000 ft up at 200 mph, opens its bulged bomb doors and releases one Tallboy, Barnes Wallis's
+12,000 lb "earthquake" bomb. The bomb falls for 34 seconds, spinning on its offset fins, and reaches
+the yard of a German army depot at about 330 m/s, just under the speed of sound. It goes some 15 m
+into the ground and stops; half a second later its fuze fires 2,360 kg of Torpex under the yard. The
+film shows the burst from the ground and from the air with its radii, as the other bomb segments
+do, and then the crater. Everything is procedural (Blender as a Python module, Cycles) and shares
+the render setup, effects and post tools with the earlier segments. Nobody is modelled anywhere, and
+there are no flags or insignia on the depot.
+
+**Status: draft only.** The code is complete and has been rendered end to end as a low-resolution
+draft on a CPU (640×360, 6 samples, a coarse simulation). The 1080p render on a GPU is still to do,
+so there is no `renders/` folder here yet.
+
+**The depot and the strike are invented.** How deep the bomb goes is calculated; the crater's width
+is the published one; the two outer radii are scaled from the Mk 82's, as in segment 07.
+
+| # | Shot | What it shows | Speed |
+|---|------|---------------|-------|
+| 1 | `card`     | The bomb turning on a studio backdrop + spec panel | – |
+| 2 | `approach` | The Lancaster on its run-up; the bomb doors open on the bomb | real time |
+| 3 | `intro`    | The bomb with its dimensions, a 6 m lorry beside it for scale | – |
+| 4 | `release`  | The links let go; the bomb drops and begins to turn | real time, then half speed |
+| 5 | `fall`     | Riding down behind the bomb through its last 3.5 s | real time |
+| 6 | `impact`   | From the ground: into the yard; half a second later the yard is thrown into the air | 2.5× slow, then 1.25× |
+| 7 | `radius`   | From the air: the burst and its circles, with a Mk 84's for comparison | about 1.5× slow |
+| 8 | `after`    | Half a minute later: the crater and the wrecked buildings round it | real time |
+| 9 | summary    | Table of the numbers (made in post) | – |
+
+## The numbers in the film
+
+Release: level at 200 mph (89 m/s), 18,000 ft (5,486 m) above the target. The bomb falls 33.7 s
+and travels about 3 km forward. It arrives at **330 m/s (1,081 ft/s, about 1,190 km/h, Mach 0.97)**
+on a path 75° below the horizontal, turning at about 300 rpm. Published for the same release:
+1,097 ft/s (334 m/s) and 300 rpm; one source gives 37 s for the fall, which does not agree with that
+speed (a fall that slow would arrive slower).
+
+In the ground (moist clay and loam): about 16 m along its path, 15.5 m down, in under 0.1 s. The fuze
+fires at 0.5 s with the middle of the charge about 14 m down. For 2,360 kg of Torpex that is close
+to the depth at which a buried charge throws out the widest crater.
+
+| Circle in the radius shot | Radius | Basis |
+|---|---|---|
+| Crater | 15 m (100 ft across) | published |
+| Reinforced-concrete buildings destroyed | about 48 m | the Mk 82's 16 m × cube root of the fillings' ratio |
+| 5 psi (34 kPa) blast | about 93 m | the Mk 82's 31 m × the same factor; for a burst at the surface |
+| Mk 84, 5 psi, for comparison | about 53 m | as in segment 07 |
+
+## What is sourced and what is not
+
+**From sources**
+
+| Item | Value | Source |
+|------|-------|--------|
+| Tallboy | 21 ft long; 38 in across; about 12,000 lb; 5,200 lb of Torpex topped with TNT; one-piece cast steel case with a solid nose; No. 78 tail of light alloy with four fins set at 5° for a right-hand spin; three No. 58 tail pistols in the base plate; no lug: twin suspension links coupled beneath the bomb by a release clip | US Navy OP 1665, *British Explosive Ordnance* (1946); Bomber Command Museum of Canada; Australian War Memorial |
+| Fall | released at 18,000 ft and 200 mph: striking velocity 1,097 ft/s, spin 300 rpm; 37 s of fall | OP 1665; Bomber Command Museum of Canada |
+| Fuze delays | 0.5 s and 11 s on the Tallboys that hit the Brest U-boat bunker | US Strategic Bombing Survey, Physical Damage Division |
+| Crater | 100 ft across and 80 ft deep | Wikipedia, "Tallboy (bomb)" (not traced further) |
+| Against concrete | 5 ft 7 in (1.7 m) into reinforced concrete at maximum striking velocity (Farge, 1946); at Brest nine direct hits, none through the roof before bursting | Project Ruby report (quoted second-hand); US Strategic Bombing Survey |
+| Lancaster | span 102 ft; length 69 ft 6 in; wing area about 1,300 sq ft; root chord 16 ft, chord at the tip joint 9 ft 2 9/16 in; NACA 23018 to 23012; outer panels at 7° dihedral; tailplane 33 ft; track 23 ft 9 in; bomb bay 33 ft; three-blade propellers 13 ft across; bulged doors for the Tallboy; mid-upper turret still fitted in August 1944; code KC for No. 617 Squadron | lancaster-archive.com; Wikipedia, "Avro Lancaster"; avrolancaster.co.uk; IBCC Digital Archive |
+| Penetration equations | Young, *Penetration Equations*, Sandia report SAND97-2426 (1997) | the report |
+| Mk 82 radii | 16 m (buildings), 31 m (5 psi) | as in segment 07 (GICHD / Ordtech) |
+
+**Not from sources (calculated or illustration)**
+
+* **The depot.** Barrack blocks, garages, stores, a headquarters block, watch towers, a fence and
+  a dozen 3-ton lorries round a gravel yard. It is a stand-in for "a German army base of 1944", not
+  a real place. Tallboys were in fact kept for targets that ordinary bombs could not break: railway
+  tunnels and viaducts, U-boat and E-boat bunkers, V-weapon sites, the battleship *Tirpitz*. None
+  was spent on a depot like this one.
+* **How deep the bomb goes.** Calculated with Young's equation for soil. Guesses: the soil number
+  (S = 7, moist clay and loam), the length of the nose (1.45 m) and that the bomb stays whole and
+  straight. Against 5 m of reinforced concrete the same equation gives 1.5 m, close to the 1.7 m of the 1946 trials.
+* **The two outer circles.** Scaled from the Mk 82's published radii by the cube root of the
+  fillings' weights, exactly as segment 07 does for the Mk 83 and Mk 84. They take no account of
+  Torpex being stronger than tritonal, and they are for a burst at the surface: a charge 14 m
+  down sends less of its force into the air and more into the ground. The film says so on screen.
+* **The burst.** That a charge at this depth throws up earth rather than flame, and leaves a crater
+  about 30 m across, follows the published crater and the general behaviour of buried charges. The
+  height and speed of the column, how long the earth takes to fall, which buildings come down (those
+  within about 55 m) and how the lorries are thrown are staging. The simulation is driven by
+  hand-placed sources. The crater is drawn 9 m deep; the published 80 ft would include the broken
+  ground beneath it.
+* **The fall.** A point mass with an estimated drag curve (0.10, rising towards Mach 1). It gives
+  1,081 ft/s against the published 1,097.
+* **The bomb model.** The curve of the nose, where the body is widest, the taper to the tail joint,
+  the fins' outline and the lengths of case and tail ("some 10 ft" and "about half") are drawn after
+  photographs and published drawings. The dark green paint with a red and a light green band is the
+  usual scheme for British high-explosive bombs of 1944; it is not checked for the Tallboy itself.
+* **The Lancaster model.** Section shapes, the outlines of nose, canopy, nacelles and fins, the
+  place of the outer engines (7.55 m from the centre line) and of the turrets are proportioned
+  from drawings and photographs. Camouflage (Dark Green and Dark Earth over Night), roundels (Type
+  C1 on the fuselage, Type B above the wings), fin flash and red codes follow the usual Bomber
+  Command scheme and were not checked against a particular aircraft; "KC-A" is not meant as one.
+  The landing gear is up; there are no panel lines, aerials, exhaust flames or crew. The shape and
+  swing of the suspension links are a guess from the one-line description in OP 1665.
+* **The sound** is synthesized.
+
+## Files
+
+- `lconst.py` — published figures, the fall, Young's equation, the radii (no bpy; `python3 lconst.py` prints the numbers above).
+- `lbomb.py` — the Tallboy: steel case, light-alloy tail, four offset fins.
+- `llanc.py` — the Lancaster with bulged bomb doors, the bomb and its links.
+- `lsite.py` — the depot, the crater, the wrecked buildings, the thrown lorries and earth.
+- `lsim.py` — the Mantaflow bake of the burst.
+- `lshots.py` — the eight render shots and the frame renderer.
+- `lpost.py` — title card, captions, radius circles, closing table, sound, encode.
+- `render_all.py` — bakes if needed, renders every shot (resumable) and runs post.
+
+```
+pip install bpy numpy pillow scipy    # Blender as a Python module (Python 3.13), plus ffmpeg on the PATH
+RENDER_DEVICE=GPU python3 lancaster-tallboy/render_all.py <frames_root> <sim_root> [out.mp4]
+```
