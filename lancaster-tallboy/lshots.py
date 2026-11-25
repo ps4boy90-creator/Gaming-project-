@@ -154,7 +154,7 @@ def shot_approach(n=N_OF["approach"]):
     def frame(st, i):
         t = -9.5 + i / FPS; dt = 1.0 / FPS; st.set_time(t, dt, {}); u = smoothstep(0.0, 1.0, i / (n - 1)); sp = np.array(JET_Q @ Vector(llanc.STORE))
         pos = np.array([lerp(30.0, 15.0, u), lerp(31.0, 15.5, u), lerp(1.5, -8.5, u)]); st.look(pos, sp + np.array([lerp(-3.5, 0.6, u), 0.0, lerp(1.2, 0.2, u)]), lerp(36.0, 42.0, u))
-        return t, dt, dict(samples=40, shutter=0.4, anchors={"bomb": tuple(sp + np.array([1.6, 0, -0.3])), "doors": tuple(sp + np.array([-3.0, 0.9, -0.9])), "wing": (-1.5, 9.0, 0.6)}, extra=dict(doors=float(smoothstep(T_DOORS[0], T_DOORS[1], t))))
+        return t, dt, dict(samples=40, shutter=0.4, anchors={"bomb": tuple(sp + np.array([1.6, 0, -0.3])), "doors": tuple(sp + np.array([-3.0, 0.9, -0.9])), "wing": (-1.5, 9.0, 0.6)}, extra=dict(doors=0.0 if llanc.SPECIAL else float(smoothstep(T_DOORS[0], T_DOORS[1], t))))
     return n, frame
 
 def shot_release(n=N_OF["release"]):
@@ -305,7 +305,7 @@ def main():
         sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
     tl = dict(TOF=C.TOF, THROW=C.THROW, V_REL=C.V_REL, V_HIT=C.V_HIT, MACH_HIT=C.MACH_HIT, DIVE=C.DIVE, H_REL=C.H_REL, FUZE=C.FUZE_DELAY, RPM=C.RPM_HIT, D_PATH=C.D_PATH, T_STOP=C.T_STOP, DEPTH=C.DEPTH_BURST,
-              CRATER_R=C.CRATER_R, R_STRUCT=C.R_STRUCT, R_BLAST=C.R_BLAST, R_MK84=C.R_MK84, R_CMP=C.R_CMP, R_TALLBOY=C.R_TALLBOY, BOMB=C.BOMB, NAME=C.NAME, TOP=TOP_H, CRATER_PUB_D=C.CRATER_PUB_D, T_DOORS=list(T_DOORS), T_UNDER=T_UNDER, fps=FPS)
+              CRATER_R=C.CRATER_R, R_STRUCT=C.R_STRUCT, R_BLAST=C.R_BLAST, R_MK84=C.R_MK84, R_CMP=C.R_CMP, R_TALLBOY=C.R_TALLBOY, BOMB=C.BOMB, NAME=C.NAME, TOP=TOP_H, FUZE_REAL=C.FUZE_REAL, FUZE_CUT=C.FUZE_CUT, FILL=C.FILL, MASS=C.TB_M, SPIN=C.SPIN_RPM, CRATER_PUB_D=C.CRATER_PUB_D, T_DOORS=list(T_DOORS), T_UNDER=T_UNDER, fps=FPS)
     json.dump(tl, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "timeline.json"), "w"))
     meta_path = os.path.join(a.out, "meta.json")
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}

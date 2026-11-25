@@ -22,7 +22,7 @@ KL = C.K_L; KD = C.K_D; TAG = C.BOMB                    # scale on a Tallboy's l
 S_WIDE = 1.80 * KL                                      # the body is widest here, then narrows gently to the joint with the tail
 R_JOINT = 0.385 * KD; R_END = 0.115 * KD                # radius at the joint and at the end of the tail cone
 FIN_S = (L - (L - CL) * 0.612, L - (L - CL) * 0.463, L - 0.03, L)   # a fin: root leading edge, tip leading edge, tip trailing edge, root trailing edge
-FIN_R = R - 0.01                                        # the fins reach the width of the body
+FIN_R = C.TAIL_W / 2                                    # the fins stand a little wider than the body
 BODY = (0.060, 0.082, 0.052, 1); TAILC = (0.118, 0.135, 0.112, 1); BAND_R = (0.42, 0.035, 0.030, 1); BAND_G = (0.16, 0.34, 0.14, 1); STEEL = (0.20, 0.20, 0.21, 1)
 
 def r_out(s):
@@ -47,7 +47,7 @@ def _case():
     S = Shell(); st = _st_case()
     S.add(*revolve([(X0 - s, r_out(s)) for s in st][::-1] , 48), color=BODY)
     S.add(*revolve([(X0 - CL - 0.002, r_out(CL)), (X0 - CL - 0.002, 0.0)], 48), color=BODY)
-    for s0, w, c in ((0.98 * KL, 0.050 * KL, BAND_R), (1.10 * KL, 0.050 * KL, BAND_G)):                               # filled-bomb and high-explosive bands round the nose
+    for s0, w, c in (((0.98 * KL, 0.050 * KL, BAND_R),) if TAG == "grandslam" else ((0.98, 0.050, BAND_R), (1.10, 0.050, BAND_G))):   # bands round the nose (the Grand Slam: "green over-all; red band near nose", OP 1665)
         S.add(*revolve([(X0 - s, r_out(s) + 0.0015) for s in np.linspace(s0, s0 + w, 4)][::-1], 48), color=c)
     return S.mesh(TAG + "_case", sharp=math.radians(40))
 

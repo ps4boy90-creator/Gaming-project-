@@ -104,7 +104,7 @@ class Base:
         S = Shell(); self.near = []
         for k_, (x, y, lx, ly, h, roof, cw) in enumerate(BUILDINGS):
             d = math.hypot(x, y) - 0.5 * min(lx, ly)
-            if d < C.R_STRUCT * 1.15:
+            if d < C.R_STRUCT * 1.45:
                 B = Shell(); _building(B, x, y, lx, ly, h, roof, cw); ob = new_obj("Near%d" % k_, B.mesh("near%d" % k_, sharp=math.radians(30)), col, self.mat)
                 g = Geo()
                 for j in range(int(lx * ly * 0.55)):
@@ -132,8 +132,8 @@ class Base:
         for k_, (x, y, yaw) in enumerate(LORRIES):
             ob = bpy.data.objects.new("Lorry%d" % k_, lm); col.objects.link(ob); d = math.hypot(x, y)
             q0 = Quaternion((0, 0, 1), yaw); ob.rotation_mode = 'QUATERNION'; ob.location = (x, y, 0.0); ob.rotation_quaternion = q0
-            if d < C.R_STRUCT * 1.3:
-                v = 34.0 * (1.0 - d / (C.R_STRUCT * 1.6)); rest = q0 @ Quaternion((1, 0, 0), float(rng.choice([math.pi / 2, -math.pi / 2, math.pi])))
+            if d < C.R_STRUCT * 1.7:
+                v = 34.0 * (1.0 - d / (C.R_STRUCT * 2.1)); rest = q0 @ Quaternion((1, 0, 0), float(rng.choice([math.pi / 2, -math.pi / 2, math.pi])))
                 pc = Piece(ob, (x, y, 0.9), (x / d * v, y / d * v, v * 0.75), (-y / d, x / d, 0.2), float(rng.uniform(2.5, 5.0)), 0.9, tuple(rest), drag=0.5); self.lorries.append((ob, pc, q0, d))
         # ---- the hole it goes in by, clods round the crater, earth thrown out
         hm, N, L, P = nodemat("EntryHole"); P.inputs["Base Color"].default_value = (0.012, 0.011, 0.010, 1); P.inputs["Roughness"].default_value = 1.0

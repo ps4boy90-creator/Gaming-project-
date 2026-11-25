@@ -296,7 +296,7 @@ def lanc_mat(name="LancPaint"):
     return m
 
 class Lancaster:
-    def __init__(self, col=None, name="Lanc", store=False, code="YZ" if SPECIAL else "KC", letter="A"):
+    def __init__(self, col=None, name="Lanc", store=False, code="YZ" if SPECIAL else "KC", letter="C" if SPECIAL else "A"):
         col = col or bpy.context.scene.collection; M = bpy.data.materials
         self.root = bpy.data.objects.new(name, None); col.objects.link(self.root); self.root.rotation_mode = 'QUATERNION'
         pm = M.get("LancPaint") or lanc_mat()

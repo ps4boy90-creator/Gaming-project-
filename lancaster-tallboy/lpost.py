@@ -50,7 +50,7 @@ def card_frame(img, i, n):
     a = ease((t - 1.7) / 0.6)
     text(d, (x0, 936), "Dropped in 1944 and 1945 by Nos. 617 and 9 Squadrons, Royal Air Force,", F_MED(28), INK, a)
     text(d, (x0, 970), "on targets that ordinary bombs could not break.", F_MED(28), INK, a)
-    text(d, (x0, 1016), "The depot and the strike are invented. Depth and radii are calculated, not measured.", F_MED(26), DIM, a)
+    text(d, (x0, 1016), "The depot and the strike are invented. The depth it reaches is calculated, not measured.", F_MED(26), DIM, a)
     base.alpha_composite(ov)
     return base.convert("RGB")
 
@@ -121,7 +121,7 @@ def overlay_for(shot, i, n, m, info):
         if a > 0 and seen(an["target"]):
             callout(d, *P(an["target"]), "AIM POINT", "THE DEPOT'S YARD", RED, a, dx=170, dy=-170)
         if a > 0 and seen(an["barracks"]) and i > 44:
-            callout_l(d, *P(an["barracks"]), "BARRACKS", "", AMBER, a * ease((i - 44) / 8.0), dx=-90, dy=-90)
+            (callout_l if an["barracks"][0] > 0.24 else callout)(d, *P(an["barracks"]), "BARRACKS", "", AMBER, a * ease((i - 44) / 8.0), dx=-90 if an["barracks"][0] > 0.24 else 40, dy=-90 if an["barracks"][0] > 0.24 else -150)
     elif shot == "impact":
         tp = t; td = tp - info["FUZE"]
         readout(d, "SLOW MOTION", "T + {:,} ms".format(max(0, int(round(tp * 1000)))), ease((i - 2) / 6.0), INK, "5.4 t BOMB  ·  2,360 kg OF TORPEX")
@@ -137,8 +137,8 @@ def overlay_for(shot, i, n, m, info):
             callout(d, *P(an["top"]), "100 m UP", "", AMBER, a, dx=230, dy=-40)
     elif shot == "radius":
         paths = m.get("paths", {}); A = lambda k: ease((i - 22 - 12 * k) / 10.0) * (1 - ease((i - (n - 8)) / 7.0))
-        lower(d, "HOW FAR IT REACHES", "Crater about %d m across (published)  ·  the two outer circles are scaled from the Mk 82's, for a burst at the surface" % cr, io)
-        for k, (key, col, big, small, dx, dy) in enumerate((("crater", RED, "CRATER: %d m ACROSS" % cr, "PUBLISHED: 100 ft", 260, -60), ("struct", AMBER, "BUILDINGS DESTROYED", "TO ABOUT %d m" % rs, 110, 150), ("blast", INK, "5 psi BLAST", "TO ABOUT %d m" % rb, -90, -80))):
+        lower(d, "HOW FAR IT REACHES", "Crater %d m across and brick buildings demolished to %d m are published figures  ·  the 5 psi circle is scaled from the Mk 82's" % (cr, rs), io)
+        for k, (key, col, big, small, dx, dy) in enumerate((("crater", RED, "CRATER: %d m ACROSS" % cr, "PUBLISHED: 100 ft", 260, -60), ("struct", AMBER, "BUILDINGS DEMOLISHED", "BRICK, TO ABOUT %d m  ·  PUBLISHED: 120 ft" % rs, 110, 150), ("blast", INK, "5 psi BLAST", "TO ABOUT %d m" % rb, -90, -80))):
             a = A(k)
             if key in paths:
                 ring(d, paths[key], col, a, 5 if key == "crater" else 4, dash=key != "crater")
@@ -151,7 +151,7 @@ def overlay_for(shot, i, n, m, info):
         if a > 0 and cmp_a and seen(cmp_a):
             callout_l(d, *P(cmp_a), "Mk 84 (2,000 lb): 5 psi", "TO ABOUT %d m, FOR COMPARISON" % round(info["R_MK84"]), MK84, a, dx=-80, dy=-110)
         text(d, (W - 64, 60), "SLOWED ABOUT 1.5 TIMES", F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
-        text(d, (W - 64, 94), "A BURST THIS DEEP SENDS LESS OF ITS FORCE INTO THE AIR AND MORE INTO THE GROUND", F_SEMI(22), DIM, 1.0, anchor="ra", tracking=2)
+        text(d, (W - 64, 94), "THE RADII ARE FOR A BURST AT THE SURFACE: ONE THIS DEEP SENDS MORE OF ITS FORCE INTO THE GROUND", F_SEMI(22), DIM, 1.0, anchor="ra", tracking=2)
     elif shot == "after":
         a = ease((i - 18) / 10.0) * (1 - ease((i - (n - 14)) / 10.0))
         if a > 0 and seen(an["a"]) and seen(an["b"]):
@@ -171,8 +171,8 @@ def summary_frame(bg, i, n, info):
             ("INTO THE GROUND", "about %d m in moist clay and loam (calculated), in under a tenth of a second" % round(info["D_PATH"] * math.sin(math.radians(info["DIVE"]))), DIM),
             ("FUZE", "0.5 s after impact  ·  delays of 0.5 s and 11 s are recorded for Tallboys", DIM),
             ("CRATER", "about %d m across  ·  published: 100 ft across, 80 ft deep" % round(2 * info["CRATER_R"]), RED),
-            ("BUILDINGS DESTROYED", "to about %d m  ·  Mk 84 (2,000 lb): about 27 m" % round(info["R_STRUCT"]), DIM),
-            ("5 psi BLAST", "to about %d m  ·  Mk 84: about %d m  ·  both for a burst at the surface" % (round(info["R_BLAST"]), round(info["R_MK84"])), DIM),
+            ("BRICK BUILDINGS", "demolished to about %d m (published: 120 ft), for a burst at the surface" % round(info["R_STRUCT"]), DIM),
+            ("5 psi BLAST", "to about %d m (scaled from the Mk 82's)  ·  Mk 84 (2,000 lb): about %d m" % (round(info["R_BLAST"]), round(info["R_MK84"])), DIM),
             ("CARRIED BY", "Avro Lancaster with bulged bomb doors  ·  Nos. 617 and 9 Squadrons, 1944–45", DIM)]
     y = 278
     for r, (lab, val, col) in enumerate(rows):
@@ -182,8 +182,8 @@ def summary_frame(bg, i, n, info):
     a = ease((t - 3.4) / 0.6)
     text(d, (120, 872), "Against concrete it did less than its legend says: in the 1946 trials at Farge a Tallboy went 5 ft 7 in (1.7 m) into", F_MED(30), INK, a)
     text(d, (120, 910), "reinforced concrete, and at Brest in 1944 no hit went through the U-boat bunker's roof before it burst.", F_MED(30), INK, a)
-    text(d, (120, 962), "The depot is invented. Fall, impact speed and depth are calculated; the two outer radii are scaled from the Mk 82's published ones.", F_MED(26), DIM, a)
-    text(d, (120, 998), "Sources: US Navy OP 1665; Bomber Command Museum of Canada; US Strategic Bombing Survey; Project Ruby report; Young, SAND97-2426.", F_MED(26), DIM, a)
+    text(d, (120, 962), "The depot is invented. Fall, impact speed and depth are calculated; the 5 psi radius is scaled from the Mk 82's published one.", F_MED(26), DIM, a)
+    text(d, (120, 998), "Sources: US Navy OP 1665; Bomber Command Museum of Canada; US Strategic Bombing Survey; von Kármán, NDRC; Project Ruby report; Young, SAND97-2426.", F_MED(26), DIM, a)
     frame.alpha_composite(ov)
     return frame
 
@@ -221,7 +221,7 @@ def build_audio(path, starts, metas, lens, total, info):
         mx.add(0.65 + 0.12 * k, gp.s_tick(), 0.35, 0.3)
     la = L["approach"]; ramp = np.minimum(1.0, np.arange(int((la + 0.4) * SR)) / (0.5 * SR)); mx.add(T["approach"], s_merlins(la + 0.4, 3) * ramp, 0.55, -0.15); mx.add(T["approach"], s_merlins(la + 0.4, 8) * ramp, 0.55, 0.15)
     td_ = when("approach", lambda m: m.get("doors", 0) > 0.02)
-    if td_:
+    if td_ and info.get("BOMB", "tallboy") == "tallboy":            # the bomb doors (the Grand Slam aircraft has none)
         mx.add(td_, gp.s_whoosh(2.0, 200, 900, 0.5), 0.35); mx.add(td_ + 1.9, gp.s_thud(0.8), 0.5)
     mx.add(T["intro"], gp.s_drone(L["intro"]), 0.4); mx.add(T["intro"] + 0.05, gp.s_thud(0.8), 0.4)
     for k in range(5):
@@ -257,8 +257,10 @@ def _load(root, shot):
     meta = json.load(open(os.path.join(d, "meta.json"))) if shot != "card" else {}
     return d, files, ({str(k): meta[str(int(f[1:5]))] for k, f in enumerate(files)} if shot != "card" else {})
 
-def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_frame):
-    """The three frame makers can be replaced: the Grand Slam segment passes its own (the same film with other words)."""
+def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_frame, seq_of=None):
+    """The three frame makers can be replaced: the Grand Slam segment passes its own (the same film with other words).
+    seq_of(shot, n, meta, info) may return the order of a shot's frames: indices, or (index, hold) pairs for a frame
+    that is held (the overlay then finds hold, 0..1, in its meta)."""
     root = sys.argv[1]; out = sys.argv[2]; draft = "--draft" in sys.argv
     info = json.load(open(os.path.join(root, "timeline.json")))
     stage = os.path.join(root, "_master"); os.makedirs(stage, exist_ok=True)
@@ -268,11 +270,12 @@ def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_f
     for shot in ORDER:
         starts[shot] = g; fi, fo = FADES[shot]
         if shot == "summary":
-            n = N_SUMMARY; metas[shot] = {}; bg = Image.blend(last.convert("RGB").filter(ImageFilter.GaussianBlur(14)), Image.new("RGB", (W, H), PANEL), 0.84).convert("RGBA"); seq = list(range(n))
+            n = N_SUMMARY; metas[shot] = {}; bg = Image.blend(last.convert("RGB").filter(ImageFilter.GaussianBlur(14)), Image.new("RGB", (W, H), PANEL), 0.84).convert("RGBA"); seq = [(k, None) for k in range(n)]
         else:
-            d1, f1, m1 = _load(root, shot); n = len(f1); metas[shot] = m1; seq = list(range(n))
+            d1, f1, m1 = _load(root, shot); n = len(f1); seq = (seq_of(shot, n, m1, info) if seq_of else None) or list(range(n))
+            seq = [e if isinstance(e, tuple) else (e, None) for e in seq]; metas[shot] = {str(j): m1[str(k)] for j, (k, h) in enumerate(seq)} if m1 else {}
         lens[shot] = len(seq)
-        for j, k in enumerate(seq):
+        for j, (k, hold) in enumerate(seq):
             if shot == "card":
                 frame = card_frame(Image.open(os.path.join(d1, f1[k])), k, n).convert("RGBA")
             elif shot == "summary":
@@ -281,7 +284,7 @@ def main(card_frame=card_frame, overlay_for=overlay_for, summary_frame=summary_f
                 frame = Image.open(os.path.join(d1, f1[k])).convert("RGB").resize((W, H), Image.LANCZOS).convert("RGBA")
                 if shot == "after" and k == n - 1:
                     last = frame.copy()
-                shadowed(frame, overlay_for(shot, k, n, m1[str(k)], info))
+                shadowed(frame, overlay_for(shot, k, n, m1[str(k)] if hold is None else dict(m1[str(k)], hold=hold), info))
             fade = min(1.0, (j + 1) / fi if fi else 1.0, (len(seq) - j) / fo if fo else 1.0)
             if fade < 1.0:
                 frame = Image.blend(Image.new("RGBA", frame.size, (0, 0, 0, 255)), frame, fade)

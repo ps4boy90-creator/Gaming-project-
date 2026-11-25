@@ -15,7 +15,8 @@ draft on a CPU (640×360, 6 samples, a coarse simulation). The 1080p render on a
 so there is no `renders/` folder here yet.
 
 **The depot and the strike are invented.** How deep the bomb goes is calculated; the crater's width
-is the published one; the two outer radii are scaled from the Mk 82's, as in segment 07.
+and the radius for brick buildings are published ones; the 5 psi radius is scaled from the Mk 82's,
+as in segment 07.
 
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
@@ -44,8 +45,8 @@ to the depth at which a buried charge throws out the widest crater.
 | Circle in the radius shot | Radius | Basis |
 |---|---|---|
 | Crater | 15 m (100 ft across) | published |
-| Reinforced-concrete buildings destroyed | about 48 m | the Mk 82's 16 m × cube root of the fillings' ratio |
-| 5 psi (34 kPa) blast | about 93 m | the Mk 82's 31 m × the same factor; for a burst at the surface |
+| Brick wall-bearing buildings demolished | about 37 m (120 ft) | published, for a burst at ground level |
+| 5 psi (34 kPa) blast | about 93 m | the Mk 82's 31 m × cube root of the fillings' ratio; for a burst at the surface |
 | Mk 84, 5 psi, for comparison | about 53 m | as in segment 07 |
 
 ## What is sourced and what is not
@@ -54,10 +55,11 @@ to the depth at which a buried charge throws out the widest crater.
 
 | Item | Value | Source |
 |------|-------|--------|
-| Tallboy | 21 ft long; 38 in across; about 12,000 lb; 5,200 lb of Torpex topped with TNT; one-piece cast steel case with a solid nose; No. 78 tail of light alloy with four fins set at 5° for a right-hand spin; three No. 58 tail pistols in the base plate; no lug: twin suspension links coupled beneath the bomb by a release clip | US Navy OP 1665, *British Explosive Ordnance* (1946); Bomber Command Museum of Canada; Australian War Memorial |
+| Tallboy | 21 ft long; 38 in across the body and 3 ft 6 in across the fins; about 12,000 lb (11,885 lb in OP 1665); 5,200 lb of Torpex topped with TNT; one-piece cast steel case with a solid nose; No. 78 tail of light alloy with four fins set at 5° for a right-hand spin; three No. 58 tail pistols in the base plate; no lug: twin suspension links coupled beneath the bomb by a release clip | US Navy OP 1665, *British Explosive Ordnance* (1946); Bomber Command Museum of Canada; Australian War Memorial |
 | Fall | released at 18,000 ft and 200 mph: striking velocity 1,097 ft/s, spin 300 rpm; 37 s of fall | OP 1665; Bomber Command Museum of Canada |
 | Fuze delays | 0.5 s and 11 s on the Tallboys that hit the Brest U-boat bunker | US Strategic Bombing Survey, Physical Damage Division |
 | Crater | 100 ft across and 80 ft deep | Wikipedia, "Tallboy (bomb)" (not traced further) |
+| Damage to buildings | brick wall-bearing buildings demolished to about 120 ft by a burst at ground level (about 150 ft for the 22,000 lb bomb) | Th. von Kármán, *Explosives and Terminal Ballistics* (1946) |
 | Against concrete | 5 ft 7 in (1.7 m) into reinforced concrete at maximum striking velocity (Farge, 1946); at Brest nine direct hits, none through the roof before bursting | Project Ruby report (quoted second-hand); US Strategic Bombing Survey |
 | Lancaster | span 102 ft; length 69 ft 6 in; wing area about 1,300 sq ft; root chord 16 ft, chord at the tip joint 9 ft 2 9/16 in; NACA 23018 to 23012; outer panels at 7° dihedral; tailplane 33 ft; track 23 ft 9 in; bomb bay 33 ft; three-blade propellers 13 ft across; bulged doors for the Tallboy; mid-upper turret still fitted in August 1944; code KC for No. 617 Squadron | lancaster-archive.com; Wikipedia, "Avro Lancaster"; avrolancaster.co.uk; IBCC Digital Archive |
 | Penetration equations | Young, *Penetration Equations*, Sandia report SAND97-2426 (1997) | the report |
@@ -73,14 +75,15 @@ to the depth at which a buried charge throws out the widest crater.
 * **How deep the bomb goes.** Calculated with Young's equation for soil. Guesses: the soil number
   (S = 7, moist clay and loam), the length of the nose (1.45 m) and that the bomb stays whole and
   straight. Against 5 m of reinforced concrete the same equation gives 1.5 m, close to the 1.7 m of the 1946 trials.
-* **The two outer circles.** Scaled from the Mk 82's published radii by the cube root of the
-  fillings' weights, exactly as segment 07 does for the Mk 83 and Mk 84. They take no account of
-  Torpex being stronger than tritonal, and they are for a burst at the surface: a charge 14 m
-  down sends less of its force into the air and more into the ground. The film says so on screen.
+* **The 5 psi circle.** Scaled from the Mk 82's published radius by the cube root of the
+  fillings' weights, exactly as segment 07 does for the Mk 83 and Mk 84. It takes no account of
+  Torpex being stronger than tritonal. Like the published radius for brick buildings, it is for a
+  burst at the surface: a charge 14 m down sends less of its force into the air and more into the
+  ground. The film says so on screen.
 * **The burst.** That a charge at this depth throws up earth rather than flame, and leaves a crater
   about 30 m across, follows the published crater and the general behaviour of buried charges. The
   height and speed of the column, how long the earth takes to fall, which buildings come down (those
-  within about 55 m) and how the lorries are thrown are staging. The simulation is driven by
+  within about 53 m) and how the lorries are thrown are staging. The simulation is driven by
   hand-placed sources. The crater is drawn 9 m deep; the published 80 ft would include the broken
   ground beneath it.
 * **The fall.** A point mass with an estimated drag curve (0.10, rising towards Mach 1). It gives
@@ -101,6 +104,7 @@ to the depth at which a buried charge throws out the widest crater.
 ## Files
 
 - `lconst.py` — published figures, the fall, Young's equation, the radii (no bpy; `python3 lconst.py` prints the numbers above).
+  With `LANC_BOMB=grandslam` in the environment these modules draw segment 12 instead (see `../lancaster-grandslam`).
 - `lbomb.py` — the Tallboy: steel case, light-alloy tail, four offset fins.
 - `llanc.py` — the Lancaster with bulged bomb doors, the bomb and its links.
 - `lsite.py` — the depot, the crater, the wrecked buildings, the thrown lorries and earth.
