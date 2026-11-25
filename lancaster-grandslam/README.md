@@ -105,18 +105,24 @@ burst is the same.
   to a wartime photograph of a Grand Slam being slung at Woodhall Spa (IWM CH 15369): the pointed
   ogival nose, the dark body, a dark band at the joint, a light-coloured tail with its hand-holes
   and "No 82 Mk I" stencilled on it, running out nearly to a point, and four short swept fins set a
-  little forward of that point. The body is modelled 12 ft 6 in long and the tail as the rest
+  little forward of that point. "TORPEX D1" is stencilled twice round the nose, as on the bomb
+  photographed under PD119. The body is modelled 12 ft 6 in long and the tail as the rest
   (12 ft 11 in); the published tail is 5 in longer because it overlaps the body. The red band is
   put where a photograph of the Tallboy shows a light ring round the point of the nose. The exact
   green and the grey of the tail are guesses (the photograph is black and white).
-* **The Lancaster model.** Segment 11's, with the bomb doors left off, the opening closed in ahead
-  of and behind the bomb, the nose turret's place faired over and no mid-upper turret. How far the
-  bomb hangs below the belly (about 0.25 m here) is not from a source. The finish is the night
-  scheme of segment 11 with the code YZ in dull red, which is what the first four aircraft are said
-  to have worn; photographs could not be consulted, so the letter "C" and the look of the faired
-  nose are not checked against one. Later aircraft had a day scheme. The four-gun tail turret is
-  kept (accounts differ on whether two of its guns were removed). The propeller blades are made
-  broader than segment 11's for the "paddle" blades these aircraft had; by how much is a guess.
+* **The Lancaster model.** Segment 11's, with the changes of the B.I (Special) checked against
+  wartime photographs of 617 Squadron's aircraft (RAF Memorial Flight Club; IWM CH 15375, PB996
+  "YZ-C" releasing a Grand Slam over Arnsberg on 19 March 1945): no bomb doors and the opening
+  closed in ahead of and behind the bomb, which hangs about a third of its width below the belly;
+  the nose turret's place faired over; no mid-upper turret; the night finish (black sides and
+  undersides) with the code YZ ahead of the roundel and the letter C behind it in dull red, close
+  up to the roundel, as on that aircraft. The photographs are black and white, so the colours are
+  the standard ones for the scheme, not measured. How far the bomb hangs down is judged from the
+  photographs. The four-gun tail turret is kept (accounts differ on whether two of its guns were
+  removed). The propeller blades are made broader than segment 11's for the "paddle" blades these
+  aircraft had; by how much is a guess. Later aircraft (PD119 "YZ-J" among them) wore a day scheme
+  with pale undersides. The strike in the film is invented; the aircraft is not meant to show a
+  particular sortie.
 * **The sound** is synthesized.
 
 ## Files

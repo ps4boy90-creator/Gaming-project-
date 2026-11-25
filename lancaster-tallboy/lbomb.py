@@ -104,11 +104,13 @@ class Bomb:
             if not me.materials:
                 me.materials.append(pm)
             o = bpy.data.objects.new(name + "_" + nm, me); col.objects.link(o); o.parent = self.spin; return o
-        self.ob = self.root; self.case = self.tail = self.mark = None
+        self.ob = self.root; self.case = self.tail = self.mark = self.mark2 = None
         if "case" in parts:
             self.case = ob("case", TAG + "_case", _case)
-            if TAG == "tallboy":                           # seen on the Tallboy's body; not on the side of the Grand Slam that was photographed
+            if TAG == "tallboy":                           # as on the Tallboy in IWM CH 15363
                 self.mark = ob("mark", TAG + "_stencil", _stencil)
+            else:                                          # the Grand Slam under PD119 as photographed: the filling's name twice round the nose
+                self.mark = ob("mark", TAG + "_stencil", lambda: _stencil(h=0.062, s0=1.06 * KL, a0=-40.0)); self.mark2 = ob("mark2", TAG + "_stencil2", lambda: _stencil(h=0.055, s0=0.60 * KL, a0=-75.0, name="_stencil2"))
         self.tmark = None
         if "tail" in parts:
             self.tmark = ob("tmark", TAG + "_tailno", lambda: _stencil(TAIL_NO, 0.065, along=True, s0=CL + 0.95 * KL, a0=-62.0, color=(0.015, 0.015, 0.015, 1), name="_tailno"))
@@ -119,6 +121,6 @@ class Bomb:
         self.spin.rotation_euler = (angle, 0.0, 0.0)
 
     def hide(self, case=None, tail=None):
-        for o, v in ((self.case, case), (self.tail, tail), (self.mark, case), (self.tmark, tail)):
+        for o, v in ((self.case, case), (self.tail, tail), (self.mark, case), (self.mark2, case), (self.tmark, tail)):
             if o is not None and v is not None:
                 o.hide_render = v

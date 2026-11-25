@@ -216,6 +216,11 @@ def _tail(S):
             sle, c = _fin_at(z); st.append((P(sle, sg * T_SPAN / 2, T_Z + z), c, 0.085, (-1, 0, 0), (0, sg, 0)))
         V, Q, T = surface(st, n); S.add(V, Q, T, NIGHT)
 
+def side_y(st, z, out=0.015):
+    """Half width of the fuselage skin (plus `out`) at station st and height z: markings are laid on the skin, which
+    narrows towards the tail, not on a flat plane."""
+    zc, w, up, dn, e = fus(st); h = up if z >= zc else dn; t = min(abs(z - zc) / h, 0.97); return (w + out) * (1.0 - t ** e) ** (1.0 / e)
+
 def _disc(S, pt, radii, colors, n=40):
     """Concentric rings of colour on a surface: pt(u, v) maps a point of the unit plane (metres) on to the skin."""
     a = np.linspace(0, 2 * np.pi, n, endpoint=False)
@@ -224,12 +229,13 @@ def _disc(S, pt, radii, colors, n=40):
         V = np.array([pt(rr * math.cos(t), rr * math.sin(t)) for t in a for rr in rs]); S.add(V, grid_faces(n, 4, wrap_u=True), None, col)
 
 ROUNDEL_S = 13.9                                                      # the fuselage roundel
+CODE_DS = (2.10, 1.45) if SPECIAL else (2.25, 1.65); CODE_SIZE = 1.8 if SPECIAL else 1.45                   # the code and the aircraft letter stand this far either side of it (close up to it on YZ-C, as photographed)
 
 def _markings(S, code="KC", letter="A"):
     IN = 0.0254
     for sg in (1, -1):
         zc, w, up, dn, e = fus(ROUNDEL_S); zr = zc - 0.08
-        _disc(S, lambda u, v: np.array([X0 - ROUNDEL_S - u, sg * (w + 0.012), zr + v]), [27 * IN, 24 * IN, 12 * IN, 9 * IN], [R_YEL, R_BLUE, R_WHITE, R_RED])       # Type C1, 54 in
+        _disc(S, lambda u, v: np.array([X0 - ROUNDEL_S - u, sg * side_y(ROUNDEL_S + u, zr + v), zr + v]), [27 * IN, 24 * IN, 12 * IN, 9 * IN], [R_YEL, R_BLUE, R_WHITE, R_RED])       # Type C1, 54 in
         yc = SPAN / 2 - 2.75; le, c, t, up_ = wing_at(sg * yc); sc_ = X0 - (le + c * 0.46 * CD)[0]
         _disc(S, lambda u, v: wing_surf(sg * yc + v, sc_ + u, True, 0.010), [1.20, 0.48], [R_BLUE, R_RED], n=48)                                                          # Type B, above the wings only
         sle, c = _fin_at(0.75); sf = sle + 0.33 * c                     # fin flash, 24 in by 36 in: red leading
@@ -246,13 +252,21 @@ def _codes(col, root, pm, code="KC", letter="A"):
     """Squadron code and aircraft letter in dull red, 4 ft high, as text turned into meshes on the flat of the fuselage sides."""
     obs = []
     for sg in (1, -1):
-        for txt, ds in ((code, -2.25 if sg > 0 else 2.25), (letter, 1.65 if sg > 0 else -1.65)):
-            cu = bpy.data.curves.new("code", 'FONT'); cu.body = txt; cu.size = 1.45; cu.align_x = 'CENTER'; cu.align_y = 'CENTER'; cu.space_character = 1.05
+        for txt, ds in ((code, -CODE_DS[0] if sg > 0 else CODE_DS[0]), (letter, CODE_DS[1] if sg > 0 else -CODE_DS[1])):
+            cu = bpy.data.curves.new("code", 'FONT'); cu.body = txt; cu.size = CODE_SIZE; cu.align_x = 'CENTER'; cu.align_y = 'CENTER'; cu.space_character = 1.05
             tmp = bpy.data.objects.new("code_tmp", cu); col.objects.link(tmp); bpy.context.view_layer.update()
             me = bpy.data.meshes.new_from_object(tmp.evaluated_get(bpy.context.evaluated_depsgraph_get())); bpy.data.objects.remove(tmp, do_unlink=True); bpy.data.curves.remove(cu)
-            at = me.attributes.new("col", 'FLOAT_COLOR', 'POINT'); at.data.foreach_set("color", np.tile(np.array(CODE, np.float32), len(me.vertices)))
             me.materials.append(pm); o = bpy.data.objects.new("Code", me); col.objects.link(o); o.parent = root
-            s = ROUNDEL_S + ds; zc, w, up, dn, e = fus(s); o.location = (X0 - s, sg * (w + 0.012), zc - 0.08); o.rotation_euler = (math.pi / 2, 0, math.pi if sg > 0 else 0.0); obs.append(o)
+            import bmesh
+            bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.triangulate(bm, faces=bm.faces[:])
+            for _ in range(3):                                         # short edges, so that straight strokes follow the curve of the skin
+                bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=1, use_grid_fill=True)
+            bm.to_mesh(me); bm.free()
+            s = ROUNDEL_S + ds; zc, w, up, dn, e = fus(s); co = np.zeros(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3); out = np.zeros_like(co)
+            for i, (u, v, _) in enumerate(co):                         # u along the line of text (read from outside: towards the tail on the left side, the nose on the right), v up
+                sv = s + sg * u; zv = zc - 0.08 + v; out[i] = (X0 - sv, sg * side_y(sv, zv), zv)
+            me.vertices.foreach_set("co", out.ravel()); me.update(); obs.append(o)
+            at = me.attributes.new("col", 'FLOAT_COLOR', 'POINT'); at.data.foreach_set("color", np.tile(np.array(CODE, np.float32), len(me.vertices)))
     return obs
 
 def _door(sg):
@@ -269,7 +283,7 @@ def _hinge_z():
     zc, w, up, dn, e = fus(6.0); a = _bay_angle(6.0); return zc - (dn + _bulge(6.0)) * math.sin(a) ** (2.0 / e)
 
 HINGE_Z = _hinge_z()
-STORE = P(STORE_S, 0.0, BAY_ROOF - (0.14 if SPECIAL else 0.035) - C.TB_D / 2)   # the middle of the bomb's length, aircraft frame
+STORE = P(STORE_S, 0.0, BAY_ROOF - (0.20 if SPECIAL else 0.035) - C.TB_D / 2)   # the middle of the bomb's length, aircraft frame (the Grand Slam hangs about a third of its width below the belly)
 
 LINK_X = (2.0 * C.K_L, 0.8 * C.K_L)                                                 # the two suspension links, in the bomb's frame (round the steel case)
 
