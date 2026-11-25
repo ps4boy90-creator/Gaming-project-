@@ -66,7 +66,7 @@ class Stage(gsh.Stage):
                 if o.name.startswith("E_"):
                     bpy.data.objects.remove(o, do_unlink=True)
             self.dom = bpy.data.objects["BlastDomain"]; self.dom.data.materials.clear()
-            self.fire0 = 30.0 if kind == "out" else 9.0; bm_ = blast_material(density=4.2 if kind == "out" else 1.7, fire=self.fire0, ambient=0.06); self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]
+            self.fire0 = 30.0 if kind == "out" else 15.0; bm_ = blast_material(density=4.2 if kind == "out" else 2.6, fire=self.fire0, ambient=0.06); self.dom.data.materials.append(bm_); self.fire_node = bm_.node_tree.nodes[bm_["fire_node"]]; self.dens_node = bm_.node_tree.nodes[bm_["density_node"]]; self.dens0 = self.dens_node.inputs[1].default_value
             for nd in bm_.node_tree.nodes:                             # keep the dust's own browns: less of the lift towards pale grey that suits desert dust
                 if nd.type == 'VECT_MATH' and nd.operation == 'POWER':
                     nd.inputs[1].default_value = (0.80, 0.80, 0.80)
@@ -134,7 +134,9 @@ class Stage(gsh.Stage):
                 pl.update(bool(opt.get("plume", False)), tb); pl.fl.hide_render = True; pl.glow.hide_render = True
         if self.dom is not None:
             self.dom.hide_render = (not gone) or bool(opt.get("no_sim", False))
-            self.fire_node.inputs[1].default_value = self.fire0 * (0.02 + 0.98 * math.exp(-max(tb, 0.0) / (0.55 if k == "out" else 0.40)))
+            self.fire_node.inputs[1].default_value = self.fire0 * (0.02 + 0.98 * math.exp(-max(tb, 0.0) / (0.55 if k == "out" else 0.20)))
+            if k == "sec":                                           # in the section the dust is thinned as it spreads, so that the trees behind it can be seen
+                self.dens_node.inputs[1].default_value = self.dens0 * (0.035 + 0.965 * math.exp(-max(tb, 0.0) / 0.11))
 
 # ----------------------------------------------------------------------------- shots: in the air
 def shot_approach(n=N_OF["approach"]):
@@ -276,7 +278,7 @@ def render_intro(out_dir, res, spp, frames, n=N_OF["intro"]):
            "cwall": (x0 + 0.3, 0, zb + R - 0.01), "cfill": (x0 - 0.4, 0, zb - 0.1), "cboost": (x0 + L / 2 - 0.36, 0, zb), "cfuze": (x0 + L / 2 + E - 0.12, 0, zb), "cbot": (x0, 0, zb - R)}
     meta_path = os.path.join(out_dir, "meta.json"); meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
     for i in (frames if frames is not None else range(n)):
-        u = smoothstep(0.0, 1.0, i / (n - 1)); cam.data.lens = 50; cam.location = (lerp(0.30, -0.20, u), -16.5, 2.0); cam.rotation_euler = (math.radians(90.0), 0, 0)
+        u = smoothstep(0.0, 1.0, i / (n - 1)); cam.data.lens = 50; cam.location = (lerp(0.85, 0.35, u), -16.5, 2.0); cam.rotation_euler = (math.radians(90.0), 0, 0)
         bpy.context.view_layer.update(); proj = lambda p: (lambda v: [float(v.x), float(1 - v.y), float(v.z)])(world_to_camera_view(sc, cam, Vector(p)))
         meta[str(i)] = dict(t=i / FPS, anchors={kk: proj(p) for kk, p in pts.items()}); json.dump(meta, open(meta_path, "w"))
         if os.path.exists(os.path.join(out_dir, "f%04d.png" % i)):

@@ -124,8 +124,8 @@ def overlay_for(shot, i, n, m, info, hold=None):
         A = lambda k: ease((i - 8 - 9 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
         dim_line(d, (px["tail"][0], px["top"][1] - 50), (px["nose"][0], px["top"][1] - 50), "3.60 m  ·  6,800 kg", A(0))
         dim_line(d, (px["nose"][0], px["bot"][1] + 34), (px["tip"][0], px["bot"][1] + 34), "0.97 m", A(1), AMBER, off=14, size=30)
-        for k, (key, big, small, col, ex_, ey_) in enumerate((("ext", "FUZE EXTENDER", "THE FUZE AT ITS TIP TOUCHES FIRST", AMBER, 70, -150), ("pack", "STABILISING PARACHUTE", "PACKED ON THE REAR END", AMBER, -450, 70),
-                                                           ("cwall", "WALL 6 mm THICK", "A TANK, NOT A FORGED CASE", RED, 470, 10), ("cfill", "5,700 kg OF EXPLOSIVE", "A SLURRY, POURED IN", RED, -760, -30), ("cboost", "BOOSTER", "", AMBER, 300, 100))):
+        for k, (key, big, small, col, ex_, ey_) in enumerate((("ext", "FUZE EXTENDER", "ITS FUZE TOUCHES FIRST", AMBER, 70, -150), ("pack", "STABILISING PARACHUTE", "PACKED ON THE REAR END", AMBER, -450, 70),
+                                                           ("cwall", "WALL 6 mm THICK", "A TANK, NOT A FORGED CASE", RED, 400, 10), ("cfill", "5,700 kg OF EXPLOSIVE", "A SLURRY, POURED IN", RED, -300, 135), ("cboost", "BOOSTER", "", AMBER, 300, 100))):
             a = A(k + 1)
             if a > 0:
                 callout(d, *px[key], big, small, col, a, dx=ex_, dy=ey_)

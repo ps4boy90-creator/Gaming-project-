@@ -276,7 +276,7 @@ class Jungle:
         if self.kind == "sec":
             self.dish2.value = 1.0 if on else 0.0
         self.debris.hide_render = tb < 0.9
-        e = (9.0e9 * math.exp(-tb / 0.22) if self.kind == "out" else 1.5e8 * math.exp(-tb / 0.07))                                  # the section is in slow motion and close: a short, weaker flash, or it hides everything
+        e = (9.0e9 * math.exp(-tb / 0.22) if self.kind == "out" else 6.0e7 * math.exp(-tb / 0.03))                                  # the section is in slow motion and close: a short, weaker flash, or it hides everything
         e = e * min(1.0, tb / 0.006) if 0.0 < tb < 3.0 else 0.0; self.flash.data.energy = e; self.flash.hide_render = e < 1e3
         for T in self.trees:
             r = T["r"]; tau = tb - float(C.t_front(r)); ob = T["ob"]; k = T["k"]

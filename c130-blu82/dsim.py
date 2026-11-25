@@ -29,7 +29,7 @@ def build(kind):
     fb2 = ico("E_fb2", 11.0, (0, 0, 9.0), rough=0.35, scale=(1.3, 1.3, 0.8)); flow(fb2, 'BOTH', F(2), F(5), dens=1.8, temp=2.6, fuel=0.9, color=PALE[1], vn=60.0, vinit=(0, 0, 40.0))
     n = 34
     for i in range(n):                                                                   # the skirt along the ground: soil dust and shredded wood
-        az = 2 * math.pi * (i + random.uniform(-0.3, 0.3)) / n; el = math.radians(random.uniform(2, 16) if kind == "out" else random.uniform(3, 38));        # seen edge-on in the section, a low skirt reads as a flat sheet: spread it higher there d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
+        az = 2 * math.pi * (i + random.uniform(-0.3, 0.3)) / n; el = math.radians(random.uniform(2, 16) if kind == "out" else random.uniform(3, 38)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))        # seen edge-on in the section a low skirt reads as a flat sheet: spread it higher there
         jet("E_s%02d" % i, (6 * d[0], 6 * d[1], 2.0), d, random.uniform(170, 300), random.uniform(3.2, 4.6), F(random.randint(26, 40)), random.uniform(3.0, 4.6), random.choice(SOIL + PALE + LEAF), start=F(random.randint(1, 3)), dens=1.5 if kind == "out" else 1.0, zmin=2.0)
     for i in range(16):                                                                  # stuff thrown higher
         az = random.uniform(0, math.tau); el = math.radians(random.uniform(30, 75)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
