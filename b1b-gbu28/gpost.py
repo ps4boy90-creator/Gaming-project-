@@ -222,7 +222,7 @@ def s_hiss(dur, seed=4):
     n = int(dur * SR); t = np.arange(n) / SR
     return (gp.bp(gp.noise(n), 500, 5000) * 1.4 + gp.lp(gp.noise(n), 200, 2) * 2.0) * np.minimum(1.0, t / 0.05) * (0.25 + 0.75 * np.exp(-t / (0.35 * dur))) * _mod(n, 6.0, 0.4, seed)
 
-def build_audio(path, starts, metas, lens, total, info):
+def build_audio_synth(path, starts, metas, lens, total, info):
     mx = gp.Mix(total); T = {k: v / FPS for k, v in starts.items()}; L = {k: v / FPS for k, v in lens.items()}
     def when(shot, pred):
         m = metas[shot]
@@ -271,6 +271,78 @@ def build_audio(path, starts, metas, lens, total, info):
     x = x / (np.abs(x).max() + 1e-9) * 0.89
     with wave.open(path, "wb") as w_:
         w_.setnchannels(2); w_.setsampwidth(2); w_.setframerate(SR); w_.writeframes((x * 32767).astype("<i2").tobytes())
+
+def build_audio_sfx(path, starts, metas, lens, total, info):
+    """The soundtrack from recorded effects (see gsfx.py): jet engines, a metal release, rushing air, an impact in earth, a
+    deep muffled explosion, gas venting, masonry coming down, wind, and a low tonal bed under the title and the tables."""
+    import gsfx as S
+    mx = gp.Mix(total); T = {k: v / FPS for k, v in starts.items()}; L = {k: v / FPS for k, v in lens.items()}
+    def when(shot, pred):
+        m = metas[shot]
+        for i in sorted(int(k) for k in m):
+            if pred(m[str(i)]):
+                return T[shot] + i / FPS
+        return None
+    tick = lambda t, g=0.22: mx.add(t, gp.lp(gp.s_tick(), 3500, 1), g, 0.25)
+    # ---- title card
+    S.put(mx, 0.0, S.bed("drone", T["approach"] + 0.4, t0=6.0, fi=0.3, fo=0.5, level=0.07)); S.put(mx, 0.05, S.cut("boom_deep", 0.0, 2.0, speed=1.8, fo=1.0), 0.30)
+    for k in range(len(SPECS)):
+        tick(0.65 + 0.12 * k)
+    # ---- the aircraft: engines, low end reinforced
+    for shot, t0, g in (("approach", 2.0, 1.0), ("release", 9.0, 0.85)):
+        S.put(mx, T[shot], S.bed("jet", L[shot] + 0.3, t0=t0, fi=0.6, fo=0.35, lp=7000, level=0.085), g); S.put(mx, T[shot], S.bed("quake", L[shot] + 0.3, t0=20.0, fi=0.6, fo=0.35, lp=160, level=0.03), g)
+    # ---- the bomb, whole and cut open
+    S.put(mx, T["intro"], S.bed("drone", L["intro"], t0=22.0, fi=0.4, fo=0.4, level=0.065)); S.put(mx, T["intro"] + 0.05, S.cut("boom_deep", 0.0, 1.8, speed=1.8, fo=1.0), 0.22)
+    for k in range(5):
+        tick(T["intro"] + (8 + 9 * k) / FPS)
+    # ---- release
+    tr = when("release", lambda m: m["t"] >= 0.0); tw = when("release", lambda m: m.get("open", 0) > 0.05)
+    if tr:
+        S.put(mx, tr - 0.04, S.cut("latch", 5.55, 1.3), 0.75); S.put(mx, tr + 0.2, S.cut("whoosh", 16.4, 3.6, fi=0.2, fo=0.8), 0.40, -0.2)
+    if tw:
+        S.put(mx, tw - 0.03, S.cut("latch", 1.9, 0.9), 0.38, 0.2)
+    # ---- the fall: air rushing past, louder and louder
+    lf = L["fall"]; w = S.bed("wind", lf, t0=34.0, speed=1.5, fi=0.25, fo=0.03, level=0.11) * np.linspace(0.45, 1.25, int(lf * SR))[:, None]; S.put(mx, T["fall"], w)
+    S.put(mx, T["fall"] + lf - 2.2, S.cut("whoosh", 32.6, 2.2, fi=0.6, fo=0.02), 0.55)
+    # ---- the strike, seen from the ground
+    th = when("strike", lambda m: m["t"] >= 0.0); tdet = when("strike", lambda m: m["t"] >= info["FUZE"]); tv = when("strike", lambda m: m["t"] >= info["FUZE"] + 0.12); te = when("strike", lambda m: m["t"] >= info["FUZE"] + info["T_DOOR"])
+    S.put(mx, T["strike"], S.bed("wind", L["strike"], t0=4.0, fi=0.3, fo=0.5, level=0.035))
+    if th:
+        S.put(mx, th - 0.95, S.cut("missile", 0.95, 0.95, fi=0.25, fo=0.01), 0.65)                    # it arrives
+        S.put(mx, th, S.cut("impact", 10.0, 1.4), 0.95); S.put(mx, th, S.cut("boom_deep", 0.0, 2.2, lp=260, drive=3.0), 0.22); S.put(mx, th, S.cut("boom_deep", 0.0, 1.3, speed=2.6, fo=0.5), 0.60); S.put(mx, th + 0.3, S.cut("debris", 2.1, 2.2, fo=0.6), 0.32, 0.1)
+    if tdet:
+        S.put(mx, tdet + 0.02, S.cut("boom_muffled", 6.3, 6.0, fo=1.5, drive=2.5), 0.50); S.put(mx, tdet + 0.02, S.cut("boom_muffled", 6.3, 2.6, speed=2.3, fo=1.2), 0.80)   # the burst, 20 m down: deep, with a body that small loudspeakers can play
+    if tv:
+        S.put(mx, tv, S.cut("hiss", 3.1, 5.5, speed=0.6, fi=0.2, fo=2.0, lp=2200), 0.20, 0.3); S.put(mx, tv + 0.15, S.cut("hiss", 9.0, 5.0, speed=0.6, fi=0.2, fo=2.0, lp=2000), 0.16, 0.55)
+    if te:
+        S.put(mx, te, S.cut("latch", 9.1, 1.2), 0.55, -0.5); S.put(mx, te + 0.05, S.cut("debris", 0.0, 2.0, fo=0.6), 0.45, -0.5); S.put(mx, te + 0.05, S.cut("hiss", 14.0, 4.5, speed=0.6, fi=0.15, fo=2.0, lp=2000), 0.16, -0.5)
+    # ---- the section
+    tc = T["cutaway"]; lc = L["cutaway"]; pre, pen, one, ms, k1, ms2 = info["CUT"]; hold = HOLD.get("cutaway", 0) / FPS; RUN = {r[0]: r for r in info["RUN"]}
+    fi = lambda t_: t_ / ms if t_ <= k1 * ms else k1 + (t_ - k1 * ms) / ms2; at = lambda fr: tc + hold + fr / FPS
+    S.put(mx, tc, S.bed("drone", lc, t0=30.0, fi=0.5, fo=0.8, level=0.05))
+    t_in = at(pre); t_room = at(pre + fi(RUN["room"][6])); tb = at(pre + pen)
+    g = S.bed("quake", t_room - t_in + 0.4, t0=40.0, fi=0.08, fo=0.4, lp=4500, hp=420, level=0.060); n_ = len(g); g *= np.interp(np.arange(n_) / SR, [0, 0.3, t_room - t_in, t_room - t_in + 0.4], [1.0, 1.0, 0.55, 0.0])[:, None]; S.put(mx, t_in, g)   # grinding through the ground, slowing
+    S.put(mx, t_in, S.cut("impact", 10.0, 2.4, speed=0.55), 0.85); S.put(mx, t_in, S.cut("boom_deep", 0.0, 3.0, speed=0.7, lp=300, drive=3.0), 0.20); S.put(mx, t_in, S.cut("boom_deep", 0.0, 1.8, speed=1.9, fo=0.8), 0.50)
+    for name, gn in (("slab", 0.60), ("roof", 0.60)):
+        S.put(mx, at(pre + fi(RUN[name][6])), S.cut("debris", 0.0, 2.6, speed=0.5, fo=0.8), gn, 0.1); S.put(mx, at(pre + fi(RUN[name][6])), S.cut("boom_deep", 0.0, 1.5, speed=2.2, fo=0.6), 0.34)
+    S.put(mx, tb, S.cut("boom_deep", 0.0, 8.0, speed=0.6, fo=2.0, drive=3.0), 0.45); S.put(mx, tb + 0.04, S.cut("boom_muffled", 6.3, 4.0, speed=1.5, fo=2.0), 0.85)   # the burst, slowed: a deep layer and a body above it
+    S.put(mx, tb, S.cut("boom_deep", 0.0, 2.2, speed=2.0, fo=1.0), 0.55); S.put(mx, tb + 0.1, S.cut("debris", 0.0, 3.0, speed=0.6, fo=1.0), 0.32, 0.2)
+    S.put(mx, tb + 0.6, S.cut("hiss", 4.0, 6.5, speed=0.5, fi=0.6, fo=2.5, lp=1800), 0.13, -0.3)
+    j_col = one + (0.62 * 240.0 - one) / 3.0; tcol = tb + j_col / FPS; dur = max(tc + lc - tcol - 0.1, 0.5)
+    S.put(mx, tcol, S.cut("collapse", 2.2, dur, speed=0.75, fi=0.15, fo=1.0), 0.60, 0.1)
+    # ---- afterwards
+    ta = T["after"]; la_ = L["after"] + L["summary"]; S.put(mx, ta, S.bed("wind", la_, t0=6.0, fi=0.5, fo=1.0, level=0.045)); S.put(mx, ta, S.bed("hiss", L["after"] + 0.6, t0=14.0, speed=0.6, fi=0.4, fo=1.2, lp=1800, level=0.012))
+    # ---- closing table
+    ts_ = T["summary"]; S.put(mx, ts_, S.bed("drone", L["summary"], t0=8.0, fi=0.6, fo=1.2, level=0.06)); S.put(mx, ts_ + 0.1, S.cut("boom_deep", 0.0, 2.0, speed=1.8, fo=1.0), 0.28)
+    for r in range(9):
+        tick(ts_ + 0.7 + 0.22 * r)
+    S.finish(mx, total, path)
+
+def build_audio(path, starts, metas, lens, total, info):
+    import gsfx
+    if gsfx.available():
+        return build_audio_sfx(path, starts, metas, lens, total, info)
+    print("NOTE: recorded effects not found in %s - using the synthesized soundtrack" % gsfx.DIR); return build_audio_synth(path, starts, metas, lens, total, info)
 
 FADES = {"card": (8, 6), "approach": (8, 5), "intro": (6, 6), "release": (6, 5), "fall": (5, 0), "strike": (0, 8), "cutaway": (10, 8), "after": (6, 0), "summary": (0, 16)}
 
