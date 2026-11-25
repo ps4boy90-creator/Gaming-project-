@@ -17,7 +17,7 @@ The film says so on its title card, on the section and in the closing table.
 
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
-| 1 | `card`     | The B-1B on a studio backdrop, wings swinging from 15° to 67.5°, + spec panel | – |
+| 1 | `card`     | The bomb (a BLU-109 with its JDAM tail) on a studio backdrop, + spec panel | – |
 | 2 | `approach` | The aircraft at release height, wings swept | real time |
 | 3 | `intro`    | The bomb as dropped, and the BLU-109 warhead cut open: case, filling, fuze | – |
 | 4 | `bay`      | The bay opens on its rotary launcher; one bomb is ejected; the launcher turns | real time, then half speed |

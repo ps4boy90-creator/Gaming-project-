@@ -14,8 +14,8 @@ from npost import readout, dashed, _mod, s_roar, s_crackle
 ORDER = ["card", "approach", "intro", "bay", "fall", "strike", "cutaway", "after", "summary"]
 N_SUMMARY = 216
 HOLD = {"cutaway": 40}                                               # the first frame of the section is held while its caption is read
-SPECS = [("AIRCRAFT", "Rockwell B-1B Lancer"), ("SIZE", "44.5 m long  ·  10.4 m high"), ("WINGS", "swing from 15° to 67.5°  ·  41.8 m or 24.1 m across"), ("ENGINES", "four F101-GE-102 turbofans"),
-         ("BOMB BAYS", "three  ·  up to 24 bombs of 2,000 lb"), ("BOMB", "GBU-31(V)3/B: a BLU-109 with a JDAM tail")]
+SPECS = [("BOMB", "GBU-31(V)3/B  ·  BLU-109 warhead"), ("SIZE", "3.77 m long  ·  368 mm across"), ("WEIGHT", "about 960 kg (2,120 lb)"), ("EXPLOSIVE", "243 kg of tritonal"),
+         ("CASE", "forged steel, at least 27 mm thick"), ("GUIDANCE", "GPS and inertial (JDAM tail kit)"), ("DROPPED BY", "B-1B Lancer  ·  up to 24 on board")]
 
 def tag(d, a=1.0):
     text(d, (64, 54), "EXPLOSION COMPARISON", F_SEMI(30), INK, a, tracking=4)
@@ -36,7 +36,7 @@ def card_frame(img, i, n):
     a = ease((t - 0.45) / 0.5); d.rectangle([x0, 500, x0 + int(820 * a), 503], fill=(*AMBER, int(255 * a)))
     y = 548
     for k, (lab, val) in enumerate(SPECS):
-        a = ease((t - 0.65 - 0.12 * k) / 0.45); dx = int((1 - a) * 28); hot = lab == "BOMB"
+        a = ease((t - 0.65 - 0.12 * k) / 0.45); dx = int((1 - a) * 28); hot = lab == "EXPLOSIVE"
         text(d, (x0 + dx, y), lab, F_SEMI(31), RED if hot else DIM, a, tracking=3)
         text(d, (x0 + 230 + dx, y - 4), val, F_MED(36), INK, a)
         y += 62

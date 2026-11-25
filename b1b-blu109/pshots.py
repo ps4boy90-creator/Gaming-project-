@@ -3,7 +3,7 @@
   python3 pshots.py <shot> <out_dir> [--sim <sim_root>] [--res 1280x720] [--spp N] [--frames a-b | i,j,k]
 
 Shots and their sets:
-  card, intro          studio      the aircraft; the bomb whole and cut open
+  card, intro          studio      the bomb; the bomb whole and cut open
   approach, bay        air         the B-1B at release height; the bay opens and one bomb is ejected
   fall, strike, after  out         the mountainside from outside
   cutaway              sec         the same ground cut along the bomb's path
@@ -241,10 +241,11 @@ def _studio(scale, world=0.30, backdrop=(0.64, 0.61, 0.56)):
     return sc, cam
 
 def render_card(out_dir, res, spp, frames, n=N_OF["card"]):
-    """The aircraft turning slowly on a studio backdrop while its wings swing from 15 to 67.5 degrees (left half of the frame; the panel is added in post)."""
-    k = 8.0; sc, cam = _studio(k); sc.cycles.samples = spp or 40
-    pivot = bpy.data.objects.new("Pivot", None); sc.collection.objects.link(pivot); pivot.location = (0.2 * k, 0, 2.2 * k)
-    J = pb1b.B1B(stores=False); J.root.parent = pivot; J.root.rotation_quaternion = Quaternion((1, 0, 0), D(-34)) @ Quaternion((0, 1, 0), D(-3))
+    """The bomb, a BLU-109 with its JDAM tail, turning slowly on a studio backdrop (left half of the frame; the panel is added in post)."""
+    k = 0.80; sc, cam = _studio(k); sc.cycles.samples = spp or 40
+    pivot = bpy.data.objects.new("Pivot", None); sc.collection.objects.link(pivot); pivot.location = (-0.25 * k, 0, 2.1 * k)
+    B = pbomb.Bomb(name="Card"); B.ob.parent = pivot; B.ob.location = ((C.GBU_L - C.BLU_L) / 2, 0, 0)        # the middle of the whole bomb on the pivot
+    B.ob.rotation_quaternion = Quaternion((1, 0, 0), D(-12)) @ Quaternion((0, 1, 0), D(-4))
     cam.data.lens = 85; cam.location = (0.0, -27.0 * k, 2.6 * k); cam.rotation_euler = (math.radians(88.9), 0, 0); cam.data.shift_x = 0.25
     sc.render.resolution_x, sc.render.resolution_y = res; sc.render.use_border = True; sc.render.use_crop_to_border = True
     sc.render.border_min_x = 0.0; sc.render.border_max_x = 0.50; sc.render.border_min_y = 0.0; sc.render.border_max_y = 1.0
@@ -253,8 +254,7 @@ def render_card(out_dir, res, spp, frames, n=N_OF["card"]):
         u = i / n
         if os.path.exists(os.path.join(out_dir, "f%04d.png" % i)):
             continue
-        pivot.rotation_euler = (0, 0, math.radians(-128) + math.radians(14) * math.sin(2 * math.pi * u))
-        J.set(lerp(C.SWEEP_FWD, C.SWEEP_AFT, smoothstep(0.12, 0.80, 0.5 - 0.5 * math.cos(2 * math.pi * u))), 0.0, 0.0)
+        pivot.rotation_euler = (0, 0, math.radians(-150) + math.radians(14) * math.sin(2 * math.pi * u))
         sc.render.filepath = os.path.join(out_dir, "f%04d.png" % i); t = time.time(); bpy.ops.render.render(write_still=True)
         print("FRAME card %d %.1fs" % (i, time.time() - t)); sys.stdout.flush()
 
