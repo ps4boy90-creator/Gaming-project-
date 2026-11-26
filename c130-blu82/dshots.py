@@ -338,10 +338,10 @@ def main():
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
     from bpy_extras.object_utils import world_to_camera_view
     for i in frames:
-        fp = os.path.join(a.out, "f%04d.png" % i)
-        if os.path.exists(fp):
+        fp = os.path.join(a.out, "f%04d.png" % i); have = os.path.exists(fp)
+        if have and str(i) in meta:
             continue
-        t0 = time.time()
+        t0 = time.time()                                             # a frame that exists without its entry in meta.json gets the entry rebuilt, not a new render
         sc.frame_set(0)
         t, dt, info = frame(st, i)
         sf = info.get("sim", 0)
@@ -355,9 +355,10 @@ def main():
         m = dict(t=float(t), td=float(t), sim=int(sf), anchors={k: proj(p) for k, p in info.get("anchors", {}).items()})
         m.update(info.get("extra", {}))
         meta[str(i)] = m
-        sc.render.filepath = fp
-        bpy.ops.render.render(write_still=True)
-        print("FRAME %s %d t=%.4f sim=%d %.1fs" % (a.shot, i, t, sf, time.time() - t0)); sys.stdout.flush()
+        if not have:
+            sc.render.filepath = fp
+            bpy.ops.render.render(write_still=True)
+        print("%s %s %d t=%.4f sim=%d %.1fs" % ("META" if have else "FRAME", a.shot, i, t, sf, time.time() - t0)); sys.stdout.flush()
         json.dump(meta, open(meta_path, "w"))
     sys.stdout.flush(); os._exit(0)
 

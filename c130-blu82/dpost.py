@@ -160,9 +160,9 @@ def overlay_for(shot, i, n, m, info, hold=None):
         text(d, (W - 64, 94), "FIREBALL AND CLOUD ARE SIZED BY RULE OF THUMB AND EYEWITNESS ACCOUNTS, NOT MEASURED", F_SEMI(22), DIM, ease(tb / 0.3), anchor="ra", tracking=2)
         a1 = ease((i - 3) / 8.0) * (1 - ease((tb - 1.1) / 0.3)); a2 = ease((tb - 1.5) / 0.3) * (1 - ease((tb - 4.6) / 0.4)); a3 = ease((tb - 5.2) / 0.4) * (1 - ease((i - (n - 10)) / 8.0))
         if a1 > 0:
-            lower(d, "IT BURSTS JUST ABOVE THE GROUND", "The fuze on the extender touches first  ·  a fireball about 60 m across; the blast spreads out through the trees instead of digging a crater", a1)
+            lower(d, "IT BURSTS JUST ABOVE THE GROUND", "The fuze on its extender touches first  ·  a fireball about 60 m across  ·  the blast goes out sideways", a1)
         if a2 > 0:
-            lower(d, "A CIRCLE OF FOREST IS GONE", "About 1,000 lb per square inch near the centre (published)  ·  crews felt the shock in the aircraft, 1,800 m up and more than a kilometre away", a2)
+            lower(d, "A CIRCLE OF FOREST IS GONE", "About 1,000 lb per square inch near the centre (published)  ·  the shock was felt in aircraft 1,800 m up", a2)
         if a3 > 0:
             lower(d, "THE CLOUD CLIMBS HUNDREDS OF METRES", "In 1991 soldiers who saw one of these from a distance reported that a nuclear weapon had been used", a3)
         a = ease((i - 4) / 6.0) * (1 - ease((tb + 0.08) / 0.06))

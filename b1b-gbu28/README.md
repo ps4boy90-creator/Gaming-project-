@@ -10,9 +10,10 @@ on the surface there is only a hole and, seconds later, smoke. Everything is pro
 Python module, Cycles) and shares the aircraft, render setup, effects and post tools with the earlier
 segments. Nobody is modelled anywhere.
 
-**Status: not rendered at full quality yet.** The code is complete and has been checked end to end with a
-low-resolution draft rendered on a CPU; the 1080p render on a GPU is still to do, so there is no
-`renders/` folder here yet.
+**Rendered** on 26 November 2026 on a rented Runpod pod (one NVIDIA RTX PRO 4500 Blackwell, Cycles with OptiX;
+the simulations baked on the pod's CPU): frames at 1280 × 720, finished at 1920 × 1080. The three films of
+segments 09, 10 and 11 shared the card and took about two and three quarter hours together, about 2 US dollars
+of pod time. The film (b1b_gbu28.mp4, 59 s) and stills from it are in `renders/`.
 
 **The GBU-28 is not a B-1B weapon.** In service it is dropped by the F-15E and the B-2, and first by the
 F-111F. The B-1B was asked for; what it has really flown, in tests from 2024, is the GBU-28's 5,000 lb

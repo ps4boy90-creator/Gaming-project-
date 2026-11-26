@@ -8,9 +8,10 @@ the concrete roof, across the room and into the floor, where its fuze fires it 6
 after the impact. Everything is procedural (Blender as a Python module, Cycles) and shares the render
 setup, effects and post tools with the earlier segments. Nobody is modelled anywhere.
 
-**Status: not rendered at full quality yet.** The code is complete and has been checked end to end with a
-low-resolution draft rendered on a CPU (640 × 360, a few samples a pixel); the 1080p render on a GPU is still
-to do, so there is no `renders/` folder here yet.
+**Rendered** on 26 November 2026 on a rented Runpod pod (one NVIDIA RTX PRO 4500 Blackwell, Cycles with OptiX;
+the simulations baked on the pod's CPU): frames at 1280 × 720, finished at 1920 × 1080. The three films of
+segments 09, 10 and 11 shared the card and took about two and three quarter hours together, about 2 US dollars
+of pod time. The film (b1b_blu109.mp4, 55 s) and stills from it are in `renders/`.
 
 **The bunker, the mountain and the strike are invented, and the depths are calculated, not measured.**
 The film says so on its title card, on the section and in the closing table.

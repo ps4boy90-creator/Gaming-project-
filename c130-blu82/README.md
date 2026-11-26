@@ -1,7 +1,8 @@
 # Explosion Comparison · 11 — BLU-82 "Daisy Cutter" from a C-130 on to dense jungle
 
-Eleventh segment of the series. A C-130 Hercules, 1,830 m (6,000 ft) above rain forest, has its ramp down
-and an extraction parachute already trailing. The loadmaster frees the locks; the parachute pulls a
+Eleventh segment of the series. A C-130 Hercules, 1,830 m (6,000 ft) above rain forest, has its ramp down.
+The extraction parachute is let out first: its pack drops from a rack over the ramp, streams out into the
+slipstream and fills, while the load stays locked to the floor. Then the loadmaster frees the locks; the parachute pulls a
 15,000 lb BLU-82/B out of the hold on its wooden cradle and airdrop platform. Clear of the ramp the
 webbing is cut, the bomb leaves the cradle and its own stabilising parachute opens. It falls for 26
 seconds, nearly upright, and its nose fuze, on a 0.97 m extender, touches the ground first: the bomb
@@ -10,18 +11,19 @@ bursts above the ground, the blast spreads sideways through the trees, and a cir
 helicopter landing zone. Everything is procedural (Blender as a Python module, Cycles) and shares render
 setup, effects and post tools with the earlier segments. Nobody is modelled anywhere; the forest is empty.
 
-**Status: not rendered at full quality yet.** The code is complete and has been checked end to end with a
-low-resolution draft rendered on a CPU; the 1080p render on a GPU is still to do, so there is no
-`renders/` folder here yet.
+**Rendered** on 26 November 2026 on a rented Runpod pod (one NVIDIA RTX PRO 4500 Blackwell, Cycles with OptiX;
+the simulations baked on the pod's CPU): frames at 1280 × 720, finished at 1920 × 1080. The three films of
+segments 09, 10 and 11 shared the card and took about two and three quarter hours together, about 2 US dollars
+of pod time. The film (c130_blu82.mp4, 58 s) and stills from it are in `renders/`. The big explosion was baked at 200 voxels (not the 256 that `render_all.py` asks for by default) to keep the pod time down.
 
 | # | Shot | What it shows | Speed |
 |---|------|---------------|-------|
 | 1 | `card`     | The bomb on its cradle and platform, + spec panel | – |
-| 2 | `approach` | The C-130 on its run-in: ramp down, extraction parachute out | real time |
+| 2 | `approach` | The C-130 on its run-in: ramp down; the extraction parachute comes out and fills | real time |
 | 3 | `intro`    | The bomb whole, and cut open: 6 mm wall, filling, booster, fuze extender | – |
 | 4 | `release`  | The load runs out along the rollers and off the ramp; the bomb leaves its cradle; its parachute fills | real time, then half speed |
 | 5 | `fall`     | Beside the bomb through its last 3.5 s above the canopy | real time |
-| 6 | `strike`   | From the air, 300 m off: the burst, the cloud | 1.7× slow, then 1.2× fast |
+| 6 | `strike`   | From the air, 360 m off: the burst; the cloud climbing on its stem | 1.7× slow, then 1.8× fast |
 | 7 | `cutaway`  | The forest cut through the burst point, seen square on: the fuze touches, the blast front, the trees going down | 10× slow, then 5× |
 | 8 | `after`    | A minute later, circling the clearing, with its measured ring | real time |
 | 9 | summary    | What the bomb does, in a table (made in post) | – |
@@ -42,6 +44,7 @@ low-resolution draft rendered on a CPU; the 1080p render on a GPU is still to do
 | Result | a clearing about 260 ft (79 m) across, for one to three UH-1s; trees up to 4 ft thick and 150 ft tall; almost no debris at the edge |
 | Crater | a dish 20 to 30 ft across and 6 to 12 in deep (1969 test, Tonopah) |
 | Pressure | about 1,000 lb per square inch near the centre |
+| How it looked | a shock wave that "levels everything within several hundred yards" (Los Angeles Times, 1991, from Pentagon figures: impact 27 s after release at 340 ft/s); lethal radius reported as 100 to 300 m; a mushroom cloud that British troops in 1991 reported as a nuclear explosion; the shock felt in a chase aircraft 6,000 ft up and three quarters of a mile away (2008) |
 | History | 225 built; first used 23 March 1970; Vietnam ("Commando Vault"), Gulf 1991, Afghanistan 2001; last one dropped 15 July 2008 |
 
 **Worked out here from those figures** (`dconst.py`): the extraction parachute pulls the 7.3 t load along
@@ -55,10 +58,17 @@ heavy drop); the platform (12 ft by 108 in) and the shape of the cradle and webb
 both parachutes; the cone of the bomb's nose and the look of its rear end; the inside of the bomb in the
 cut-open view (a diagram: wall, filling, a booster behind the nose); everything about the forest.
 
+**The size of the explosion.** No measurement of the fireball or the cloud was found. The fireball is
+sized by the usual rule of thumb for a charge of this weight, 3.5 × (kg)^1/3 metres, which gives about
+62 m across; the cloud head is made to climb to about 250 m in ten seconds on the strength of the
+eyewitness accounts above. Both are labelled as such in the film. (A first draft showed a fireball of
+30 to 45 m and a cloud 60 to 80 m high, which was too small.) The extraction parachute really was let
+out well before the release, about a minute by one account; the film shortens that to a few seconds.
+
 **Staging, not measurement**: how fast the blast front travels (`dconst.t_front`), how the trees go down
 and how long that takes, the radii of the zones other than the clearing itself (trees broken up
-altogether within 16 m, stripped and leaning out to 75 m, shaken out to 260 m), the size and brightness of
-the fireball and the cloud. In the section the dust is drawn thinner than in the view from the air so
+altogether within 16 m, stripped and leaning out to 75 m, shaken out to 260 m), the brightness of the
+fireball, and the shape and rate of climb of the cloud (its head is moved upward by hand in `dsim.py`). In the section the dust is drawn thinner than in the view from the air so
 that the trees can be seen. The trees are not part of the gas simulation.
 
 **The aircraft.** A C-130E in the three-colour camouflage of the tactical airlift wings in South-East
@@ -104,11 +114,13 @@ pip install bpy numpy pillow scipy
 python render_all.py frames sims c130_blu82.mp4
 ```
 
-A quick draft on a CPU (about an hour on four cores):
+A quick draft on a CPU (about three hours on four cores):
 
 ```bash
-VOL_STEP=3 NO_PLUMES=1 python render_all.py frames sims draft.mp4 --res 640x360 --spp 5 --bake out:96:300,sec:96:260
+VOL_STEP=3 NO_PLUMES=1 python render_all.py frames sims draft.mp4 --res 640x360 --spp 5 --bake out:112:400,sec:96:260
 ```
 
 Set `RENDER_DEVICE=GPU` to render with Cycles on a graphics card. Frames and simulation caches are not
-kept in the repository.
+kept in the repository. Do not run two renders of the same shot into the same folder at once: each
+rewrites that shot's `meta.json`. (If that happens, running the shot again rebuilds the missing entries
+without rendering the frames again.)
