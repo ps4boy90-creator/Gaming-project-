@@ -11,6 +11,11 @@ module, Cycles). The site, the simulation, the shots and the post-production are
 (BLU-109 into a mountain bunker), scaled up three times; the aircraft and the bomb are new. Nobody is
 modelled anywhere.
 
+**Rendered** on 26 November 2026 on a rented Runpod pod (one NVIDIA RTX PRO 4500 Blackwell, Cycles with OptiX;
+the simulations baked on the pod's CPU): frames at 1280 × 720, finished at 1920 × 1080. About 1 hour 10 minutes
+from start to finished film, under 1 US dollar of pod time. The film (b2_gbu57.mp4, 58 s) and stills from it are
+in `renders/`.
+
 **The bunker and the strike are invented, and the depths are calculated, not measured.**
 
 | # | Shot | What it shows | Speed |
