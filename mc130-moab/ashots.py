@@ -24,7 +24,11 @@ from qshots import Plume
 from qgeo import aim_quat, Shell, box as gbox
 from smoke_mat import blast_material
 from util import *
-import aconst as C, abomb, asite
+import aconst as C, abomb
+if C.SITE == "city":
+    import acity as asite                                             # the hypothetical drop on an invented ruined city district
+else:
+    import asite
 import dc130, dbomb                                                   # the Hercules and the parachute of the BLU-82 segment
 
 FPS = C.FPS; ODT = 1.0 / 40.0
@@ -116,7 +120,7 @@ class Stage(gsh.Stage):
             ld = bpy.data.lights.new("Bounce", 'AREA'); ld.size = 80.0; ld.energy = 1.2e4; ld.color = (0.95, 0.86, 0.72); lo = bpy.data.objects.new("Bounce", ld); col.objects.link(lo)   # light thrown back up by the dry country
             lo.location = (0, 0, -50.0); lo.rotation_euler = (math.pi, 0, 0); ld.use_shadow = False
         else:
-            self.site = asite.Valley(sc, ec); self.plumes = []
+            self.site = asite.Site(sc, ec); self.plumes = []
             for (x, y, s) in ((4.0, -6.0, 0.9), (-52.0, -38.0, 0.55), (38.0, -70.0, 0.5), (-20.0, 66.0, 0.45)):
                 pl = Plume(col); pl.ob.location = (x, y, float(asite.ground(x, y))); pl.ob.scale = (s, s, s); pl.fl.hide_render = True; pl.glow.hide_render = True; self.plumes.append(pl)
                 for mt in pl.mats:                                  # thin grey smoke
@@ -199,7 +203,7 @@ def shot_fall(n=N_OF["fall"]):
     def frame(st, i):
         tb = t0 + i / FPS; dt = 1.0 / FPS; st.set_time(tb, dt, dict(haze=1.0)); u = i / (n - 1); pos, q = cam_at(tb, u); st.look(pos, None, 27.0, quat=q)
         st.key3(st.cam, lambda tt: cam_at(tt, u), tb, dt, True); p, v, th = C.bomb_state(C.T_BURST + tb)
-        return tb, dt, dict(samples=20, shutter=0.3, anchors={"bomb": tuple(p), "gz": (0, 0, 0), "cave": tuple(asite.cave_pos(asite.CAVES[1][0]) + np.array([0, 0, 3.0]))}, extra=dict(alt=float(p[2] - C.Z_BURST), v=float(np.linalg.norm(v)), dive=float(math.degrees(math.atan2(-v[2], v[0])))))
+        return tb, dt, dict(samples=20, shutter=0.3, anchors={"bomb": tuple(p), "gz": (0, 0, 0), "cave": tuple(asite.target(1))}, extra=dict(alt=float(p[2] - C.Z_BURST), v=float(np.linalg.norm(v)), dive=float(math.degrees(math.atan2(-v[2], v[0])))))
     return n, frame
 
 def strike_clock(i):
@@ -214,13 +218,13 @@ CAM_STRIKE = np.array([-250.0, -610.0, 0.0])
 
 def shot_strike(n=N_OF["strike"]):
     """From the southern slope, some 650 m off: the bomb comes down and bursts just above the valley floor; the cloud climbs."""
-    z0 = float(asite.ground(CAM_STRIKE[0], CAM_STRIKE[1])) + 22.0; dist = float(np.linalg.norm(CAM_STRIKE[:2]))
+    z0 = float(asite.ground(CAM_STRIKE[0], CAM_STRIKE[1])) + asite.CAM_H; dist = float(np.linalg.norm(CAM_STRIKE[:2]))
     def frame(st, i):
         sf, tb, dt = strike_clock(i); st.set_time(tb, dt, {}); u = i / (n - 1)
         pos = CAM_STRIKE + np.array([14.0 * u, -8.0 * u, z0 + 8.0 * u]); w = smoothstep(0.12, 1.0, u); tgt = np.array([0.0, 0.0, 34.0 + 120.0 * w])      # the view widens and tilts up with the cloud
         off, rq = shake(tb - float(C.t_front(dist)), 0.5); st.look(pos + off, tgt, lerp(24.0, 17.0, w)); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
         p = C.bomb_state(C.T_BURST + min(tb, 0.0))[0]
-        return tb, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"gz": (0, 0, 0), "bomb": tuple(p), "top": (0, 0, 60.0), "cave": tuple(asite.cave_pos(asite.CAVES[2][0]) + np.array([0, 0, 3.0]))}, extra=dict(front=float(C.r_front(tb))))
+        return tb, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"gz": (0, 0, 0), "bomb": tuple(p), "top": (0, 0, 60.0), "cave": tuple(asite.target(2))}, extra=dict(front=float(C.r_front(tb))))
     return n, frame
 
 REACH = (20, 116)                                                    # frames before the burst, then frames at one sim frame each; two sim frames per frame after that
@@ -258,8 +262,8 @@ def shot_after(n=N_OF["after"]):
     def frame(st, i):
         tb = 60.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tb, dt, dict(plume=os.environ.get("NO_PLUMES") != "1", haze=0.6, no_sim=True)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(tb, u); st.look(pos, None, 28.0, quat=q)
         st.key3(st.cam, lambda tt: cam_at(tt, u), tb, dt, True)
-        an = {"gz": (0, 0, 0.3), "cave": tuple(asite.cave_pos(asite.CAVES[1][0]) + np.array([0, 0, 2.0]))}; an.update({"r5_%02d" % j: tuple(ring5[j]) for j in range(NRING)}); an.update({"r2_%02d" % j: tuple(ring2[j]) for j in range(NRING)})
-        cs = st.site.comps; flat = min((c for c in cs if c["state"] == 2), key=lambda c: abs(c["r"] - 85.0), default=None); hurt = min((c for c in cs if c["state"] == 1 and c["y"] < -60.0), key=lambda c: abs(c["r"] - 170.0), default=None); ok = min((c for c in cs if c["state"] == 0 and c["y"] < -60.0), key=lambda c: c["r"], default=None)
+        an = {"gz": (0, 0, 0.3), "cave": tuple(asite.target(1))}; an.update({"r5_%02d" % j: tuple(ring5[j]) for j in range(NRING)}); an.update({"r2_%02d" % j: tuple(ring2[j]) for j in range(NRING)})
+        cs = st.site.comps; flat = min((c for c in cs if c["state"] == 2), key=lambda c: abs(c["r"] - 85.0), default=None); city = C.SITE == "city"; hurt = min((c for c in cs if c["state"] == 1 and c.get("lvl", 1) == (2 if city else 1) and c["y"] < (-10.0 if city else -60.0)), key=lambda c: abs(c["r"] - (105.0 if city else 170.0)), default=None); ok = min((c for c in cs if c["state"] == 0 and c["y"] < -60.0), key=lambda c: c["r"], default=None)
         for nm, c in (("flat", flat), ("hurt", hurt), ("ok", ok)):
             if c is not None:
                 an[nm] = (c["x"], c["y"], c["z"] + 3.0)
@@ -345,9 +349,9 @@ def main():
     if os.environ.get("VOL_STEP"):                                  # coarser volume steps for a quick draft on a CPU
         sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
-    tl = dict(T_EXIT=C.T_EXIT, V_EXIT=C.V_EXIT, T_SEP=C.T_SEP, T_FINS=list(C.T_FINS), TAU_HIT=C.TAU_HIT, T_BURST=C.T_BURST, THROW=C.THROW, V_AC=C.V_AC, V_HIT=C.V_HIT, DIVE=C.DIVE, H_REL=C.H_REL, ELEV=C.ELEV, HOB=C.HOB, MACH=C.V_HIT / C.C0,
+    tl = dict(SITE=C.SITE, T_EXIT=C.T_EXIT, V_EXIT=C.V_EXIT, T_SEP=C.T_SEP, T_FINS=list(C.T_FINS), TAU_HIT=C.TAU_HIT, T_BURST=C.T_BURST, THROW=C.THROW, V_AC=C.V_AC, V_HIT=C.V_HIT, DIVE=C.DIVE, H_REL=C.H_REL, ELEV=C.ELEV, HOB=C.HOB, MACH=C.V_HIT / C.C0,
               R_10=C.R_10, R_5=C.R_5, R_2=C.R_2, R_1=C.R_1, PSI_MILE=C.PSI_MILE, FB_D=C.FB_D, STRIKE=list(STRIKE), REACH=list(REACH), REL_REAL=REL_REAL, ODT=ODT, NRING=NRING, CAM_DIST=float(np.linalg.norm(CAM_STRIKE[:2])),
-              PSI={str(r): float(C.psi(r)) for r in (50, 100, 150, 200, 300, 500, 1000)}, FRONT=[[r, float(C.t_front(r))] for r in range(0, 1201, 10)], fps=FPS)
+              N_FLAT=sum(1 for c in st.site.comps if c["state"] == 2) if hasattr(st, "site") else -1, PSI={str(r): float(C.psi(r)) for r in (50, 100, 150, 200, 300, 500, 1000)}, FRONT=[[r, float(C.t_front(r))] for r in range(0, 1201, 10)], fps=FPS)
     json.dump(tl, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "timeline.json"), "w"))
     meta_path = os.path.join(a.out, "meta.json")
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}

@@ -22,11 +22,13 @@ R = lambda x: int(math.floor(x + 0.5))
 SPECS = [("BOMB", "GBU-43/B Massive Ordnance Air Blast"), ("SIZE", "9.2 m long  ·  1.03 m across"), ("WEIGHT", "9,800 kg (21,600 lb)"), ("EXPLOSIVE", "8,500 kg of H6"),
          ("CASE", "thin aluminium"), ("GUIDANCE", "GPS and inertial, four lattice fins"), ("DROPPED BY", "MC-130, pulled out by parachute"), ("FIRST USED", "13 April 2017, Afghanistan")]
 WHITE = (244, 244, 240)
+CITY = os.environ.get("MOAB_SITE") == "city"                          # the hypothetical drop on an invented ruined city district
+TAG = "13B  ·  GBU-43/B MOAB  ·  A RUINED CITY (HYPOTHETICAL)" if CITY else "13  ·  GBU-43/B MOAB  ·  MC-130 HERCULES"
 
 def tag(d, a=1.0):
     text(d, (64, 54), "EXPLOSION COMPARISON", F_SEMI(30), INK, a, tracking=4)
     d.rectangle([64, 96, 64 + 54, 100], fill=(*AMBER, int(255 * a)))
-    text(d, (130, 84), "13  ·  GBU-43/B MOAB  ·  MC-130 HERCULES", F_MED(26), DIM, a, tracking=2)
+    text(d, (130, 84), TAG, F_MED(26), DIM, a, tracking=2)
 
 def _tw(d, s, f, tracking=0):
     return sum(d.textlength(ch, font=f) + tracking for ch in s) - tracking if s else 0.0
@@ -50,9 +52,9 @@ def card_frame(img, i, n):
     seam = Image.new("RGBA", (90, H), (*PANEL, 255)); seam.putalpha(grad.point(lambda v: 255 - v))
     base.alpha_composite(seam.transpose(Image.FLIP_LEFT_RIGHT), (W // 2 - 90, 0))
     t = i / FPS; x0 = W // 2 + 96
-    text(d, (x0, 110), "EXPLOSION COMPARISON  ·  13", F_SEMI(30), DIM, ease((t - 0.10) / 0.5), tracking=5)
+    text(d, (x0, 110), "EXPLOSION COMPARISON  ·  13B" if CITY else "EXPLOSION COMPARISON  ·  13", F_SEMI(30), DIM, ease((t - 0.10) / 0.5), tracking=5)
     a = ease((t - 0.20) / 0.5); text(d, (x0 + int((1 - a) * 40), 156), "MOAB", F_TITLE(170), INK, a)
-    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 374), "21,600 LB OF AIR BLAST, DROPPED FROM A CARGO AIRCRAFT", F_TITLE(34), AMBER, a, tracking=1)
+    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 374), "WHAT WOULD IT DO TO A RUINED CITY DISTRICT?" if CITY else "21,600 LB OF AIR BLAST, DROPPED FROM A CARGO AIRCRAFT", F_TITLE(34), AMBER, a, tracking=1)
     a = ease((t - 0.45) / 0.5); d.rectangle([x0, 448, x0 + int(820 * a), 451], fill=(*AMBER, int(255 * a)))
     y = 478
     for k, (lab, val) in enumerate(SPECS):
@@ -61,9 +63,14 @@ def card_frame(img, i, n):
         text(d, (x0 + 250 + dx, y - 4), val, F_MED(35), INK, a)
         y += 55
     a = ease((t - 1.7) / 0.6)
-    text(d, (x0, 936), "\"Massive Ordnance Air Blast\": it bursts just above the ground", F_MED(28), INK, a)
-    text(d, (x0, 970), "and its blast spreads sideways. It is not a penetrator.", F_MED(28), INK, a)
-    text(d, (x0, 1016), "The valley and this drop are invented. Nobody is modelled.", F_MED(26), DIM, a)
+    if CITY:
+        text(d, (x0, 936), "Hypothetical: this bomb has never been used on a city.", F_MED(28), INK, a)
+        text(d, (x0, 970), "The district is invented, of the kind left by the war in Ukraine.", F_MED(28), INK, a)
+        text(d, (x0, 1016), "It is no real place, and nobody is modelled.", F_MED(26), DIM, a)
+    else:
+        text(d, (x0, 936), "\"Massive Ordnance Air Blast\": it bursts just above the ground", F_MED(28), INK, a)
+        text(d, (x0, 970), "and its blast spreads sideways. It is not a penetrator.", F_MED(28), INK, a)
+        text(d, (x0, 1016), "The valley and this drop are invented. Nobody is modelled.", F_MED(26), DIM, a)
     base.alpha_composite(ov)
     return base.convert("RGB")
 
@@ -78,7 +85,7 @@ def poly(d, pts, color, a, width=3, dash=False):
     else:
         d.line(loop, fill=c, width=width, joint="curve")
 
-RING_TXT = {"r10": ("10 psi", "HEAVY BUILDINGS BADLY DAMAGED"), "r5": ("5 psi", "MOST BUILDINGS COLLAPSE"), "r2": ("2 psi", "ROOFS AND WALLS BROKEN"), "r1": ("1 psi", "WINDOWS BROKEN")}
+RING_TXT = {"r10": ("10 psi", "CONCRETE BLOCKS COME DOWN" if CITY else "HEAVY BUILDINGS BADLY DAMAGED"), "r5": ("5 psi", "BLOCKS PARTLY DOWN" if CITY else "MOST BUILDINGS COLLAPSE"), "r2": ("2 psi", "FLOORS AND WALL PANELS LOST" if CITY else "ROOFS AND WALLS BROKEN"), "r1": ("1 psi", "WINDOWS BROKEN")}
 RING_COL = {"r10": RED, "r5": RED, "r2": AMBER, "r1": AMBER}
 
 def reach_overlay(d, i, n, m, info):
@@ -110,7 +117,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
     io = ease((i - 5) / 9.0) * (1 - ease((i - (n - 7)) / 7.0))
     seen = lambda q: 0.04 < q[0] < 0.96 and 0.08 < q[1] < 0.86
     if shot == "approach":
-        lower(d, "MC-130 HERCULES", "About 6,100 m (20,000 ft) up, ramp open  ·  the bomb rides on a platform in the hold  ·  the height is not published", io)
+        lower(d, "MC-130 HERCULES", "About 6,100 m (20,000 ft) up, ramp open  ·  the bomb rides on a platform in the hold  ·  " + ("a hypothetical drop" if CITY else "the height is not published"), io)
         a = ease((m.get("open", 0) - 0.6) / 0.3) * (1 - ease((i - (n - 10)) / 7.0))
         if a > 0 and seen(an["chute"]):
             label(d, *P(an["chute"]), "PARACHUTE", "IT WILL PULL THE LOAD OUT", AMBER, a, dx=-130, dy=-150)
@@ -134,11 +141,11 @@ def overlay_for(shot, i, n, m, info, hold=None):
         if a > 0 and seen(an["fins"]):
             callout(d, *P(an["fins"]), "LATTICE FINS", "OUT AND STEERING", AMBER, a, dx=120, dy=-170)
     elif shot == "fall":
-        readout(d, "ABOVE THE VALLEY FLOOR", "{:,} m".format(int(round(max(m.get("alt", 0), 0.0), -1))), 1.0, AMBER, "{:,} km/h  ·  {:d}° DOWN".format(KMH(m.get("v", 0)), round(m.get("dive", 0))))
+        readout(d, "ABOVE THE GROUND" if CITY else "ABOVE THE VALLEY FLOOR", "{:,} m".format(int(round(max(m.get("alt", 0), 0.0), -1))), 1.0, AMBER, "{:,} km/h  ·  {:d}° DOWN".format(KMH(m.get("v", 0)), round(m.get("dive", 0))))
         lower(d, "GUIDED ALL THE WAY DOWN", "Released about %.1f km short, it falls for %d s  ·  GPS and inertial guidance work the fins  ·  speed and path are calculated" % (info["THROW"] / 1000.0, round(info["TAU_HIT"])), io)
         a = ease((i - 22) / 10.0) * (1 - ease((i - (n - 24)) / 10.0))
         if a > 0 and seen(an["cave"]):
-            callout(d, *P(an["cave"]), "TARGET", "TUNNEL MOUTHS AT THE FOOT OF THE SLOPE", RED, a, dx=140, dy=-150)
+            label(d, *P(an["cave"]), "TARGET", "A RUINED DISTRICT OF APARTMENT BLOCKS  ·  INVENTED" if CITY else "TUNNEL MOUTHS AT THE FOOT OF THE SLOPE", RED, a, dx=140, dy=-150)
     elif shot == "strike":
         tb = t; pre, one = info["STRIKE"]
         readout(d, "AFTER THE BURST", "%.1f s" % max(tb, 0.0), ease((i - 2) / 6.0), INK, "SLOWED 1.7 TIMES" if i < pre + one else "REAL TIME x 1.8")
@@ -146,45 +153,63 @@ def overlay_for(shot, i, n, m, info, hold=None):
         if a1 > 0:
             lower(d, "TWO METRES ABOVE THE GROUND", "The fuze fires it about 6 ft up (as reported), so that the blast goes outward and not into a crater", a1)
         if a2 > 0:
-            lower(d, "8.5 TONNES OF EXPLOSIVE", "A fireball about %d m across  ·  the blast front crosses the valley faster than sound, lifting dust as it goes" % round(info["FB_D"], -1), a2)
+            lower(d, "8.5 TONNES OF EXPLOSIVE", ("A fireball about %d m across  ·  the blast front crosses the district faster than sound  ·  the nearest blocks come down" if CITY else "A fireball about %d m across  ·  the blast front crosses the valley faster than sound, lifting dust as it goes") % round(info["FB_D"], -1), a2)
         if a3 > 0:
-            lower(d, "THE CLOUD CLIMBS", "Hot gas rises on a stem of dust, as in the film released of the 2017 strike  ·  its size and speed here are staged", a3)
+            lower(d, "THE CLOUD CLIMBS", "Hot gas rises on a stem of dust  ·  its size and speed are staged  ·  dust from the falling buildings is not shown" if CITY else "Hot gas rises on a stem of dust, as in the film released of the 2017 strike  ·  its size and speed here are staged", a3)
     elif shot == "reach":
         reach_overlay(d, i, n, m, info)
     elif shot == "after":
         a0 = ease((i - 14) / 10.0) * (1 - ease((i - (n - 14)) / 10.0)); pts = [P(an["r5_%02d" % j]) for j in range(info["NRING"])]; poly(d, pts, RED, a0 * 0.8, 3, dash=True)
         q = pts[40]; text(d, (q[0] + 14, q[1] + 6), "5 psi  ·  %d m" % R(info["R_5"]), F_TITLE(36), RED, a0)
-        for k, (key, big, small, col, ex, ey) in enumerate((("flat", "FLATTENED", "INSIDE THE 5 psi LINE", RED, -170, 40), ("hurt", "ROOFS GONE, WALLS BREACHED", "2 TO 5 psi", AMBER, -120, 50),
-                                                         ("ok", "STILL STANDING", "UNDER 2 psi", INK, 130, 110), ("cave", "TUNNEL MOUTHS", "BURIED UNDER FALLEN ROCK (STAGED)", RED, 190, -120))):
+        labs = ((("flat", "DOWN", "INSIDE THE 10 psi LINE (ABOUT %d m)" % R(info["R_10"]), RED, -170, 40), ("hurt", "PARTLY DOWN", "5 TO 10 psi", AMBER, -120, 50), ("ok", "THE SHELLS STILL STAND", "UNDER 2 psi", INK, 130, 110)) if CITY else
+                (("flat", "FLATTENED", "INSIDE THE 5 psi LINE", RED, -170, 40), ("hurt", "ROOFS GONE, WALLS BREACHED", "2 TO 5 psi", AMBER, -120, 50), ("ok", "STILL STANDING", "UNDER 2 psi", INK, 130, 110), ("cave", "TUNNEL MOUTHS", "BURIED UNDER FALLEN ROCK (STAGED)", RED, 190, -120)))
+        for k, (key, big, small, col, ex, ey) in enumerate(labs):
             a = ease((i - 22 - 9 * k) / 9.0) * (1 - ease((i - (n - 14)) / 10.0))
             if a > 0 and key in an and seen(an[key]):
                 label(d, *P(an[key]), big, small, col, a, dx=ex, dy=ey)
-        lower(d, "A MINUTE LATER", "Hardly a crater: the ground is burnt, not dug out  ·  what still stands follows the calculated pressure", ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
+        lower(d, "A MINUTE LATER", ("A few blocks round the burst are down  ·  the rest of the district stands as ruined as it was" if CITY else "Hardly a crater: the ground is burnt, not dug out  ·  what still stands follows the calculated pressure"), ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
     return ov
 
 def summary_frame(bg, i, n, info):
     frame = bg.copy(); ov = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(ov); t = i / FPS; tag(d, 1.0)
-    text(d, (120, 140), "GBU-43/B MOAB", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
+    text(d, (120, 140), "MOAB ON A CITY DISTRICT (HYPOTHETICAL)" if CITY else "GBU-43/B MOAB", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
     a = ease((t - 0.4) / 0.5); d.rectangle([120, 248, 120 + int(1680 * a), 251], fill=(*AMBER, int(255 * a)))
-    rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
-            ("YIELD", "about 11 tons of TNT  ·  15 built, one used", DIM),
-            ("CALCULATED BLAST, OPEN GROUND:", "", AMBER),
-            ("    10 psi", "out to about %d m   ·   heavy buildings badly damaged" % R(info["R_10"]), DIM),
-            ("    5 psi", "out to about %d m   ·   most buildings collapse" % R(info["R_5"]), DIM),
-            ("    2 psi", "out to about %d m   ·   roofs and walls broken" % R(info["R_2"]), DIM),
-            ("    1 psi", "out to about %d m   ·   windows broken" % R(info["R_1"]), DIM),
-            ("    AT ONE MILE", "about %.1f psi   ·   the \"one-mile blast radius\" is not borne out" % info["PSI_MILE"], RED),
-            ("13 APRIL 2017", "Achin, Afghanistan: about twenty compounds destroyed, hardly any crater", DIM)]
+    if CITY:
+        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
+                ("YIELD", "about 11 tons of TNT", DIM),
+                ("CALCULATED BLAST, OPEN GROUND:", "", AMBER),
+                ("    10 psi", "out to about %d m   ·   concrete apartment blocks come down" % R(info["R_10"]), DIM),
+                ("    5 psi", "out to about %d m   ·   blocks partly down" % R(info["R_5"]), DIM),
+                ("    2 psi", "out to about %d m   ·   floors and wall panels lost" % R(info["R_2"]), DIM),
+                ("    1 psi", "out to about %d m   ·   windows broken" % R(info["R_1"]), DIM),
+                ("    AT ONE MILE", "about %.1f psi   ·   a bang, perhaps cracked glass" % info["PSI_MILE"], RED),
+                ("IN A CITY", "the heavy damage is a circle about %d m across, in a district 1.8 km across" % int(round(2 * info["R_5"], -1)), DIM)]
+    else:
+        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
+                ("YIELD", "about 11 tons of TNT  ·  15 built, one used", DIM),
+                ("CALCULATED BLAST, OPEN GROUND:", "", AMBER),
+                ("    10 psi", "out to about %d m   ·   heavy buildings badly damaged" % R(info["R_10"]), DIM),
+                ("    5 psi", "out to about %d m   ·   most buildings collapse" % R(info["R_5"]), DIM),
+                ("    2 psi", "out to about %d m   ·   roofs and walls broken" % R(info["R_2"]), DIM),
+                ("    1 psi", "out to about %d m   ·   windows broken" % R(info["R_1"]), DIM),
+                ("    AT ONE MILE", "about %.1f psi   ·   the \"one-mile blast radius\" is not borne out" % info["PSI_MILE"], RED),
+                ("13 APRIL 2017", "Achin, Afghanistan: about twenty compounds destroyed, hardly any crater", DIM)]
     y = 278
     for r, (lab, val, col) in enumerate(rows):
         a = ease((t - 0.7 - 0.22 * r) / 0.45); dx = int((1 - a) * 24)
         text(d, (120 + dx, y + 6), lab, F_SEMI(30), col, a, tracking=3); text(d, (700 + dx, y - 1), val, F_MED(34), INK, a)
         y += 62
     a = ease((t - 3.4) / 0.6)
-    text(d, (120, 872), "It is an air-blast bomb, not a penetrator: it can close the mouths of tunnels, but what it did inside the tunnels in 2017", F_MED(30), INK, a)
-    text(d, (120, 910), "was never published. The real strike was after dark; this one is shown by day.", F_MED(30), INK, a)
-    text(d, (120, 962), "Pressures by the Kinney-Graham fit for an 11-ton TNT burst at the ground, at the air pressure of a valley 1,200 m up: estimates,", F_MED(26), DIM, a)
-    text(d, (120, 998), "not measurements, and without the shelter of walls and slopes. What they do to buildings is general published guidance.", F_MED(26), DIM, a)
+    if CITY:
+        text(d, (120, 872), "Hypothetical: this bomb has been used once, in 2017, on tunnels in a mountain valley in Afghanistan, never on a city.", F_MED(30), INK, a)
+        text(d, (120, 910), "The district shown is invented and is no real place. Nobody is modelled.", F_MED(30), INK, a)
+        text(d, (120, 962), "Pressures by the Kinney-Graham fit for an 11-ton TNT burst at the ground: estimates for open ground, without the shelter buildings give", F_MED(26), DIM, a)
+        text(d, (120, 998), "one another. What they do to buildings is general guidance from longer blasts; a blast this short does, if anything, less.", F_MED(26), DIM, a)
+    else:
+        text(d, (120, 872), "It is an air-blast bomb, not a penetrator: it can close the mouths of tunnels, but what it did inside the tunnels in 2017", F_MED(30), INK, a)
+        text(d, (120, 910), "was never published. The real strike was after dark; this one is shown by day.", F_MED(30), INK, a)
+        text(d, (120, 962), "Pressures by the Kinney-Graham fit for an 11-ton TNT burst at the ground, at the air pressure of a valley 1,200 m up: estimates,", F_MED(26), DIM, a)
+        text(d, (120, 998), "not measurements, and without the shelter of walls and slopes. What they do to buildings is general published guidance.", F_MED(26), DIM, a)
     frame.alpha_composite(ov)
     return frame
 

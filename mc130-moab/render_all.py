@@ -37,7 +37,7 @@ def main():
     if len(sys.argv) < 3:
         sys.exit(__doc__)
     root, sim_root = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
-    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "mc130_moab.mp4")
+    out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "mc130_moab_city.mp4" if os.environ.get("MOAB_SITE") == "city" else "mc130_moab.mp4")
     os.makedirs(root, exist_ok=True); os.makedirs(sim_root, exist_ok=True)
     for name, n in SHOTS:
         if only and name not in only:

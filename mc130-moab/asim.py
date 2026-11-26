@@ -19,7 +19,11 @@ import manta_fix  # noqa: F401
 import msim
 from msim import flow, ico, jet, torus, collider, DARK
 from util import new_mesh, new_obj, grid_faces
-import aconst as C, asite
+import aconst as C
+if C.SITE == "city":
+    import acity as asite
+else:
+    import asite
 
 SOIL = [(0.33, 0.265, 0.185), (0.39, 0.315, 0.225), (0.28, 0.225, 0.16)]; PALE = [(0.46, 0.41, 0.34), (0.41, 0.365, 0.30), (0.50, 0.45, 0.38)]      # the valley's own earth, a little darker than it lies in the sun
 BOX = ((-250.0, 250.0), (-290.0, 230.0), (-8.0, 400.0)); DT = 1.0 / 40.0

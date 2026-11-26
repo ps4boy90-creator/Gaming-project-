@@ -101,6 +101,26 @@ cut-open view is a diagram** (thin case, filling, fuze behind the nose, guidance
 drawing of the real bomb. MC-130: the C-130 of segment 11 painted grey; the special-operations aircraft's
 nose radar, refuelling probe and other fittings are not modelled.
 
+## A second version: the same bomb on a ruined city district (hypothetical)
+
+`MOAB_SITE=city` swaps the valley for an invented city district (`acity.py`) and writes
+`renders/mc130_moab_city.mp4`. **This is hypothetical: the bomb has never been used on a city.** The
+district is no real place and nobody is modelled: a street grid 1.8 km across with five- and nine-storey
+apartment slabs of the Soviet large-panel kind, already burnt out and partly fallen in, as in the towns
+fought over in eastern Ukraine. The aircraft, the bomb and the drop are the same; the ground is 150 m above
+sea level instead of 1,200 m, which changes the numbers a little (fall 36 s, arrival at about 300 m/s; 10,
+5, 2 and 1 psi at about 88, 123, 213 and 361 m).
+
+Each building is treated by the pressure calculated for its nearest part: at 10 psi and more it comes
+down; from 5 to 10 psi about half of it comes down; from 2 to 5 psi it loses a floor here and there; below
+that the shell stands. Those thresholds are general published guidance for concrete buildings, and they
+come from much longer blasts than this one: a blast as short as a conventional bomb's does less at the
+same peak pressure, so the film is if anything too severe. The shelter that buildings give one another
+and the channelling of the blast along streets are not worked out, the buildings are not in the gas
+simulation (the dust passes through them), and the dust of the buildings' own fall is not shown. What the
+film does show correctly is the scale: the heavy damage is a circle about 250 m across in a district
+1.8 km across.
+
 ## Sound
 
 Recorded effects from `../c130-blu82/sfx` (licensed, not in the repository), put together in `apost.py`;
@@ -112,6 +132,7 @@ front reaches the camera, 1.7 s after the flash. Nobody has listened to the mix 
 - `aconst.py` – published numbers, the release and the fall, the blast calculation
 - `abomb.py` – the bomb, whole and cut open, its folding lattice fins, the cradle and platform
 - `asite.py` – the valley, its compounds, trees and tunnel mouths, and what the blast does to them
+- `acity.py` – the invented ruined city district of the second version
 - `asim.py` – the Mantaflow simulation of fireball, dust and cloud
 - `ashots.py` – the shots (adapted from segment 11's `dshots`)
 - `apost.py` – captions, pressure rings, closing table and sound, on top of segment 11's `dpost`

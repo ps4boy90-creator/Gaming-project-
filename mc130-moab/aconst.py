@@ -18,7 +18,7 @@ Not published, and chosen here: the release height and speed, the sizes of platf
 The blast figures are calculated (Kinney and Graham's fit for a TNT charge, doubled charge for a burst at the
 ground, scaled to the air pressure at the valley's height); they are for open, level ground.
 """
-import math
+import math, os
 import numpy as np
 
 FPS = 24
@@ -46,7 +46,8 @@ PLAT_M = 1100.0                         # platform and cradle
 AXIS_H = PLAT_H + 0.50 + GBU_D / 2      # height of the bomb's axis above the cargo floor
 EXTR_D = 28 * FT                        # extraction parachute (a usual size for heavy platforms; the one used is not published)
 # ---- the drop (illustrative)
-ELEV = 1200.0                           # the valley floor above sea level
+SITE = os.environ.get("MOAB_SITE", "valley")       # "valley": the mountain valley; "city": the invented ruined city district (hypothetical, see acity)
+ELEV = 150.0 if SITE == "city" else 1200.0   # the target above sea level
 H_REL = 20000 * FT - ELEV               # released at 20,000 ft above sea level: 4,900 m above the valley
 V_AC = 95.0                             # true air speed (about 140 knots indicated at that height)
 

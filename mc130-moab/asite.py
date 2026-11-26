@@ -246,6 +246,12 @@ class Valley:
             if c["b"] is not None:
                 done = tb - c["t"] > 0.5; c["a"].hide_render = done; c["b"].hide_render = not done
 
+Site = Valley
+CAM_H = 22.0                                                          # the strike is seen from this far above the southern slope
+
+def target(k=1):
+    return cave_pos(CAVES[k][0]) + np.array([0.0, 0.0, 3.0])
+
 class AirFloor:
     """The same country from the aircraft: ob is moved so that the valley slides past underneath."""
     def __init__(self, sc, col):
