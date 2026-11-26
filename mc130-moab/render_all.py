@@ -14,7 +14,10 @@ import os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("release", 180), ("fall", 84), ("strike", 220), ("reach", 204), ("after", 108)]
 SIM = {"strike": "out", "reach": "out"}
-BAKE = {"out": ("184", "400")}                                      # resolution, frames (no noise pass)
+CITY = os.environ.get("MOAB_SITE") == "city"
+if CITY:                                                             # the city version: a flight over the whole city, and a longer "reach" that ends with all of it in the picture
+    SHOTS = [x for x in SHOTS[:4]] + [("city", 132)] + [(k, 300 if k == "reach" else n) for k, n in SHOTS[4:]]
+BAKE = {"out": ("184", "450" if os.environ.get("MOAB_SITE") == "city" else "400")}                                      # resolution, frames (no noise pass)
 
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)

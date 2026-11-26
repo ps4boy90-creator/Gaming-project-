@@ -34,9 +34,10 @@ import dc130, dbomb                                                   # the Herc
 FPS = C.FPS; ODT = 1.0 / 40.0
 D = math.radians
 shake = gsh.shake
-SET_OF = {"approach": "air", "release": "air", "fall": "out", "strike": "out", "reach": "out", "after": "out"}
+SET_OF = {"approach": "air", "release": "air", "city": "out", "fall": "out", "strike": "out", "reach": "out", "after": "out"}
+CITY = C.SITE == "city"
 SIM_OF = {"strike": "out", "reach": "out"}
-N_OF = {"card": 72, "approach": 96, "intro": 96, "release": 180, "fall": 84, "strike": 220, "reach": 204, "after": 108}
+N_OF = {"card": 72, "approach": 96, "intro": 96, "release": 180, "city": 132, "fall": 84, "strike": 220, "reach": 300 if CITY else 204, "after": 108}      # the city version adds a flight over the whole city and a pull-out at the end of "reach"
 LINE_L = 19.0                                                        # the extraction line, from the platform to where the parachute's lines meet
 PITCH = lambda th: Quaternion((0, 1, 0), th)
 GREY = ((0.105, 0.110, 0.118, 1), (0.118, 0.123, 0.130, 1), (0.095, 0.100, 0.108, 1))     # the dark grey of the special-operations Hercules
@@ -244,14 +245,18 @@ def shot_reach(n=N_OF["reach"]):
     """The same burst again from high above the valley: how far the blast reaches, with the calculated pressures drawn on the ground in post."""
     rings = {k: _ring(r) for k, r in RINGS}
     def frame(st, i):
-        sf, tb, dt = reach_clock(i); st.set_time(tb, dt, dict(haze=0.5)); u = smoothstep(0.0, 1.0, i / (n - 1))
-        pos = np.array([-40.0 + 30.0 * u, -430.0, 640.0 + 40.0 * u]); st.look(pos, np.array([0.0, -40.0, 0.0]), 27.0)
+        w = smoothstep(196.0, 282.0, i) if CITY else 0.0                # the city version ends by climbing until the whole city is in the picture
+        sf, tb, dt = reach_clock(i); st.set_time(tb, dt, dict(haze=0.5 * (1 - 0.92 * w))); u = smoothstep(0.0, 1.0, min(i, 203) / 203.0)
+        pos = np.array([-40.0 + 30.0 * u, -430.0, 640.0 + 40.0 * u]); tgt = np.array([0.0, -40.0, 0.0])
+        if w > 0:
+            k = w * w * (3 - 2 * w); pos = pos * (1 - k) + np.array([900.0, -1700.0, 8200.0]) * k; tgt = tgt * (1 - k) + np.array([900.0, 300.0, 0.0]) * k
+        st.look(pos, tgt, 27.0)
         an = {"gz": (0, 0, 0.5)}; rf = C.r_front(tb)
         for k, P in rings.items():
             an.update({"%s_%02d" % (k, j): tuple(P[j]) for j in range(NRING)})
         if 0.0 < rf < 900.0:
             an.update({"f_%02d" % j: tuple(q) for j, q in enumerate(_ring(rf, 1.0))})
-        return tb, dt, dict(samples=20, sim=sf, shutter=0.25, anchors=an, extra=dict(front=float(rf), tb=float(tb)))
+        return tb, dt, dict(samples=20, sim=sf, shutter=0.25, anchors=an, extra=dict(front=float(rf), tb=float(tb), wide=float(w)))
     return n, frame
 
 def shot_after(n=N_OF["after"]):
@@ -270,7 +275,18 @@ def shot_after(n=N_OF["after"]):
         return tb, dt, dict(samples=32, shutter=0.35, anchors=an)
     return n, frame
 
-SHOTS = {"approach": shot_approach, "release": shot_release, "fall": shot_fall, "strike": shot_strike, "reach": shot_reach, "after": shot_after}
+def shot_city(n=N_OF["city"]):
+    """Before the strike: a flight over the whole city, from the river and the works towards the district the bomb will fall on."""
+    def cam_at(u):
+        pos = np.array([lerp(4300.0, 2300.0, u), lerp(3600.0, 2500.0, u), lerp(1500.0, 1150.0, u)]); tgt = np.array([lerp(1700.0, 500.0, u), lerp(500.0, 100.0, u), 0.0]); return pos, (Vector(tgt) - Vector(pos)).to_track_quat('-Z', 'Y')
+    def frame(st, i):
+        tb = -40.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tb, dt, dict(haze=0.45)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(u); st.look(pos, None, 24.0, quat=q)
+        st.key3(st.cam, lambda tt: cam_at(smoothstep(0.0, 1.0, (i + (tt - tb) * FPS) / (n - 1))), tb, dt, True)
+        an = {"gz": (0.0, 0.0, 20.0)}; an.update({k: tuple(v) for k, v in asite.LABELS.items()})
+        return tb, dt, dict(samples=32, shutter=0.3, anchors=an, extra=dict(**{k: int(v) for k, v in st.site.count.items()}))
+    return n, frame
+
+SHOTS = {"approach": shot_approach, "release": shot_release, "city": shot_city, "fall": shot_fall, "strike": shot_strike, "reach": shot_reach, "after": shot_after}
 
 # ----------------------------------------------------------------------------- studio shots
 def _studio(scale, world=0.30, backdrop=(0.64, 0.61, 0.56)):

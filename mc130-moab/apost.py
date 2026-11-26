@@ -54,7 +54,7 @@ def card_frame(img, i, n):
     t = i / FPS; x0 = W // 2 + 96
     text(d, (x0, 110), "EXPLOSION COMPARISON  ·  13B" if CITY else "EXPLOSION COMPARISON  ·  13", F_SEMI(30), DIM, ease((t - 0.10) / 0.5), tracking=5)
     a = ease((t - 0.20) / 0.5); text(d, (x0 + int((1 - a) * 40), 156), "MOAB", F_TITLE(170), INK, a)
-    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 374), "WHAT WOULD IT DO TO A RUINED CITY DISTRICT?" if CITY else "21,600 LB OF AIR BLAST, DROPPED FROM A CARGO AIRCRAFT", F_TITLE(34), AMBER, a, tracking=1)
+    a = ease((t - 0.35) / 0.5); text(d, (x0 + int((1 - a) * 40), 374), "WHAT WOULD IT DO TO A RUINED CITY?" if CITY else "21,600 LB OF AIR BLAST, DROPPED FROM A CARGO AIRCRAFT", F_TITLE(34), AMBER, a, tracking=1)
     a = ease((t - 0.45) / 0.5); d.rectangle([x0, 448, x0 + int(820 * a), 451], fill=(*AMBER, int(255 * a)))
     y = 478
     for k, (lab, val) in enumerate(SPECS):
@@ -65,7 +65,7 @@ def card_frame(img, i, n):
     a = ease((t - 1.7) / 0.6)
     if CITY:
         text(d, (x0, 936), "Hypothetical: this bomb has never been used on a city.", F_MED(28), INK, a)
-        text(d, (x0, 970), "The district is invented, of the kind left by the war in Ukraine.", F_MED(28), INK, a)
+        text(d, (x0, 970), "The city is invented, of the kind left by the war in Ukraine.", F_MED(28), INK, a)
         text(d, (x0, 1016), "It is no real place, and nobody is modelled.", F_MED(26), DIM, a)
     else:
         text(d, (x0, 936), "\"Massive Ordnance Air Blast\": it bursts just above the ground", F_MED(28), INK, a)
@@ -96,13 +96,18 @@ def reach_overlay(d, i, n, m, info):
         a = ease((tb - tf(rad[k])) / 0.12) * out
         if a <= 0:
             continue
-        pts = [P(an["%s_%02d" % (k, j)]) for j in range(N)]; poly(d, pts, RING_COL[k], a * 0.9, 3 if k in ("r1", "r2") else 4)
+        fadew = 1 - ease(m.get("wide", 0.0) / 0.3)
+        pts = [P(an["%s_%02d" % (k, j)]) for j in range(N)]; poly(d, pts, RING_COL[k], a * 0.9, 3 if k in ("r1", "r2") else 4); a = a * fadew
         j0, side = {"r10": (25, -1), "r5": (36, 1), "r2": (1, 1), "r1": (44, 1)}[k]; q = pts[j0]; big, small = RING_TXT[k]; anc = "la" if side > 0 else "ra"      # each ring's label on a different side
         text(d, (q[0] + side * 16, q[1] + 2), "%s  ·  %d m" % (big, R(rad[k])), F_TITLE(40), RING_COL[k], a, anchor=anc); text(d, (q[0] + side * 16, q[1] + 48), small, F_SEMI(22), INK, a, anchor=anc, tracking=2)
     if "f_00" in an and rf > 3.0:                                      # the front itself
         a = (1 - ease((rf - 620.0) / 200.0)) * out; poly(d, [P(an["f_%02d" % j]) for j in range(N)], WHITE, a * 0.85, 3)
+    wide = m.get("wide", 0.0); a3 = ease((wide - 0.55) / 0.3) * out
     readout(d, "AFTER THE BURST", "%.2f s" % max(tb, 0.0), ease((i - 2) / 6.0), INK, "BLAST FRONT AT %d m" % R(rf) if 0 < rf < 900 else "SEEN FROM ABOVE")
-    a1 = ease((i - 3) / 8.0) * (1 - ease((tb - 1.55) / 0.2)); a2 = ease((tb - 1.9) / 0.25) * out
+    a1 = ease((i - 3) / 8.0) * (1 - ease((tb - 1.55) / 0.2)); a2 = ease((tb - 1.9) / 0.25) * out * (1 - ease(wide / 0.25))
+    if a3 > 0:                                                         # the whole city in the picture
+        q = P(an["gz"]); label(d, q[0], q[1], "THE HEAVY DAMAGE", "A CIRCLE ABOUT %d m ACROSS" % int(round(2 * info["R_5"], -1)), RED, a3, dx=190, dy=-150)
+        lower(d, "THE WHOLE CITY", "About 9 km across  ·  the bomb's heavy damage is the small circle  ·  the rest stands as ruined as it was", a3)
     if a1 > 0:
         lower(d, "HOW FAR DOES THE BLAST REACH?", "Peak pressure, calculated for open ground  ·  white: the blast front  ·  colours: 10, 5, 2 and 1 psi", a1)
     if a2 > 0:
@@ -145,7 +150,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
         lower(d, "GUIDED ALL THE WAY DOWN", "Released about %.1f km short, it falls for %d s  ·  GPS and inertial guidance work the fins  ·  speed and path are calculated" % (info["THROW"] / 1000.0, round(info["TAU_HIT"])), io)
         a = ease((i - 22) / 10.0) * (1 - ease((i - (n - 24)) / 10.0))
         if a > 0 and seen(an["cave"]):
-            label(d, *P(an["cave"]), "TARGET", "A RUINED DISTRICT OF APARTMENT BLOCKS  ·  INVENTED" if CITY else "TUNNEL MOUTHS AT THE FOOT OF THE SLOPE", RED, a, dx=140, dy=-150)
+            label(d, *P(an["cave"]), "TARGET", "AN APARTMENT DISTRICT OF THE RUINED CITY" if CITY else "TUNNEL MOUTHS AT THE FOOT OF THE SLOPE", RED, a, dx=140, dy=-150)
     elif shot == "strike":
         tb = t; pre, one = info["STRIKE"]
         readout(d, "AFTER THE BURST", "%.1f s" % max(tb, 0.0), ease((i - 2) / 6.0), INK, "SLOWED 1.7 TIMES" if i < pre + one else "REAL TIME x 1.8")
@@ -158,6 +163,12 @@ def overlay_for(shot, i, n, m, info, hold=None):
             lower(d, "THE CLOUD CLIMBS", "Hot gas rises on a stem of dust  ·  its size and speed are staged  ·  dust from the falling buildings is not shown" if CITY else "Hot gas rises on a stem of dust, as in the film released of the 2017 strike  ·  its size and speed here are staged", a3)
     elif shot == "reach":
         reach_overlay(d, i, n, m, info)
+    elif shot == "city":
+        lower(d, "AN INVENTED CITY, ALREADY IN RUINS", "About 9 km across: {:,} large buildings and {:,} small houses  ·  no real place  ·  nobody is modelled".format(int(round(m.get("buildings", 0), -2)), int(round(m.get("houses", 0), -2))), io)
+        for k, (key, big, small, col, ex, ey) in enumerate((("works", "STEEL WORKS", "ON THE RIVER", AMBER, -150, -150), ("centre", "THE CENTRE", "", AMBER, 150, -170), ("gz", "TARGET", "AN APARTMENT DISTRICT", RED, 170, -130))):
+            a = ease((i - 20 - 16 * k) / 10.0) * (1 - ease((i - (n - 12)) / 9.0))
+            if a > 0 and key in an and seen(an[key]):
+                label(d, *P(an[key]), big, small, col, a, dx=ex, dy=ey)
     elif shot == "after":
         a0 = ease((i - 14) / 10.0) * (1 - ease((i - (n - 14)) / 10.0)); pts = [P(an["r5_%02d" % j]) for j in range(info["NRING"])]; poly(d, pts, RED, a0 * 0.8, 3, dash=True)
         q = pts[40]; text(d, (q[0] + 14, q[1] + 6), "5 psi  ·  %d m" % R(info["R_5"]), F_TITLE(36), RED, a0)
@@ -167,12 +178,12 @@ def overlay_for(shot, i, n, m, info, hold=None):
             a = ease((i - 22 - 9 * k) / 9.0) * (1 - ease((i - (n - 14)) / 10.0))
             if a > 0 and key in an and seen(an[key]):
                 label(d, *P(an[key]), big, small, col, a, dx=ex, dy=ey)
-        lower(d, "A MINUTE LATER", ("A few blocks round the burst are down  ·  the rest of the district stands as ruined as it was" if CITY else "Hardly a crater: the ground is burnt, not dug out  ·  what still stands follows the calculated pressure"), ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
+        lower(d, "A MINUTE LATER", ("A few blocks round the burst are down  ·  the rest of the city stands as ruined as it was" if CITY else "Hardly a crater: the ground is burnt, not dug out  ·  what still stands follows the calculated pressure"), ease((i - 10) / 12.0) * (1 - ease((i - (n - 10)) / 8.0)))
     return ov
 
 def summary_frame(bg, i, n, info):
     frame = bg.copy(); ov = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(ov); t = i / FPS; tag(d, 1.0)
-    text(d, (120, 140), "MOAB ON A CITY DISTRICT (HYPOTHETICAL)" if CITY else "GBU-43/B MOAB", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
+    text(d, (120, 140), "MOAB ON A CITY (HYPOTHETICAL)" if CITY else "GBU-43/B MOAB", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
     a = ease((t - 0.4) / 0.5); d.rectangle([120, 248, 120 + int(1680 * a), 251], fill=(*AMBER, int(255 * a)))
     if CITY:
         rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
@@ -183,7 +194,7 @@ def summary_frame(bg, i, n, info):
                 ("    2 psi", "out to about %d m   ·   floors and wall panels lost" % R(info["R_2"]), DIM),
                 ("    1 psi", "out to about %d m   ·   windows broken" % R(info["R_1"]), DIM),
                 ("    AT ONE MILE", "about %.1f psi   ·   a bang, perhaps cracked glass" % info["PSI_MILE"], RED),
-                ("IN A CITY", "the heavy damage is a circle about %d m across, in a district 1.8 km across" % int(round(2 * info["R_5"], -1)), DIM)]
+                ("IN A CITY", "the heavy damage is a circle about %d m across, in a city about 9 km across" % int(round(2 * info["R_5"], -1)), DIM)]
     else:
         rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
                 ("YIELD", "about 11 tons of TNT  ·  15 built, one used", DIM),
@@ -202,7 +213,7 @@ def summary_frame(bg, i, n, info):
     a = ease((t - 3.4) / 0.6)
     if CITY:
         text(d, (120, 872), "Hypothetical: this bomb has been used once, in 2017, on tunnels in a mountain valley in Afghanistan, never on a city.", F_MED(30), INK, a)
-        text(d, (120, 910), "The district shown is invented and is no real place. Nobody is modelled.", F_MED(30), INK, a)
+        text(d, (120, 910), "The city shown is invented and is no real place. Nobody is modelled.", F_MED(30), INK, a)
         text(d, (120, 962), "Pressures by the Kinney-Graham fit for an 11-ton TNT burst at the ground: estimates for open ground, without the shelter buildings give", F_MED(26), DIM, a)
         text(d, (120, 998), "one another. What they do to buildings is general guidance from longer blasts; a blast this short does, if anything, less.", F_MED(26), DIM, a)
     else:
@@ -266,10 +277,10 @@ def build_audio(path, starts, metas, lens, total, info):
         tick(ts_ + 0.7 + 0.22 * r)
     S.finish(mx, total, path)
 
-B.ORDER = ["card", "approach", "intro", "release", "fall", "strike", "reach", "after", "summary"]; B.N_SUMMARY = 264; B.HOLD = {}; B.SPECS = SPECS
+B.ORDER = ["card", "approach", "intro", "release"] + (["city"] if CITY else []) + ["fall", "strike", "reach", "after", "summary"]; B.N_SUMMARY = 264; B.HOLD = {}; B.SPECS = SPECS
 B.tag = tag; B.card_frame = card_frame; B.overlay_for = overlay_for; B.summary_frame = summary_frame; B.build_audio = build_audio
-B.GRADE = {"fall": 1.10, "strike": 1.12, "reach": 1.10, "after": 1.16}
-B.FADES = {"card": (8, 6), "approach": (8, 5), "intro": (6, 6), "release": (6, 5), "fall": (5, 0), "strike": (0, 8), "reach": (8, 8), "after": (8, 0), "summary": (0, 16)}
+B.GRADE = {"city": 1.12, "fall": 1.10, "strike": 1.12, "reach": 1.10, "after": 1.16}
+B.FADES = {"card": (8, 6), "approach": (8, 5), "intro": (6, 6), "release": (6, 5), "city": (8, 8), "fall": (5, 0), "strike": (0, 8), "reach": (8, 8), "after": (8, 0), "summary": (0, 16)}
 
 if __name__ == "__main__":
     B.main()
