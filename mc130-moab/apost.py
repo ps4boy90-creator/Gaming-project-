@@ -172,7 +172,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
     elif shot == "after":
         a0 = ease((i - 14) / 10.0) * (1 - ease((i - (n - 14)) / 10.0)); pts = [P(an["r5_%02d" % j]) for j in range(info["NRING"])]; poly(d, pts, RED, a0 * 0.8, 3, dash=True)
         q = pts[40]; text(d, (q[0] + 14, q[1] + 6), "5 psi  ·  %d m" % R(info["R_5"]), F_TITLE(36), RED, a0)
-        labs = ((("flat", "DOWN", "INSIDE THE 10 psi LINE (ABOUT %d m)" % R(info["R_10"]), RED, -170, 40), ("hurt", "PARTLY DOWN", "5 TO 10 psi", AMBER, -120, 50), ("ok", "THE SHELLS STILL STAND", "UNDER 2 psi", INK, 130, 110)) if CITY else
+        labs = ((("flat", "DOWN", "INSIDE THE 10 psi LINE (ABOUT %d m)" % R(info["R_10"]), RED, -170, -130), ("hurt", "PARTLY DOWN", "5 TO 10 psi", AMBER, -140, 130), ("ok", "THE SHELLS STILL STAND", "UNDER 2 psi", INK, 130, 110)) if CITY else
                 (("flat", "FLATTENED", "INSIDE THE 5 psi LINE", RED, -170, 40), ("hurt", "ROOFS GONE, WALLS BREACHED", "2 TO 5 psi", AMBER, -120, 50), ("ok", "STILL STANDING", "UNDER 2 psi", INK, 130, 110), ("cave", "TUNNEL MOUTHS", "BURIED UNDER FALLEN ROCK (STAGED)", RED, 190, -120)))
         for k, (key, big, small, col, ex, ey) in enumerate(labs):
             a = ease((i - 22 - 9 * k) / 9.0) * (1 - ease((i - (n - 14)) / 10.0))
