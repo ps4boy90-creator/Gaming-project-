@@ -55,6 +55,7 @@ T_EXIT = math.sqrt(2 * (RAMP_S[1] - LOAD_S) / A_SLIDE)                          
 V_EXIT = A_SLIDE * T_EXIT
 T_SEP = 0.8                             # after the exit: the webbing is cut and the bomb leaves cradle and platform
 T_STAB = (0.9, 1.7)                     # the stabilising parachute fills
+T_EXTR = (-6.0, -5.55, -4.6, -4.0)      # the extraction parachute: let go of its rack, clear of the ramp, line run out, canopy full (it was let out before the release; the minute or so it then trailed is shortened here)
 
 def slide_x(t):
     """Aircraft-frame x of the middle of the bomb while the load runs out along the floor."""
@@ -121,6 +122,9 @@ R_LZ = LZ_D / 2                         # 39.6 m: inside this nothing is left st
 R_BARE = 16.0                           # nearest the burst the trees are broken up altogether (estimate)
 R_LEAN = 75.0                           # out to here trees are stripped and left leaning (estimate)
 R_SHAKE = 260.0                         # the canopy is shaken out to here (estimate)
+
+FB_D = 3.5 * FILL ** (1.0 / 3.0)        # fireball about 62 m across: the usual rule of thumb for a charge of this weight (not a measurement of this bomb)
+CLOUD_10S = 250.0                       # the cloud's top ten seconds after the burst, for the staging: published accounts speak of a mushroom cloud taken for a nuclear one
 
 def t_front(r):
     """Seconds after the burst at which the blast front reaches r metres (staged: fast near the burst, slowing to the speed of sound)."""

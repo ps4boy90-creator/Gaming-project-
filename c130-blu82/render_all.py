@@ -2,10 +2,10 @@
 """Bake the two explosions and render every shot of the C-130 / BLU-82 segment, then build the video.
 Works on Windows, macOS and Linux; resumable (existing frames and finished bakes are skipped).
 
-    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:224:300,sec:208:260]
+    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:256:400,sec:224:260]
 
 --only renders just the named shots and skips the final edit (for running two renders side by side on one card).
---res / --spp / --bake make a quick draft (for example --res 640x360 --spp 6 --bake out:96:300,sec:96:260).
+--res / --spp / --bake make a quick draft (for example --res 640x360 --spp 6 --bake out:128:400,sec:96:260).
 Set RENDER_DEVICE=GPU to render with Cycles on the graphics card.  The bakes always run on the CPU.
 Needs `pip install bpy numpy pillow` (scipy speeds up the sound) and ffmpeg on the PATH.
 """
@@ -14,7 +14,7 @@ import os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("release", 174), ("fall", 84), ("strike", 220), ("cutaway", 252), ("after", 108)]
 SIM = {"strike": "out", "cutaway": "sec"}
-BAKE = {"out": ("224", "300"), "sec": ("208", "260")}               # resolution, frames (no noise pass)
+BAKE = {"out": ("256", "400"), "sec": ("224", "260")}               # resolution, frames (no noise pass)
 
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)

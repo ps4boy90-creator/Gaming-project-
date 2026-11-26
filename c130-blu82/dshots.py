@@ -53,6 +53,29 @@ def extr_site(t):
     d0 = np.array([-1.0, 0.0, -0.04]); v = C.plat_state(t)[1] if tau > 0 else np.array([C.V_AC, 0.0, 0.0]); d1 = -v / np.linalg.norm(v); k = smoothstep(0.0, 0.8, tau); d = d0 * (1 - k) + d1 * k; d /= np.linalg.norm(d)
     return a + d * LINE_L, d, a
 
+RACK = np.array([C.X0 - 23.3, 0.0, 2.45])                            # the extraction parachute's pack hangs here, over the ramp, until it is let go
+CLEAR = np.array([C.X0 - 26.2, 0.0, 0.3])
+
+def extr_deploy(t):
+    """(stage, where the lines meet in the aircraft's frame or None, how far the canopy has filled): 0 the pack on its rack, 1 the pack swinging out, 2 the line running out, 3 trailing."""
+    t0, t1, t2, t3 = C.T_EXTR
+    if t < t0:
+        return 0, RACK, 0.0
+    if t < t1:
+        u = (t - t0) / (t1 - t0); p = RACK + (CLEAR - RACK) * u; p[2] -= 0.9 * math.sin(math.pi * u) * (1 - u); return 1, p, 0.0
+    if t < t2:
+        return 2, None, 0.0
+    return 3, None, smoothstep(t2, t3, t) * (1.0 + 0.10 * math.exp(-(t - t3) / 0.25) * math.sin((t - t3) * 14.0) * (t > t3))
+
+def extr_rel(t):
+    """The extraction parachute in the aircraft's frame: where its lines meet, the way it trails, the point on the platform."""
+    c, d, a = extr_site(t); o = C.ac_pos(t); c = c - o; a = a - o; st, p, op = extr_deploy(t)
+    if st <= 1:
+        c = p; d = (c - a) / np.linalg.norm(c - a)
+    elif st == 2:
+        t1, t2 = C.T_EXTR[1], C.T_EXTR[2]; u = (t - t1) / (t2 - t1); u = 1 - (1 - u) ** 2; c = CLEAR + (c - CLEAR) * u; d = d * u + (c - a) / np.linalg.norm(c - a) * (1 - u); d /= np.linalg.norm(d)
+    return c, d, a, st, op
+
 def stab_site(t):
     p, v, th = C.bomb_state(t); tail = p + np.array(PITCH(th) @ Vector((-TAIL, 0, 0))); d = v / np.linalg.norm(v); return tail, aim_quat(d)
 
@@ -81,6 +104,7 @@ class Stage(gsh.Stage):
             self.floor = djungle.AirFloor(sc, ec); self.ac = dc130.C130(col)
             self.cradle = dbomb.Cradle(col); self.extr = dbomb.Chute(col, "Extraction", d=C.EXTR_D, lines=0.9, c1=(0.33, 0.37, 0.24, 1), c2=(0.26, 0.30, 0.19, 1))
             S = Shell(); S.add(*gbox((0.5, 0, 0), (1.0, 0.035, 0.035)), color=(0.62, 0.60, 0.50, 1)); self.line = new_obj("ExtractionLine", S.mesh("extr_line"), col, dbomb.cloth_mat()); self.line.rotation_mode = 'QUATERNION'
+            S = Shell(); S.add(*gbox((0, 0, 0), (0.55, 0.42, 0.34)), color=(0.30, 0.33, 0.22, 1)); self.pack = new_obj("ExtractionPack", S.mesh("extr_pack"), col, dbomb.cloth_mat())
             ld = bpy.data.lights.new("Bounce", 'AREA'); ld.size = 80.0; ld.energy = 1.0e4; ld.color = (0.80, 0.95, 0.75); lo = bpy.data.objects.new("Bounce", ld); col.objects.link(lo)   # light thrown back up by the forest
             lo.location = (0, 0, -50.0); lo.rotation_euler = (math.pi, 0, 0); ld.use_shadow = False
         else:
@@ -118,8 +142,9 @@ class Stage(gsh.Stage):
         if k == "air":
             rel = lambda fn: (lambda tt: (lambda p, q: (p - C.ac_pos(tt), q))(*fn(tt)))
             self.key3(self.bomb.ob, rel(bomb_site), t, dt_out, mb); self.key3(self.cradle.ob, rel(cradle_site), t, dt_out, mb)
-            self.key3(self.extr.ob, rel(lambda tt: (extr_site(tt)[0], aim_quat(-extr_site(tt)[1]))), t, dt_out, mb); self.extr.set(1.0, t * 9.0)
-            c, d, a = extr_site(t); self.line.location = tuple(a - C.ac_pos(t)); self.line.rotation_quaternion = aim_quat(d); self.line.scale = (LINE_L, 1, 1)
+            self.key3(self.extr.ob, lambda tt: (extr_rel(tt)[0], aim_quat(-extr_rel(tt)[1])), t, dt_out, mb)
+            c, d, a, stg, op = extr_rel(t); self.extr.set(op, t * 9.0); self.extr.ob.hide_render = stg < 2; self.pack.hide_render = stg >= 2; self.pack.location = tuple(c)
+            v = c - a; ln = float(np.linalg.norm(v)); self.line.location = tuple(a); self.line.rotation_quaternion = aim_quat(v / ln); self.line.scale = (ln, 1, 1); self.line.hide_render = stg == 0
             on = t - C.T_EXIT > C.T_SEP; self.stab.ob.hide_render = not on
             self.key3(self.stab.ob, rel(stab_site), t, dt_out, mb); self.stab.set(C.stab_open(t) if on else 0.0, t * 11.0)
             for j, p in enumerate(self.ac.props):
@@ -142,9 +167,9 @@ class Stage(gsh.Stage):
 def shot_approach(n=N_OF["approach"]):
     """The C-130 on its run-in, seen from behind and to its left: ramp open, the extraction parachute already out."""
     def frame(st, i):
-        t = -7.0 + i / FPS; dt = 1.0 / FPS; st.set_time(t, dt, {}); u = smoothstep(0.0, 1.0, i / (n - 1)); c, d, a = extr_site(t); o = C.ac_pos(t)
+        t = -7.0 + i / FPS; dt = 1.0 / FPS; st.set_time(t, dt, {}); u = smoothstep(0.0, 1.0, i / (n - 1)); c, d, a, stg, op = extr_rel(t); o = np.zeros(3)
         pos = np.array([lerp(-46.0, -36.0, u), lerp(40.0, 29.0, u), lerp(12.0, 6.5, u)]); st.look(pos, np.array([lerp(-9.0, -12.0, u), 0.0, 2.0]), lerp(34.0, 40.0, u))
-        return t, dt, dict(samples=40, shutter=0.4, anchors={"ac": (C.X0 - 9.0, 0, 4.2), "ramp": (C.X0 - C.RAMP_S[1], 0, 0.0), "chute": tuple(c - o + d * (0.9 * C.EXTR_D + 0.8)), "tank": (C.X0 - 12.0, dc130.TANK_Y, 1.6)})
+        return t, dt, dict(samples=40, shutter=0.4, anchors={"ac": (C.X0 - 9.0, 0, 4.2), "ramp": (C.X0 - C.RAMP_S[1], 0, 0.0), "chute": tuple(c - o + d * (0.9 * C.EXTR_D + 0.8)), "tank": (C.X0 - 12.0, dc130.TANK_Y, 1.6), "rack": tuple(RACK)}, extra=dict(stage=int(stg), open=float(op)))
     return n, frame
 
 REL_REAL = 78                                                        # frames at full speed, to the moment the load leaves the ramp; half speed after that
@@ -155,7 +180,7 @@ def rel_clock(i):
 def shot_release(n=N_OF["release"]):
     """From behind and below the tail: the load runs out along the floor and off the ramp; the bomb leaves its cradle and its own parachute fills."""
     def frame(st, i):
-        t, dt = rel_clock(i); st.set_time(t, dt, {}); u = i / (n - 1); o = C.ac_pos(t); pb = C.bomb_state(t)[0] - o; pc = cradle_site(t)[0] - o; c, d, a = extr_site(t); sp, sq = stab_site(t)
+        t, dt = rel_clock(i); st.set_time(t, dt, {}); u = i / (n - 1); o = C.ac_pos(t); pb = C.bomb_state(t)[0] - o; pc = cradle_site(t)[0] - o; c, d, a, stg, op = extr_rel(t); c = c + o; sp, sq = stab_site(t)
         ramp = np.array([C.X0 - C.RAMP_S[1] + 2.0, 0.0, 1.0]); f = smoothstep(-0.2, 1.4, t - C.T_EXIT); aim = ramp + f * (pb - ramp) + np.array([-2.0 * f, 0, 0])
         pos = np.array([lerp(-36.0, -41.0, u), lerp(13.0, 19.0, u), lerp(1.2, -11.0, smoothstep(0.25, 1.0, u))]); st.look(pos, aim, lerp(34.0, 30.0, f))
         return t, dt, dict(samples=44, shutter=0.35, anchors={"bomb": tuple(pb), "plat": tuple(pc + np.array([0, 0, -C.AXIS_H])), "chute": tuple(c - o + d * (0.9 * C.EXTR_D + 0.8)), "stab": tuple(sp - o - np.array(sq @ Vector((1.25 * C.STAB_D, 0, 0)))), "ramp": (C.X0 - C.RAMP_S[1], 0, 0.0)},
@@ -175,7 +200,7 @@ def shot_fall(n=N_OF["fall"]):
                             extra=dict(alt=float(p[2] - C.HOB), v=float(np.linalg.norm(v)), dive=float(math.degrees(math.atan2(-v[2], v[0])))))
     return n, frame
 
-STRIKE = (24, 96)                                                    # frames before the burst, then frames at one sim frame each; two sim frames per frame after that
+STRIKE = (24, 96)                                                    # frames before the burst, then frames at one sim frame each; three sim frames per frame after that
 
 def strike_clock(i):
     pre, one = STRIKE
@@ -183,14 +208,14 @@ def strike_clock(i):
         return 0, -(pre - i) * ODT, ODT
     if i < pre + one:
         sf = i - pre + 1; return sf, (sf - 1) * ODT, ODT
-    sf = one + 2 * (i - pre - one + 1); return sf, (sf - 1) * ODT, 2 * ODT
+    sf = one + 3 * (i - pre - one + 1); return sf, (sf - 1) * ODT, 3 * ODT
 
 def shot_strike(n=N_OF["strike"]):
-    """From the air, 300 m off: the bomb goes into the canopy and bursts just above the ground."""
+    """From the air, 360 m off: the bomb goes into the canopy and bursts just above the ground; the cloud climbs."""
     def frame(st, i):
         sf, tb, dt = strike_clock(i); st.set_time(tb, dt, {}); u = i / (n - 1)
-        pos = np.array([-250.0 + 14.0 * u, -165.0 - 8.0 * u, 92.0 + 6.0 * u]); tgt = np.array([0.0, 0.0, 26.0 + 34.0 * smoothstep(0.15, 1.0, u)])
-        off, rq = shake(tb - float(C.t_front(300.0)), 0.55); st.look(pos + off, tgt, 30.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
+        pos = np.array([-300.0 + 12.0 * u, -200.0 - 8.0 * u, 105.0 + 8.0 * u]); w = smoothstep(0.12, 1.0, u); tgt = np.array([0.0, 0.0, 36.0 + 100.0 * w])      # the view widens and tilts up with the cloud
+        off, rq = shake(tb - float(C.t_front(360.0)), 0.5); st.look(pos + off, tgt, lerp(25.0, 19.0, w)); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
         p = C.bomb_state(C.T_BURST + min(tb, 0.0))[0]
         return tb, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"gz": (0, 0, 0), "bomb": tuple(p), "top": (0, 0, 45.0), "edge": (0.0, -C.R_LZ, 30.0), "edge2": (0.0, C.R_LZ, 30.0)})
     return n, frame

@@ -112,10 +112,14 @@ def overlay_for(shot, i, n, m, info, hold=None):
     io = ease((i - 5) / 9.0) * (1 - ease((i - (n - 7)) / 7.0))
     seen = lambda q: 0.04 < q[0] < 0.96 and 0.08 < q[1] < 0.86
     if shot == "approach":
-        lower(d, "C-130 HERCULES", "1,830 m (6,000 ft) above the forest at about %d km/h  ·  ramp down, the extraction parachute already out" % KMH(info["V_AC"]), io)
-        a = ease((i - 30) / 8.0) * (1 - ease((i - (n - 10)) / 7.0))
-        if a > 0 and seen(an["chute"]):
-            callout(d, *P(an["chute"]), "EXTRACTION PARACHUTE", "4.6 m (15 ft)  ·  TIED TO THE LOAD INSIDE", AMBER, a, dx=-420, dy=150)
+        st_ = m.get("stage", 3); op = m.get("open", 1.0)
+        a1 = io * (1 - ease((op - 0.3) / 0.4)); a2 = ease((op - 0.75) / 0.25) * (1 - ease((i - (n - 7)) / 7.0))
+        if a1 > 0:
+            lower(d, "C-130 HERCULES", "1,830 m (6,000 ft) above the forest at about %d km/h  ·  ramp down for the drop" % KMH(info["V_AC"]), a1)
+        if a2 > 0:
+            lower(d, "FIRST, THE EXTRACTION PARACHUTE", "It is let out into the slipstream and fills behind the ramp  ·  the load stays locked to the floor until the count reaches zero", a2)
+            if seen(an["chute"]):
+                callout(d, *P(an["chute"]), "EXTRACTION PARACHUTE", "4.6 m (15 ft)  ·  TIED TO THE LOAD INSIDE", AMBER, a2, dx=-420, dy=150)
         a = ease((i - 12) / 10.0) * (1 - ease((i - (n - 10)) / 7.0))
         text(d, (W - 64, 60), "\"COMMANDO VAULT\": C-130 CREWS DROPPED THESE BOMBS IN VIETNAM FROM 1970", F_SEMI(26), INK, a, anchor="ra", tracking=2)
         text(d, (W - 64, 96), "A RADAR CONTROLLER ON THE GROUND COUNTED THE CREW DOWN TO THE RELEASE", F_SEMI(24), DIM, a, anchor="ra", tracking=2)
@@ -152,13 +156,15 @@ def overlay_for(shot, i, n, m, info, hold=None):
     elif shot == "strike":
         tb = t; pre, one = info["STRIKE"]
         readout(d, "AFTER THE BURST" if tb >= 0 else "SLOW MOTION", "%.1f s" % max(tb, 0.0), ease((i - 2) / 6.0), INK, "5.7 t OF EXPLOSIVE")
-        if i < pre + one:
-            text(d, (W - 64, 60), "SLOWED 1.7 TIMES", F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
-        a1 = ease((i - 3) / 8.0) * (1 - ease((tb - 1.1) / 0.3)); a2 = ease((tb - 1.5) / 0.3) * (1 - ease((i - (n - 10)) / 8.0))
+        text(d, (W - 64, 60), "SLOWED 1.7 TIMES" if i < pre + one else "SPEEDED UP 1.8 TIMES", F_SEMI(26), DIM, 1.0, anchor="ra", tracking=3)
+        text(d, (W - 64, 94), "FIREBALL AND CLOUD ARE SIZED BY RULE OF THUMB AND EYEWITNESS ACCOUNTS, NOT MEASURED", F_SEMI(22), DIM, ease(tb / 0.3), anchor="ra", tracking=2)
+        a1 = ease((i - 3) / 8.0) * (1 - ease((tb - 1.1) / 0.3)); a2 = ease((tb - 1.5) / 0.3) * (1 - ease((tb - 4.6) / 0.4)); a3 = ease((tb - 5.2) / 0.4) * (1 - ease((i - (n - 10)) / 8.0))
         if a1 > 0:
-            lower(d, "IT BURSTS JUST ABOVE THE GROUND", "The fuze on the extender touches first  ·  the blast spreads out through the trees instead of digging a crater", a1)
+            lower(d, "IT BURSTS JUST ABOVE THE GROUND", "The fuze on the extender touches first  ·  a fireball about 60 m across; the blast spreads out through the trees instead of digging a crater", a1)
         if a2 > 0:
-            lower(d, "A CIRCLE OF FOREST IS GONE", "About 1,000 lb per square inch near the centre (published)  ·  crews felt the shock in the aircraft, 1,800 m up", a2)
+            lower(d, "A CIRCLE OF FOREST IS GONE", "About 1,000 lb per square inch near the centre (published)  ·  crews felt the shock in the aircraft, 1,800 m up and more than a kilometre away", a2)
+        if a3 > 0:
+            lower(d, "THE CLOUD CLIMBS HUNDREDS OF METRES", "In 1991 soldiers who saw one of these from a distance reported that a nuclear weapon had been used", a3)
         a = ease((i - 4) / 6.0) * (1 - ease((tb + 0.08) / 0.06))
         if a > 0 and seen(an["bomb"]):
             callout(d, *P(an["bomb"]), "BLU-82", "", AMBER, a, dx=150, dy=-120)
@@ -243,7 +249,13 @@ def build_audio_sfx(path, starts, metas, lens, total, info, S):
     # ---- the aircraft: four turboprops (the recording is played lower, for a bigger machine), wind past the open ramp
     for shot, t0, g in (("approach", 1.0, 1.0), ("release", 9.0, 0.9)):
         S.put(mx, T[shot], S.bed("prop", L[shot] + 0.3, t0=t0, speed=0.72, fi=0.6, fo=0.35, lp=6000, level=0.085), g, -0.1); S.put(mx, T[shot], S.bed("prop", L[shot] + 0.3, t0=t0 + 7.0, speed=0.76, fi=0.6, fo=0.35, lp=6000, level=0.06), g, 0.25)
-        S.put(mx, T[shot], S.bed("flap", L[shot] + 0.3, t0=4.0, fi=0.6, fo=0.35, lp=3000, level=0.016), g, 0.35)
+        if shot == "release":
+            S.put(mx, T[shot], S.bed("flap", L[shot] + 0.3, t0=4.0, fi=0.6, fo=0.35, lp=3000, level=0.016), g, 0.35)
+    tx = when("approach", lambda m: m.get("stage", 0) >= 1); tf = when("approach", lambda m: m.get("open", 0) > 0.05)
+    if tx:
+        S.put(mx, tx - 0.03, S.cut("latch", 1.9, 0.9), 0.35, 0.3); S.put(mx, tx + 0.2, S.cut("whoosh", 16.4, 1.6, fi=0.15, fo=0.5), 0.22, 0.3)
+    if tf:
+        S.put(mx, tf, S.cut("flap", 6.6, 2.4, speed=0.8, fi=0.04, fo=1.0), 0.50, 0.3); S.put(mx, tf + 0.5, S.bed("flap", max(T["approach"] + L["approach"] - tf - 0.2, 0.5), t0=4.0, fi=0.5, fo=0.35, lp=3000, level=0.016), 1.0, 0.35)
     # ---- the bomb, whole and cut open
     S.put(mx, T["intro"], S.bed("drone", L["intro"], t0=22.0, fi=0.4, fo=0.4, level=0.065)); S.put(mx, T["intro"] + 0.05, S.cut("boom_deep", 0.0, 1.8, speed=1.8, fo=1.0), 0.22)
     for k in range(6):

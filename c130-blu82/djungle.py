@@ -25,6 +25,7 @@ import dconst as C
 env.SUN_ELEV = math.radians(56.0)                                     # a high tropical sun (the shared sky module's default is a low one)
 
 R_OBJ = 236.0                                                         # single trees out to here; beyond, the canopy is one surface
+R_OBJ2 = 296.0                                                        # in the full forest a further ring of single trees, added for the wide view of the burst
 CANOPY_Z = 31.0
 BARK = [(0.16, 0.13, 0.10, 1), (0.20, 0.17, 0.13, 1), (0.12, 0.10, 0.08, 1)]
 GREENS = [(0.035, 0.085, 0.020), (0.050, 0.105, 0.025), (0.028, 0.070, 0.022), (0.060, 0.115, 0.030), (0.040, 0.095, 0.035)]
@@ -222,6 +223,13 @@ class Jungle:
                 if r > R_OBJ or r < 2.5 or (sec and not (-78.0 < y < -1.6 and abs(x) < 190.0)):
                     continue
                 pts.append((x, y, r))
+        if not sec:                                                   # the outer ring has its own random numbers, so the forest inside it stays as it was
+            rng2 = np.random.default_rng(seed + 100); n2 = int(R_OBJ2 / cell) + 2
+            for ix in range(-n2, n2 + 1):
+                for iy in range(-n2, n2 + 1):
+                    x = (ix + rng2.uniform(0.1, 0.9)) * cell; y = (iy + rng2.uniform(0.1, 0.9)) * cell; r = math.hypot(x, y)
+                    if R_OBJ - 3.0 < r <= R_OBJ2:
+                        pts.append((x, y, r))
         self.trees = []
         for (x, y, r) in pts:
             k = int(rng.choice(len(KINDS), p=w)); z = float(ground_h(x, y)); s = float(rng.uniform(0.86, 1.12)); yaw = float(rng.uniform(0, 6.283))
@@ -246,7 +254,7 @@ class Jungle:
         self.update(-1.0)
 
     def _ground(self, col, sec):
-        m = soil_mat(); self.blast_node = m.node_tree.nodes["Blast"]; R = 255.0; xs = np.arange(-R, R + 0.01, 1.25); ys = np.arange(-R, (0.0 if sec else R) + 0.01, 1.25); X, Y = np.meshgrid(xs, ys, indexing="ij")
+        m = soil_mat(); self.blast_node = m.node_tree.nodes["Blast"]; R = 255.0 if sec else 315.0; xs = np.arange(-R, R + 0.01, 1.25); ys = np.arange(-R, (0.0 if sec else R) + 0.01, 1.25); X, Y = np.meshgrid(xs, ys, indexing="ij")
         Z = ground_h(X, Y) + 0.10 * (fbm(X * 0.5, Y * 0.5, 3, 4) - 0.5) * np.clip(np.hypot(X, Y) / 6.0, 0, 1)
         me = new_mesh("jungle_ground", np.stack([X, Y, Z], -1).reshape(-1, 3), [grid_faces(len(xs), len(ys))]); self.ground = new_obj("Ground", me, col, m)
         r = np.hypot(X, Y).ravel(); dip = -float(np.mean(C.DIP_H)) * np.clip(1 - (r / (float(np.mean(C.DIP_D)) / 2)) ** 2, 0, None)        # the dish under the burst
@@ -257,7 +265,7 @@ class Jungle:
             self.cut.shape_key_add(name="Basis"); kb2 = self.cut.shape_key_add(name="Dish"); V2 = V.copy(); V2[0::2, 2] -= float(np.mean(C.DIP_H)) * np.clip(1 - (np.abs(xs2) / (float(np.mean(C.DIP_D)) / 2)) ** 2, 0, None); kb2.data.foreach_set("co", V2.ravel().astype(np.float32)); self.dish2 = kb2
 
     def _far(self, col):
-        na = 720; a = np.linspace(0, 2 * np.pi, na, endpoint=False); rr = np.concatenate([np.geomspace(R_OBJ - 6.0, 1500.0, 150), np.geomspace(1560.0, 60000.0, 60)]); A, Rr = np.meshgrid(a, rr, indexing="ij"); X = Rr * np.cos(A); Y = Rr * np.sin(A)
+        na = 720; a = np.linspace(0, 2 * np.pi, na, endpoint=False); rr = np.concatenate([np.geomspace(R_OBJ2 - 6.0, 1500.0, 150), np.geomspace(1560.0, 60000.0, 60)]); A, Rr = np.meshgrid(a, rr, indexing="ij"); X = Rr * np.cos(A); Y = Rr * np.sin(A)
         Z = ground_h(X, Y) + CANOPY_Z + np.where(Rr < 1500.0, crown_h(X, Y), 0.0); Z[:, 0] -= 30.0                               # the inner edge turns down behind the first single trees
         self.far = new_obj("CanopyFar", new_mesh("canopy_far", np.stack([X, Y, Z], -1).reshape(-1, 3), [grid_faces(na, len(rr), wrap_u=True)]), col, canopy_mat())
 
