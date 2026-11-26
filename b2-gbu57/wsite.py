@@ -1,10 +1,11 @@
-"""The target: a large cut-and-cover bunker let into a mountainside, as an outside view and as a section.
+"""The target: a concrete hall 61 m (200 ft) down inside a mountainside of earth, as an outside view and as a section.
 
 The bunker is invented and nobody is modelled in it: a reinforced-concrete hall 30 m by 16 m by 7 m with a 2.5 m
-roof, built in a trench in the slope and covered again with about 12 m of compacted earth and broken rock, and
-reached by a level tunnel from a concrete portal lower down the slope.  (Adapted from the BLU-109 segment's psite;
-this bunker and its surroundings are C.K = 3 times the size.)  ground(x, y) is the surface everywhere; near the bunker it is the
-plain 25 degree slope that the penetration calculation in pconst assumes.
+roof, about 55 m of soft earth over it, reached by a level tunnel 130 m long from a concrete portal lower down the
+slope.  The ground is earth because by the open penetration equations that is the only ground this bomb goes 61 m
+into (see wconst).  (Adapted from the BLU-109 segment's psite; the surroundings are C.K = 3 times the size.)
+ground(x, y) is the surface everywhere; near the bunker and down to the portal it is the plain 25 degree slope that
+the penetration calculation in wconst assumes.
 
 Outside(col)   the mountainside with the portal, for views from the air and from the valley
 Section(col)   the same ground cut along the plane y = 0 and seen from the +Y side: the layers the bomb goes through,
@@ -35,7 +36,7 @@ def ground(x, y, fine=1):
 
 def _ground0(x, y, fine=1):
     """The BLU-109 segment's mountainside, in lengths K times smaller than this one's."""
-    PX, XF, CUT_W, ZF = [v / K for v in (C.PORTAL_X, globals()["XF"], globals()["CUT_W"], C.Z_FLOOR)]; r = np.hypot(x - 2.0, y)
+    PX, XF, CUT_W, ZF = [v / K for v in (C.PORTAL_X, globals()["XF"], globals()["CUT_W"], C.Z_FLOOR)]; dx = x - 2.0; r = np.hypot(np.where(dx < 0, dx * 0.40, dx * 0.75), y)   # the plain part reaches down the slope as far as the portal
     w = np.clip((r - 24.0) / 90.0, 0.0, 1.0); w = w * w * (3 - 2 * w)
     sp = lambda u, k: k * np.logaddexp(0.0, u / k)                                                            # a bend instead of a crease
     xx = x + 70.0 * np.clip((r - 40.0) / 60.0, 0.0, 1.0) * (fbm(y / 350.0 + 1.7, x / 900.0 + 0.3, 3, 3) - 0.5)       # the bends wander across the slope
@@ -90,8 +91,9 @@ def _portal(S, half=False):
         S.v[-1][:, 1] += sg * (CUT_W + 0.6)
 
 VENTS = ((X0 + 6.0, 5.5), (X1 - 6.0, -5.5))
-HX = (X0 + X1) / 2                                    # the middle of the hall, where the cover goes down furthest
-V_HEAVE = 4.2; ROOF_DROP = 5.2; SURF_DROP = 3.6                       # staging: the roof and its cover are lifted a little, then go down into the hall
+HX = (X0 + X1) / 2                                    # the middle of the hall, where the roof goes down furthest
+T_DOOR = 0.24                                         # seconds after the burst when the blast reaches the doors at the far end of the tunnel
+V_HEAVE = 0.5; ROOF_DROP = 5.2; SURF_DROP = 0.0                       # staging: the broken roof and the earth on it go down into the hall; 55 m higher the surface does not move
 
 def _ball(td):
     return V_HEAVE * td - 0.5 * C.G * td * td if td > 0 else 0.0
@@ -105,12 +107,11 @@ def roof_dz(x, td):
 
 def surf_k(td):
     """The same for the ground surface, as a fraction of the final hollow (negative while it is lifted)."""
-    return min(-0.75 * _ball(td) / SURF_DROP, 1.0)
+    return 0.0
 
 def hollow(x, y):
     """The hollow left in the surface when the cover has fallen into the room (z change, final)."""
-    x = np.asarray(x, float); y = np.asarray(y, float); e = ((x - HX) / 17.0) ** 2 + (y / 10.5) ** 2
-    return -SURF_DROP * np.exp(-e) + 1.0 * np.exp(-((np.sqrt(e) - 1.35) / 0.35) ** 2) + 0.7 * np.exp(-e / 2.5) * (fbm(x * 0.3, y * 0.3, 5, 3) - 0.5) * 2
+    return np.zeros(np.broadcast(np.asarray(x, float), np.asarray(y, float)).shape)                                  # none: the burst is far too deep to break the surface
 
 class _Hollow:
     """Moves the ground's own vertices for the lift and the fall of the cover."""
@@ -149,42 +150,42 @@ class Outside:
             self.doors.append(Piece(ob, (XF - 0.15, sg * TW / 2, ZF + TH / 2), (-34.0 - 4 * sg, 3.0 * sg, 5.0 + sg), (0.2, 1.0, 0.3 * sg), 3.0 * sg, ZF + 0.15, tuple(Quaternion((0, 1, 0), math.pi / 2)), drag=0.3))
         hm, N, L, P = nodemat("EntryHole"); P.inputs["Base Color"].default_value = (0.012, 0.011, 0.010, 1); P.inputs["Roughness"].default_value = 1.0
         a = np.linspace(0, 2 * np.pi, 24, endpoint=False); nrm = np.array([-math.sin(math.radians(C.SLOPE)), 0, math.cos(math.radians(C.SLOPE))]); t1 = np.array([math.cos(math.radians(C.SLOPE)), 0, math.sin(math.radians(C.SLOPE))])
-        V = np.vstack([[nrm * 0.06], [nrm * 0.06 + 0.62 * (math.cos(t) * t1 + math.sin(t) * EY) * (1 + 0.2 * math.sin(3 * t)) for t in a]]); k = np.arange(24)
+        V = np.vstack([[nrm * 0.07], [nrm * 0.07 + 0.95 * (math.cos(t) * t1 + math.sin(t) * EY) * (1 + 0.2 * math.sin(3 * t)) for t in a]]); k = np.arange(24)
         self.hole = new_obj("EntryHole", new_mesh("entry_hole", V, [np.stack([np.zeros(24, int), 1 + k, 1 + (k + 1) % 24], 1)], smooth=False), col, hm); self.hole.visible_shadow = False
-        g = Geo()                                                                                                                # broken ground in the hollow
-        for k in range(220):
-            x = float(rng.normal(HX, 9.5)); y = float(rng.normal(0.0, 6.0)); s_ = float(rng.uniform(0.3, 1.7))
-            env.rock_geo(g, rng, (x, y, float(ground(x, y) + hollow(x, y)) + 0.1 * s_), s_, 2, [(0.17, 0.14, 0.10, 1), (0.24, 0.20, 0.15, 1), (0.30, 0.29, 0.27, 1)][k % 3])
-        self.rubble = new_obj("HollowRubble", g.mesh("hollow_rubble"), col, env.mat_vcol("HollowMat", rough=0.9, bump_scale=8))
+        g = Geo()                                                                                                                # earth thrown out round the hole (its size is an estimate)
+        rv, rq, _ = revolve([(0.02, 0.9), (0.55, 1.6), (0.62, 2.3), (0.22, 3.8), (0.0, 5.6)], 30, axis=nrm, origin=(0, 0, 0)); g.add(rv, rq, color=(0.34, 0.27, 0.19, 1))
+        for k in range(150):
+            r_ = float(1.2 + abs(rng.normal(0, 4.5))); a_ = float(rng.uniform(0, 6.283)); x = r_ * math.cos(a_) * 0.9 - 0.25 * r_; y = r_ * math.sin(a_); s_ = float(rng.uniform(0.15, 0.6))
+            env.rock_geo(g, rng, (x, y, float(ground(x, y)) + 0.1 * s_), s_, 2, [(0.30, 0.24, 0.17, 1), (0.36, 0.29, 0.20, 1), (0.24, 0.19, 0.14, 1)][k % 3])
+        self.rubble = new_obj("HoleEjecta", g.mesh("hole_ejecta"), col, env.mat_vcol("HollowMat", rough=0.9, bump_scale=8))
         self.update(-1.0)
 
     def update(self, tp):
         """tp: seconds after the bomb touches the slope (the charge fires at FUZE_DELAY)."""
-        td = tp - C.FUZE_DELAY; self.hole.hide_render = tp < 0.0 or td > 0.5; self.rubble.hide_render = td < 1.75
+        td = tp - C.FUZE_DELAY; self.hole.hide_render = tp < 0.0; self.rubble.hide_render = tp < 0.03
         for pc in self.doors:
-            p, q = pc.at(td - 0.02); pc.ob.location = p; pc.ob.rotation_quaternion = q
+            p, q = pc.at(td - T_DOOR); pc.ob.location = p; pc.ob.rotation_quaternion = q
         self.collapse.set(surf_k(td))
 
 def _column(x):
     """What lies along a vertical line at x in the plane of the section: (z_low, z_high, kind) from the bottom up."""
-    top = float(ground(x, 0.0)); out = []; zb = -150.0
+    top = float(ground(x, 0.0)); out = []; zb = -230.0; zr = ZF - C.FLOOR - 7.0                                       # the top of the rock: well under the floor
     def add(z0, z1, kind):
         out.append((z0, max(z1, z0), kind))
     if x < PX:
-        nat = float(M * x - np.clip(-(x + 60.0 * K), 0.0, None) * M * 0.92); add(zb, min(nat, top), "rock"); add(min(nat, top), top, "fill"); return out
+        add(zb, min(zr, top - 3.0), "rock"); add(min(zr, top - 3.0), top, "fill"); return out
     if x < XF:                                                         # the open cutting in front of the portal
-        add(zb, ZF - LIN, "rock"); add(ZF - LIN, ZF, "conc"); return out
+        add(zb, zr, "rock"); add(zr, ZF - LIN, "fill"); add(ZF - LIN, ZF, "conc"); return out
     if x < X0 - C.WALL:                                                # along the tunnel
-        add(zb, ZF - LIN, "rock"); add(ZF - LIN, ZF, "conc"); add(ZF + TH, ZF + TH + LIN, "conc"); lt = ZF + TH + LIN
-        add(lt, max(top - 4.5, lt), "rock"); add(max(top - 4.5, lt), top, "weath"); return out
+        add(zb, zr, "rock"); add(zr, ZF - LIN, "fill"); add(ZF - LIN, ZF, "conc"); add(ZF + TH, ZF + TH + LIN, "conc"); add(ZF + TH + LIN, top, "fill"); return out
     if x > X1 + C.WALL:
-        add(zb, max(top - 4.5, zb), "rock"); add(max(top - 4.5, zb), top, "weath"); return out
-    add(zb, ZF - C.FLOOR, "rock"); add(ZF - C.FLOOR, ZF, "conc")
+        add(zb, zr, "rock"); add(zr, top, "fill"); return out
+    add(zb, zr, "rock"); add(zr, ZF - C.FLOOR, "fill"); add(ZF - C.FLOOR, ZF, "conc")
     if x < X0 or x > X1:
         add(ZF, ZR, "conc")                                             # end walls (the roof slab itself is loose blocks, see Section)
     return out                                                         # the fill over the roof moves, so Section draws it frame by frame
 
-def _face_mat(name, c0, c1, scale, stones=0.0):
+def _face_mat(name, c0, c1, scale, stones=0.0, beds=0.0):
     m, N, L, P = nodemat(name); tc = N.new("ShaderNodeTexCoord"); n = N.new("ShaderNodeTexNoise"); n.inputs["Scale"].default_value = scale / 1.4; n.inputs["Detail"].default_value = 8; n.inputs["Roughness"].default_value = 0.62
     mp = N.new("ShaderNodeMapping"); mp.inputs["Scale"].default_value = (1.0, 1.0, 3.2); mp.inputs["Rotation"].default_value = (0, math.radians(-12), 0); L.new(tc.outputs["Object"], mp.inputs["Vector"]); L.new(mp.outputs[0], n.inputs["Vector"])
     r = N.new("ShaderNodeValToRGB"); e = r.color_ramp.elements; e[0].position = 0.34; e[0].color = (*c0, 1); e[1].position = 0.68; e[1].color = (*c1, 1); L.new(n.outputs["Fac"], r.inputs["Fac"])
@@ -194,6 +195,12 @@ def _face_mat(name, c0, c1, scale, stones=0.0):
         L.new(r.outputs["Color"], mx.inputs[1]); L.new(st.outputs[0], mx.inputs[2]); L.new(mx.outputs[0], P.inputs["Base Color"])
     else:
         L.new(r.outputs["Color"], P.inputs["Base Color"])
+    if beds:                                                            # beds of lighter and darker earth, lying nearly level: they give the eye something to measure the depth by
+        src = P.inputs["Base Color"].links[0].from_socket; L.remove(P.inputs["Base Color"].links[0])
+        mb = N.new("ShaderNodeMapping"); mb.inputs["Scale"].default_value = (0.012, 1.0, 0.16); mb.inputs["Rotation"].default_value = (0, math.radians(-4), 0); L.new(tc.outputs["Object"], mb.inputs["Vector"])
+        nb = N.new("ShaderNodeTexNoise"); nb.inputs["Scale"].default_value = 1.0; nb.inputs["Detail"].default_value = 3; L.new(mb.outputs[0], nb.inputs["Vector"])
+        rb = N.new("ShaderNodeMapRange"); rb.inputs["From Min"].default_value = 0.35; rb.inputs["From Max"].default_value = 0.65; rb.inputs["To Min"].default_value = 1.0 - beds; rb.inputs["To Max"].default_value = 1.0 + beds * 0.35; L.new(nb.outputs["Fac"], rb.inputs["Value"])
+        mx2 = N.new("ShaderNodeMixRGB"); mx2.blend_type = 'MULTIPLY'; mx2.inputs[0].default_value = 1.0; L.new(src, mx2.inputs[1]); L.new(rb.outputs[0], mx2.inputs[2]); L.new(mx2.outputs[0], P.inputs["Base Color"])
     P.inputs["Roughness"].default_value = 0.9
     return m
 
@@ -203,8 +210,8 @@ class Section:
         rng = np.random.default_rng(19); self.col = col; self.mat = bpy.data.materials.get("SitePaint") or paint_mat("SitePaint", rough=0.85, bump=0.4)
         self.collapse = _Hollow(_terrain(col, ymax=0.0)[0]); _rocks(col, rng, ymax=0.0)
         mats = self.mats = {"rock": _face_mat("CutRock", (0.050, 0.045, 0.042), (0.125, 0.110, 0.098), 0.55), "weath": _face_mat("CutWeathered", (0.115, 0.090, 0.066), (0.215, 0.170, 0.120), 1.2, stones=1.6),
-                            "fill": _face_mat("CutFill", (0.26, 0.195, 0.125), (0.43, 0.335, 0.225), 2.2, stones=3.4), "conc": _face_mat("CutConcrete", (0.36, 0.355, 0.34), (0.52, 0.51, 0.49), 5.0, stones=14.0)}
-        xs = sorted(set(list(np.arange(-450.0, 450.01, 1.5)) + [PX - 33, PX - 21, PX - 1e-3, PX + 1e-3, XF - 1e-3, XF + 1e-3, X0 - C.WALL - 1e-3, X0 - C.WALL + 1e-3, X0 - 1e-3, X0 + 1e-3, X1 - 1e-3, X1 + 1e-3, X1 + C.WALL - 1e-3, X1 + C.WALL + 1e-3]))
+                            "fill": _face_mat("CutFill", (0.26, 0.195, 0.125), (0.43, 0.335, 0.225), 2.2, stones=3.4, beds=0.34), "conc": _face_mat("CutConcrete", (0.36, 0.355, 0.34), (0.52, 0.51, 0.49), 5.0, stones=14.0)}
+        xs = sorted(set(list(np.arange(-660.0, 660.01, 1.5)) + [PX - 33, PX - 21, PX - 1e-3, PX + 1e-3, XF - 1e-3, XF + 1e-3, X0 - C.WALL - 1e-3, X0 - C.WALL + 1e-3, X0 - 1e-3, X0 + 1e-3, X1 - 1e-3, X1 + 1e-3, X1 + C.WALL - 1e-3, X1 + C.WALL + 1e-3]))
         quads = {k: [] for k in mats}
         for xa, xb in zip(xs[:-1], xs[1:]):
             if xb - xa < 5e-3 or (xa < X0 - C.WALL < xb) or (xa < X1 + C.WALL < xb):
@@ -215,8 +222,10 @@ class Section:
             for (a0, a1, kind), (b0, b1, _) in zip(ca, cb):
                 quads[kind].append([(xa, 0.003, a0), (xb, 0.003, b0), (xb, 0.003, b1), (xa, 0.003, a1)])
         for kind, qs in quads.items():
+            if not qs:
+                continue
             V = np.array(qs, float).reshape(-1, 3); F = np.arange(len(V)).reshape(-1, 4); new_obj("Cut_" + kind, new_mesh("cut_" + kind, V, [F], smooth=False), col, mats[kind])
-        self.fx = np.linspace(X0 - C.WALL, X1 + C.WALL, 141); self.fill = new_obj("Cut_cover", bpy.data.meshes.new("cut_cover"), col, mats["fill"])
+        self.fx = np.linspace(X0 - C.WALL, X1 + C.WALL, 141); self.rng = np.random.default_rng(5); self.fill = new_obj("Cut_cover", bpy.data.meshes.new("cut_cover"), col, mats["fill"])
         # ---- behind the cut: the room, the tunnel, the portal
         S = Shell()
         S.add(*gbox(((X0 + X1) / 2, -C.ROOM_Y - C.WALL / 2, (ZF + ZR) / 2), (X1 - X0 + 2 * C.WALL, C.WALL, ZR - ZF)), color=CONC)                       # back wall
@@ -261,7 +270,7 @@ class Section:
             v0 = d * rng.uniform(8.0, 60.0 if top else 22.0) + np.array([rng.uniform(-9, 9), rng.uniform(-9, 2), rng.uniform(-4, 4)])
             self.spall.append((Piece(ob, p0, v0, tuple(rng.uniform(-1, 1, 3)), rng.uniform(-30, 30), ZF + 0.15, tuple(Quaternion(Vector(rng.uniform(-1, 1, 3)).normalized(), rng.uniform(0, 3))), drag=0.8), C.TP[2] if top else C.TP[3] + 0.002))
         self.lamps = []
-        for (lx, lz, e) in ((X0 + 4.0, ZC - 0.6, 600.0), (X0 + 11.5, ZC - 0.6, 600.0), (X0 + 19.0, ZC - 0.6, 600.0), (X0 + 26.5, ZC - 0.6, 600.0), ((XF + X0) / 2, ZF + TH - 0.5, 260.0), (XF + (X0 - XF) * 0.2, ZF + TH - 0.5, 260.0)):
+        for (lx, lz, e) in ((X0 + 4.0, ZC - 0.6, 600.0), (X0 + 11.5, ZC - 0.6, 600.0), (X0 + 19.0, ZC - 0.6, 600.0), (X0 + 26.5, ZC - 0.6, 600.0), *[(XF + (X0 - XF) * q, ZF + TH - 0.5, 320.0) for q in (0.07, 0.22, 0.37, 0.52, 0.67, 0.82, 0.94)]):
             ld = bpy.data.lights.new("Lamp", 'AREA'); ld.size = 2.4; ld.energy = e; ld.color = (1.0, 0.93, 0.80); lo = bpy.data.objects.new("Lamp", ld); col.objects.link(lo); lo.location = (lx, -3.5, lz); self.lamps.append((lo, e))
         self.update(-1.0)
 
@@ -277,12 +286,12 @@ class Section:
             ob.location = (xc + 0.15 * r1 * w, -(C.ROOM_Y + C.WALL) / 2, (ZC + ZR) / 2 + dz); ob.rotation_quaternion = Quaternion((0, 1, 0), -math.atan(sl) + math.radians(5.0) * r2 * w)
         for pc, t0 in self.spall:
             pc.ob.hide_render = tp < t0 or td > 0.03; p, q = pc.at(tp - t0); pc.ob.location = p; pc.ob.rotation_quaternion = q
-        p, q = self.door.at(td - 0.02); self.door.ob.location = p; self.door.ob.rotation_quaternion = q
+        p, q = self.door.at(td - T_DOOR); self.door.ob.location = p; self.door.ob.rotation_quaternion = q
         for lo, e_ in self.lamps:
             lo.data.energy = e_ if td < 0 else 0.0; lo.hide_render = td >= 0
         self.contents.hide_render = td > 0.020; self.crater.hide_render = True          # this bomb fires in the hall, before it reaches the floor
-        self.rubble.hide_render = td < 0.80; self.rubble.scale = (1, 1, 0.08 + 0.92 * smoothstep(0.80, 1.85, td))
-        segs = [(0.0, min(s, C.S1)), (C.S1, min(s, C.S2))] if td < 0.004 else ([(0.0, C.S1)] if td < 0.12 else []); qs = []; nrm = np.array([C.U[2], 0.0, -C.U[0]])
+        self.rubble.hide_render = td < 0.45; self.rubble.scale = (1, 1, 0.08 + 0.92 * smoothstep(0.45, 1.40, td))
+        segs = [(0.0, min(s, C.S1)), (C.S1, min(s, C.S2))] if td < 0.004 else [(0.0, C.S1)]; qs = []; nrm = np.array([C.U[2], 0.0, -C.U[0]])
         for a, b in segs:
             if b > a + 1e-3:
                 w = 0.5 * C.BLU_D * 1.12; pa = C.U * a; pb = C.U * b; qs.append([pa - nrm * w, pb - nrm * w, pb + nrm * w, pa + nrm * w])

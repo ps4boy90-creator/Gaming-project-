@@ -32,7 +32,7 @@ D = math.radians
 shake = gshots.shake
 SET_OF = {"approach": "air", "bay": "air", "fall": "out", "strike": "out", "after": "out", "cutaway": "sec"}
 SIM_OF = {"strike": "out", "cutaway": "in"}
-N_OF = {"card": 72, "approach": 96, "bay": 160, "intro": 96, "fall": 84, "strike": 156, "cutaway": 0, "after": 96}
+N_OF = {"card": 72, "approach": 96, "bay": 160, "intro": 96, "fall": 84, "strike": 156, "cutaway": 0, "after": 108}
 JET_Q = Quaternion((0, 1, 0), D(-2.0))                               # two degrees nose-up in the cruise
 T_DOORS = (-2.7, -1.3)                                              # the bay doors open
 T_FINS = (0.45, 1.0)                                                # the lattice fins swing out once the bomb is clear of the bay
@@ -87,14 +87,14 @@ class Stage(gshots.Stage):
             if kind == "out":
                 self.l_hit = ms.point_light(col, "MouthFlash", (1.0, 0.58, 0.26), 3.0); self.l_hit.location = (XF - 8.0, 0.0, ZF + 4.0)
                 self.plumes = []
-                for (loc, s) in (((psite.HX, 0.0, float(psite.ground(psite.HX, 0.0)) - 5.5), 2.6), ((XF - 1.8, 0.0, ZF - 0.5), 0.99)):
-                    pl = Plume(col); pl.ob.location = loc; pl.ob.scale = (s if s > 1 else -s, s, s);      # the tunnel's smoke leans away down the valley, clear of the hollow
+                for (loc, s) in (((0.0, 0.0, -0.8), 1.3), ((XF - 1.8, 0.0, ZF - 0.5), 0.99)):
+                    pl = Plume(col); pl.ob.location = loc; pl.ob.scale = (0.5, 0.5, 1.0) if s > 1 else (-s, s, s)      # a thin column from the bomb's hole; the tunnel's smoke leans away down the valley
                     pl.fl.hide_render = True; pl.glow.hide_render = True; self.plumes.append(pl)
-                    for mt in pl.mats:                                  # dust and smoke from a wrecked room, not an oil fire: thinner, and brown-grey over the hollow
-                        f = mt.node_tree.nodes["Fade"]; f.inputs["To Min"].default_value = 0.14 if s > 1 else 0.34; f.inputs["To Max"].default_value = 0.05 if s > 1 else 0.05
+                    for mt in pl.mats:                                  # smoke from a wrecked hall, not an oil fire: thinner
+                        f = mt.node_tree.nodes["Fade"]; f.inputs["To Min"].default_value = 0.22 if s > 1 else 0.34; f.inputs["To Max"].default_value = 0.04 if s > 1 else 0.05
                         for nd in mt.node_tree.nodes:
                             if nd.type == 'PRINCIPLED_VOLUME':
-                                nd.inputs["Color"].default_value = (0.50, 0.44, 0.37, 1) if s > 1 else (0.10, 0.095, 0.09, 1)
+                                nd.inputs["Color"].default_value = (0.20, 0.185, 0.17, 1) if s > 1 else (0.10, 0.095, 0.09, 1)
         cd = bpy.data.cameras.new("Cam"); self.cam = bpy.data.objects.new("Cam", cd); sc.collection.objects.link(self.cam); sc.camera = self.cam
         cd.clip_start = 0.05; cd.clip_end = 2.0e6; cd.sensor_width = 36; cd.sensor_fit = 'HORIZONTAL'
         self.cam.rotation_mode = 'QUATERNION'
@@ -131,7 +131,7 @@ class Stage(gshots.Stage):
         self.kit.ob.location = tuple(C.U * (C.BLU_L / 2 * kq)); self.kit.ob.rotation_quaternion = Quaternion((0, 1, 0), D(C.DIVE)); self.kit.ob.scale = (kq, 1.5 - 0.5 * kq, 1.5 - 0.5 * kq)
         if k == "out":
             self.bomb.hide(torn); self.bare.ob.hide_render = True  # the body is under ground from then on
-            self.l_hit.data.energy = 2.5e6 * math.exp(-(td - 0.10) / 0.06) if 0.10 <= td < 0.6 else 0.0; self.l_hit.hide_render = self.l_hit.data.energy < 5.0
+            self.l_hit.data.energy = 2.5e6 * math.exp(-(td - psite.T_DOOR) / 0.06) if psite.T_DOOR <= td < psite.T_DOOR + 0.5 else 0.0; self.l_hit.hide_render = self.l_hit.data.energy < 5.0
             for pl in self.plumes:
                 pl.update(bool(opt.get("plume", False)), tp); pl.fl.hide_render = True; pl.glow.hide_render = True
         else:
@@ -184,42 +184,56 @@ def _out_clock(i, pre, one):
     sf = one + 2 * (i - pre - one + 1); return sf, (sf - 1) * SDT, 2 * SDT
 
 def shot_strike(n=N_OF["strike"]):
-    """From across the slope: the bomb goes in, and a sixteenth of a second later the mountain answers."""
+    """From across the slope: the bomb goes in; a fifth of a second later it bursts 61 m down, and what shows is at the tunnel mouth and the hole."""
     def frame(st, i):
         sf, tp, dt = _out_clock(i, 20, 84); st.set_time(tp, dt, {}); u = i / (n - 1); td = tp - C.FUZE_DELAY
-        pos = np.array([-66.0 + 9.0 * u, 234.0 + 12.0 * u, 0.0]); pos[2] = max(float(psite.ground(pos[0], pos[1])) + 12.0, 1.5) + 4.5 * u; tgt = np.array([-10.5, 0.0, -3.0 + 12.0 * smoothstep(0.2, 1.0, u)])
-        off, rq = shake(td - 0.35, 1.2); q = st.look(pos + off, tgt, 40.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
-        return tp, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0), "mouth": (XF, 0, ZF + C.TUN_H + 4.8), "cover": (psite.HX, 0.0, float(psite.ground(psite.HX, 0.0)) + 1.8), "vent": (psite.VENTS[1][0], psite.VENTS[1][1], float(psite.ground(*psite.VENTS[1])) + 3.5)})
+        pos = np.array([-212.0 + 8.0 * u, 118.0 + 10.0 * u, 0.0]); pos[2] = float(psite.ground(pos[0], pos[1])) + 9.0 + 3.0 * u; tgt = np.array([-66.0, 0.0, -31.0 + 5.0 * smoothstep(0.2, 1.0, u)])   # from down the slope: the tunnel mouth near, the place the bomb goes in beyond and above it
+        off, rq = shake(td - 0.05, 0.5); q = st.look(pos + off, tgt, 30.0); st.cam.rotation_quaternion = st.cam.rotation_quaternion @ rq
+        return tp, dt, dict(samples=16, sim=sf, shutter=0.25, anchors={"hit": (0, 0, 0), "mouth": (XF, 0, ZF + C.TUN_H + 4.8), "hall": tuple(C.BURST), "cover": (psite.HX, 0.0, float(psite.ground(psite.HX, 0.0)) + 1.8), "vent": (psite.VENTS[1][0], psite.VENTS[1][1], float(psite.ground(*psite.VENTS[1])) + 3.5)})
     return n, frame
 
 def shot_after(n=N_OF["after"]):
-    """Twenty seconds later: the hollow where the cover fell in, the doors on the apron, smoke from the tunnel and the ground."""
+    """Twenty seconds later: a hole a metre across with earth thrown round it, the doors on the apron, smoke from the tunnel, the hole and the shafts."""
     def cam_at(st, t, u):
-        a = D(lerp(118.0, 76.0, u)); r = lerp(174.0, 150.0, u); pos = np.array([-9.0 + r * math.cos(a), r * math.sin(a), lerp(39.0, 57.0, u)]); return pos, (Vector((-6.0, 0.0, -3.0)) - Vector(pos)).to_track_quat('-Z', 'Y')
+        a = D(lerp(118.0, 80.0, u)); r = lerp(250.0, 225.0, u); pos = np.array([-55.0 + r * math.cos(a), r * math.sin(a), lerp(8.0, 30.0, u)]); return pos, (Vector((-55.0, 0.0, -26.0)) - Vector(pos)).to_track_quat('-Z', 'Y')
     def frame(st, i):
         tp = 20.0 + i / FPS; dt = 1.0 / FPS; st.set_time(tp, dt, dict(plume=True, haze=0.8)); u = smoothstep(0.0, 1.0, i / (n - 1)); pos, q = cam_at(st, tp, u); st.look(pos, None, 34.0, quat=q)
         st.key3(st.cam, lambda tt: cam_at(st, tt, u), tp, dt, True)
-        return tp, dt, dict(samples=32, shutter=0.35, anchors={"hollow": (psite.HX, 0.0, float(psite.ground(psite.HX, 0.0)) - 2.0), "mouth": (XF, 0, ZF + C.TUN_H + 3.0)})
+        return tp, dt, dict(samples=32, shutter=0.35, anchors={"hole": (0.0, 0.0, 0.6), "hall": tuple(C.BURST), "mouth": (XF, 0, ZF + C.TUN_H + 3.0)})
     return n, frame
 
 # ----------------------------------------------------------------------------- shot: the section
-CUT_PRE = 16; CUT_MS = 0.0005; CUT_PEN = int(math.ceil(C.FUZE_DELAY / CUT_MS)); CUT_ONE = 96; N_OF["cutaway"] = CUT_PRE + CUT_PEN + CUT_ONE + 104
+CUT_PRE = 40; CUT_MS = 0.00125; CUT_MS2 = 0.0005; CUT_N1 = int(math.ceil((C.TP[1] - 0.004) / CUT_MS)); CUT_T1 = CUT_N1 * CUT_MS       # through the earth at 1.25 ms a frame, then through the roof and into the hall at 0.5 ms a frame
+CUT_PEN = CUT_N1 + int(math.ceil((C.FUZE_DELAY - CUT_T1) / CUT_MS2)); CUT_ONE = 96; CUT_END = 120; N_OF["cutaway"] = CUT_PRE + CUT_PEN + CUT_ONE + CUT_END
+CAM_WIDE = (np.array([-36.0, -31.0]), 236.0)                           # (x, z) of the middle of the picture and the distance: the whole section, from the slope to the hall and out to the portal
+CAM_NEAR = 80.0                                                       # the distance while the camera goes down with the bomb
+CAM_HALL = (np.array([(C.ROOM_X[0] + C.ROOM_X[1]) / 2 - 3.0, (C.Z_CEIL + C.Z_FLOOR) / 2 + 5.0]), 96.0)
 
 def cut_clock(i):
-    """(sim frame, tp, seconds per frame): half a millisecond per frame until the fuze fires, then 1/240 s, then 1/80 s."""
-    if i < CUT_PRE + CUT_PEN:
+    """(sim frame, tp, seconds per frame): 1.25 and then 0.5 thousandths of a second per frame until the fuze fires, then 1/240 s, then 1/80 s."""
+    if i < CUT_PRE + CUT_N1:
         return 0, (i - CUT_PRE) * CUT_MS, CUT_MS
+    if i < CUT_PRE + CUT_PEN:
+        return 0, CUT_T1 + (i - CUT_PRE - CUT_N1) * CUT_MS2, CUT_MS2
     j = i - CUT_PRE - CUT_PEN
     sf = j + 1 if j < CUT_ONE else CUT_ONE + 1 + 3 * (j - CUT_ONE); return sf, C.FUZE_DELAY + (sf - 1) * IDT, IDT if j < CUT_ONE else 3 * IDT
 
+def cut_cam(i):
+    """Middle of the picture (x, z) and the camera's distance: the whole section, then in to the surface, down with the bomb, and back out after the burst."""
+    sf, tp, dt = cut_clock(i); s, _ = C.pen_state(max(tp, 0.0)); nose = np.array([C.U[0] * s, C.U[2] * s]); c0, d0 = CAM_WIDE; c2, d2 = CAM_HALL
+    follow = nose + np.array([3.0, -5.0]); w = smoothstep(0.80, 1.0, s / C.S_BURST); follow = follow * (1 - w) + c2 * w; dn = CAM_NEAR + (d2 - CAM_NEAR) * w
+    if i < CUT_PRE + CUT_PEN:
+        u = smoothstep(4.0, CUT_PRE + 6.0, i); return c0 + (follow - c0) * u, d0 + (dn - d0) * u
+    j = i - CUT_PRE - CUT_PEN; u = smoothstep(CUT_ONE - 26.0, CUT_ONE + 44.0, j); return c2 + (c0 - c2) * u, d2 + (d0 - d2) * u
+
 def shot_cutaway(n=None):
     n = n or N_OF["cutaway"]
-    """The ground cut along the bomb's path, the camera square on to the cut: through the cover, the roof, the room and into the floor; then the burst."""
+    """The ground cut along the bomb's path, the camera square on to the cut: 58 m of earth, the roof, the hall; then the burst."""
     def frame(st, i):
-        sf, tp, dt = cut_clock(i); st.set_time(tp, dt, dict(haze=0.6)); td = tp - C.FUZE_DELAY
-        pos = np.array([8.0, 76.0, -7.0]); st.look(pos, pos + np.array([0.0, -76.0, 0.0]), 38.0)   # a steady camera: this is a drawing, and at 10x slow motion a shake reads as stutter
+        sf, tp, dt = cut_clock(i); st.set_time(tp, dt, dict(haze=0.25)); td = tp - C.FUZE_DELAY
+        c, dist = cut_cam(i); pos = np.array([c[0], dist, c[1]]); st.look(pos, pos + np.array([0.0, -dist, 0.0]), 38.0)   # no shake: this is a drawing, and in slow motion a shake reads as stutter
         s, v = C.pen_state(tp)
-        return tp, dt, dict(samples=40 if sf == 0 else 28, sim=sf, shutter=0.3, anchors={"o": (0, 0, 0), "ex": (1, 0, 0), "ez": (0, 0, 1)}, extra=dict(s=float(max(s, 0.0)), v=float(v), tp=float(tp)))
+        return tp, dt, dict(samples=40 if sf == 0 else 28, sim=sf, shutter=0.3, anchors={"o": (0, 0, 0), "ex": (1, 0, 0), "ez": (0, 0, 1)}, extra=dict(s=float(max(s, 0.0)), v=float(v), tp=float(tp), dist=float(dist)))
     return n, frame
 
 SHOTS = {"approach": shot_approach, "bay": shot_bay, "fall": shot_fall, "strike": shot_strike, "after": shot_after, "cutaway": shot_cutaway}
@@ -304,9 +318,9 @@ def main():
     if os.environ.get("VOL_STEP"):                                  # coarser volume steps for a quick draft on a CPU
         sc.cycles.volume_step_rate = float(os.environ["VOL_STEP"]); sc.cycles.volume_max_steps = 96
     os.makedirs(a.out, exist_ok=True)
-    tl = dict(TOF=C.TOF, THROW=C.THROW, V_REL=C.V_REL, V_HIT=C.V_HIT, DIVE=C.DIVE, H_REL=C.H_REL, MACH_HIT=C.MACH_HIT, V_BURST=C.V_BURST, PUBLISHED=C.PUBLISHED, FUZE=C.FUZE_DELAY, TP=list(C.TP), S=[0.0, C.S1, C.S2, C.S3, C.S4, C.S_END], VS=[C.V_HIT, C.V1, C.V2, C.V2, C.V3, 0.0],
-              U=[float(x) for x in C.U], S_BURST=C.S_BURST, DEPTH=C.DEPTH_BURST, Z=[C.Z_ROOF_TOP, C.Z_CEIL, C.Z_FLOOR], ROOM_X=list(C.ROOM_X), XF=XF, PX=C.PORTAL_X, TABLE=C.TABLE,
-              CUT=[CUT_PRE, CUT_PEN, CUT_ONE, CUT_MS], fps=FPS)
+    tl = dict(TOF=C.TOF, THROW=C.THROW, V_HIT=C.V_HIT, DIVE=C.DIVE, H_REL=C.H_REL, MACH_HIT=C.MACH_HIT, V_BURST=C.V_BURST, PUBLISHED=C.PUBLISHED, FUZE=C.FUZE_DELAY, TP=list(C.TP), S=[0.0, C.S1, C.S2, C.S3, C.S4, C.S_END], VS=[C.V_HIT, C.V1, C.V2, C.V2, C.V3, 0.0],
+              U=[float(x) for x in C.U], S_BURST=C.S_BURST, DEPTH=C.DEPTH_BURST, Z=[C.Z_ROOF_TOP, C.Z_CEIL, C.Z_FLOOR], ROOM_X=list(C.ROOM_X), XF=XF, PX=C.PORTAL_X, TABLE=C.TABLE, COVER=C.COVER, SLOPE=C.SLOPE, T_DOOR=psite.T_DOOR, V_REL=C.V_REL, HALL=[float(x) for x in C.BURST],
+              CUT=[CUT_PRE, CUT_PEN, CUT_ONE, CUT_MS], CUT2=[CUT_N1, CUT_MS2, CUT_T1], fps=FPS)
     json.dump(tl, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "timeline.json"), "w"))
     meta_path = os.path.join(a.out, "meta.json")
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}

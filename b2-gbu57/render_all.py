@@ -2,7 +2,7 @@
 """Bake the two explosions and render every shot of the B-2 / GBU-57 segment, then build the video.
 Works on Windows, macOS and Linux; resumable (existing frames and finished bakes are skipped).
 
-    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:240:260,in:352:420]
+    python render_all.py <frames_root> <sim_root> [out.mp4] [--only shot,shot,...] [--res 1280x720] [--spp N] [--bake out:256:260,in:448:470]
 
 --only renders just the named shots and skips the final edit (for running two renders side by side on one card).
 --res / --spp / --bake make a quick draft (for example --res 640x360 --spp 6 --bake out:96:260,in:112:420).
@@ -12,9 +12,9 @@ Needs `pip install bpy numpy pillow` (scipy speeds up the sound) and ffmpeg on t
 import os, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("bay", 160), ("fall", 84), ("strike", 156), ("cutaway", 344), ("after", 96)]
+SHOTS = [("card", 72), ("approach", 96), ("intro", 96), ("bay", 160), ("fall", 84), ("strike", 156), ("cutaway", 451), ("after", 108)]
 SIM = {"strike": "out", "cutaway": "in"}
-BAKE = {"out": ("240", "260"), "in": ("352", "420")}                 # resolution, frames (no noise pass)
+BAKE = {"out": ("256", "260"), "in": ("448", "470")}                 # resolution, frames (no noise pass)
 
 def run(script, *args):
     print("=== %s %s  %s" % (script, " ".join(args[:2]), time.strftime("%H:%M:%S")), flush=True)

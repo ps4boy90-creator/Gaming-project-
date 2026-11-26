@@ -6,10 +6,13 @@ touches the slope; the fuze fires at tp = FUZE_DELAY.
 
 Published (USAF fact sheet and Air & Space Forces Magazine; DOT&E reports; Wikipedia for the fill): 30,000 lb class,
 20.5 ft long, 31.5 in across; 4,590 lb of AFX-757 and 752 lb of PBXN-114; a case of high-strength steel; GPS/INS
-guidance with lattice fins at the tail; two carried by a B-2.  How deep it goes is disputed in public sources
-("up to 200 ft of unspecified material"; about 200 ft of earth or 60 ft of 5,000 psi concrete; 8 ft of 10,000 psi
-concrete), so for the invented bunker of this film it is calculated with the Young / Sandia penetration equations
-(SAND97-2426) and the published claims are shown beside the result.  Everything marked "illustrative" is a plausible
+guidance with lattice fins at the tail; two carried by a B-2.  The Air Force says it is "designed to penetrate up
+to 200 feet underground before exploding", and the film shows that: the invented bunker's hall lies 61 m (200 ft)
+below the point of impact.  What the 200 ft are made of is not stated; other published figures are 200 ft of
+5,000 psi concrete and 130 ft of moderately hard rock (the 2004 proposal), 200 ft of earth or 60 ft of concrete
+(Janes).  By the Young / Sandia penetration equations (SAND97-2426) the bomb reaches 61 m only in soft earth, so
+that is what the film's mountainside is made of; the equations' results for other ground are shown beside the
+published claims in the closing table.  Everything marked "illustrative" is a plausible
 choice, not a quoted profile.  The names follow the BLU-109 segment's pconst, whose site and shot code this one
 adapts: BLU_* is the penetrator body, GBU_* the whole bomb with its tail.
 """
@@ -30,11 +33,11 @@ FILL = 2082.0 + 341.0                                 # 2,423 kg: AFX-757 and PB
 CASE = 0.060                                          # wall of the body, estimated from the weights (not published)
 TAIL_SPAN = 2.05                                      # across the opened lattice fins (estimated from photographs)
 WING_SPAN = 1.42                                      # across the short wings on the body (estimated)
-PUBLISHED = dict(earth=61.0, concrete=18.0, hard=2.4) # 200 ft of earth; 60 ft of 5,000 psi concrete; 8 ft of 10,000 psi concrete
+PUBLISHED = dict(official=61.0, earth=61.0, concrete=(18.0, 61.0), hard=(2.4, 8.0), rock=40.0)   # metres: see the notes above (8 ft and 26 ft are both quoted for 10,000 psi concrete)
 # ---- B-2A (src: USAF fact sheet)
 B2_SPAN = 52.4; B2_LEN = 21.0; B2_H = 5.18; B2_SWEEP = 33.0
-# ---- the release (illustrative): level, Mach 0.80, 12,200 m (40,000 ft) above sea level; the target lies at 1,700 m
-TARGET_ELEV = 1700.0; H_REL = 10500.0; MACH_REL = 0.80; DIVE_SET = 68.0
+# ---- the release (illustrative): level, Mach 0.80, 15,240 m (50,000 ft, the B-2's ceiling) above sea level; the target lies at 1,700 m
+TARGET_ELEV = 1700.0; H_REL = 13540.0; MACH_REL = 0.80; DIVE_SET = 70.0
 
 def _air(h):
     T = max(288.15 - 0.0065 * h, 216.65); return (1.225 * (T / 288.15) ** 4.256 if h < 11000 else 0.3639 * math.exp(-(h - 11000) / 6341.6)), math.sqrt(1.4 * 287.05 * T)
@@ -82,13 +85,14 @@ def s_concrete(thick, fc_psi=5000.0, steel_pct=2.0, cure_yr=1.0):
 def s_rock(fc_psi, Q):
     return 2.7 * (fc_psi * Q) ** -0.3
 
-# ---- the site (invented): a large cut-and-cover bunker let into a 25 degree mountainside
+# ---- the site (invented): a concrete hall 61 m (200 ft) down inside a 25 degree mountainside of earth
 SLOPE = 25.0
-S_FILL = 3.0                                          # compacted earth and broken rock over the roof ("dense, dry, cemented sand" class)
+S_FILL = 9.0                                          # the earth over the roof: soft soil (S-numbers of 8 to 10 are loose, moist or soft soils); chosen so that the bomb does reach the published depth
 S_EARTH = 6.0                                         # ordinary soil, for the comparison with the published "200 ft of earth"
 ROOF = 2.50; WALL = 1.50; FLOOR = 1.50                # reinforced concrete, 35 MPa (5,000 psi), about 2 % steel
-ROOM_H = 7.0; ROOM_X = (-5.0, 25.0); ROOM_Y = 8.0     # inside: 30 m long, 16 m wide (half-width 8 m), 7 m high
-FILL_PATH = 13.0                                      # metres of cover along the bomb's path before the roof
+ROOM_H = 7.0; ROOM_X = (8.0, 38.0); ROOM_Y = 8.0      # inside: 30 m long, 16 m wide (half-width 8 m), 7 m high
+COVER = 54.5                                          # metres of earth over the roof, measured straight down from the point of impact
+FILL_PATH = COVER / math.sin(math.radians(DIVE))      # the same along the bomb's path
 S_ROOF = s_concrete(ROOF); S_FLOOR = s_concrete(FLOOR)
 S_LIMESTONE = s_rock(10000.0, 0.7)                    # sound limestone, 69 MPa, few joints
 S_WEATHERED = s_rock(4000.0, 0.3)                     # weak, weathered, jointed rock
@@ -109,7 +113,7 @@ V3, T4, D_FLOOR = _through(V2, S_FLOOR, FLOOR / sinD)             # into the flo
 V4, T5, D_ROCK = _through(V3, S_WEATHERED, 50.0)                  # and, if it gets through, into the rock under it
 S1 = FILL_PATH; S2 = S1 + ROOF / sinD; S3 = S2 + ROOM_H / sinD; S4 = S3 + D_FLOOR; S_END = S4 + D_ROCK
 TP = (0.0, T1, T1 + T2, T1 + T2 + T3, T1 + T2 + T3 + T4, T1 + T2 + T3 + T4 + T5)
-FUZE_DELAY = TP[2] + 0.55 * T3                                    # the fuze senses the layers it goes through and fires in the open space under the roof (it is set here to do so a little past the middle of the hall)
+FUZE_DELAY = TP[2] + 0.52 * T3                                    # the fuze senses the layers it goes through and fires in the open space under the roof (set here to fire in the middle of the hall, 61 m down)
 
 def pen_state(tp):
     """Distance of the nose along the path below the surface (m) and the speed (m/s), tp seconds after it touches."""
