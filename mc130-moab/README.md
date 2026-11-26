@@ -10,7 +10,17 @@ The aircraft, the parachute and the way the shots and the post-production are bu
 (BLU-82 from a C-130); the bomb, its cradle, the valley and the blast calculation are new. Nobody is
 modelled anywhere.
 
-RENDER_NOTE
+**Rendered** on 26 November 2026 on a rented Runpod pod (one NVIDIA RTX PRO 4500 Blackwell, Cycles with OptiX;
+the simulation baked on the pod's CPU): frames at 1280 × 720, finished at 1920 × 1080. The pod existed for
+83 minutes, about 1.00 US dollar at 0.72 dollars an hour. That includes three bakes of the blast: the first,
+at a finer grid, was far too slow and was stopped; the second showed the dust behind the blast front as
+hard-edged flat discs, and those sources were taken out. The film (mc130_moab.mp4, 55 s) and stills from it
+are in `renders/`.
+
+**Known flaws.** The simulation's cells are 2.8 m, so the cloud is coarse close up. The thin dust that a
+blast front raises from dry ground as it passes is not shown (only the dust thrown out from the burst).
+The fireball is pale. The country seen from the aircraft is nearly featureless. Nobody has listened to the
+sound on loudspeakers.
 
 **The valley, its buildings and this drop are invented. The blast distances are calculated, not measured.**
 

@@ -3,7 +3,8 @@
   python3 asim.py out <cache_dir> <resolution> <frames> [noise 0|1]     1 frame = 1/40 s, frame 1 = the burst
 
 A fireball about 70 m across (the usual rule of thumb for a charge of this weight, aconst.FB_D), a skirt of dust
-driven outwards along the ground, and the hot gas rising afterwards into a head on a stem: the released film of the
+driven outwards along the ground by a ring of thrown sources (wide flat sources were tried for the dust that the front
+raises, and came out as hard-edged plates), and the hot gas rising afterwards into a head on a stem: the released film of the
 2017 strike shows a cloud of that kind climbing out of the valley.  The valley's ground is in the simulation as a
 solid, so the dust runs along the floor and up the slopes.  Sizes of the cloud, speeds and brightness are staging;
 the buildings and trees are not in the simulation (they are moved separately, see asite).
@@ -21,7 +22,7 @@ from util import new_mesh, new_obj, grid_faces
 import aconst as C, asite
 
 SOIL = [(0.33, 0.265, 0.185), (0.39, 0.315, 0.225), (0.28, 0.225, 0.16)]; PALE = [(0.46, 0.41, 0.34), (0.41, 0.365, 0.30), (0.50, 0.45, 0.38)]      # the valley's own earth, a little darker than it lies in the sun
-BOX = ((-290.0, 290.0), (-330.0, 250.0), (-8.0, 472.0)); DT = 1.0 / 40.0
+BOX = ((-250.0, 250.0), (-290.0, 230.0), (-8.0, 400.0)); DT = 1.0 / 40.0
 
 def _block(name, xs, ys, zb):
     """The ground as a closed solid: its surface on top, a flat bottom, upright sides."""
@@ -43,22 +44,19 @@ def build(frames):
     FB = C.FB_D; g = lambda x, y: float(asite.ground(x, y))
     (x0, x1), (y0, y1), (z0, z1) = BOX; collider(_block("E_ground", np.arange(x0 - 12.0, x1 + 12.1, 4.0), np.arange(y0 - 12.0, y1 + 12.1, 4.0), z0 - 30.0))
     core = ico("E_core", 0.11 * FB, (0, 0, C.HOB + 5.0), rough=0.06); flow(core, 'BOTH', 1, 2, dens=1.6, temp=2.8, fuel=1.0, color=PALE[0], vn=70.0)
-    push = torus("E_push", 15.0, 5.5, (0, 0, 6.0), lobes=0.0); push.scale = (1.0, 1.0, 0.7); flow(push, 'SMOKE', 1, 4, dens=1.4, temp=0.6, color=SOIL[1], vn=120.0)      # the first rush outwards along the ground, even all round
+    push = torus("E_push", 15.0, 5.5, (0, 0, 6.0), lobes=0.04); push.scale = (1.0, 1.0, 0.7); flow(push, 'SMOKE', 1, 4, dens=0.8, temp=0.6, color=SOIL[1], vn=120.0)      # the first rush outwards along the ground, even all round
     fb2 = ico("E_fb2", 0.17 * FB, (0, 0, 12.0), rough=0.12, scale=(1.3, 1.3, 0.85)); flow(fb2, 'BOTH', 2, 6, dens=1.8, temp=2.8, fuel=0.95, color=PALE[1], vn=55.0, vinit=(0, 0, 48.0))
-    n = 80
+    n = 96
     for i in range(n):                                                                   # the skirt along the ground: dust
         az = 2 * math.pi * (i + random.uniform(-0.3, 0.3)) / n; el = math.radians(random.uniform(2, 14)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el) + 0.45 * max(math.sin(az), 0.0))     # towards the northern slope it has to climb
         jet("E_s%02d" % i, (9 * d[0], 9 * d[1], 2.5), d, random.uniform(270, 350), random.uniform(2.2, 2.8), random.randint(34, 48), random.uniform(4.0, 5.6), random.choice(SOIL + PALE), start=random.randint(1, 3), dens=1.0, zmin=2.0)
     for i in range(22):                                                                  # earth thrown higher
         az = random.uniform(0, math.tau); el = math.radians(random.uniform(30, 75)); d = (math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el))
         jet("E_u%02d" % i, (6 * d[0], 6 * d[1], 6.0), d, random.uniform(120, 230), random.uniform(1.8, 2.8), random.randint(26, 48), random.uniform(2.8, 4.4), random.choice(SOIL), start=random.randint(1, 3), dens=1.3, zmin=2.0)
-    for k, (R_, f0, f1, dn) in enumerate(((55.0, 4, 9, 0.8), (100.0, 8, 14, 0.5), (150.0, 13, 20, 0.3), (205.0, 19, 27, 0.18))):        # dust raised from the floor as the front goes over it: broad flat bands, thinner with distance
-        ring = torus("E_ring%d" % k, R_, 24.0, (0, -0.22 * R_, 5.0), lobes=0.05); ring.scale = (1.0, 0.74, 0.16); flow(ring, 'SMOKE', f0, f1, dens=dn, temp=0.2, color=PALE[k % 3], vn=4.0, vinit=(0, 0, 4.0))
     ring2 = torus("E_ring2", 22.0, 7.0, (0, 0, 8.0), lobes=0.08); flow(ring2, 'SMOKE', 2, 9, dens=1.4, temp=0.9, color=SOIL[1], vn=14.0, vinit=(0, 0, 16.0))
     thermal("E_head", 17.0, 42.0, 22.0, C.CLOUD_10S - 62.0, 5.5, 6, frames, DARK[2], 1.1, 2.6)                    # the burnt gas, hot and light, climbs
     thermal("E_neck", 10.0, 17.0, 13.0, 0.55 * (C.CLOUD_10S - 62.0), 5.5, 8, frames, PALE[1], 0.9, 2.0)
     stem = ico("E_stem", 10.0, (0, 0, 10.0), rough=0.3, scale=(1.2, 1.2, 0.7)); flow(stem, 'SMOKE', 5, 240, dens=1.2, temp=3.0, color=PALE[1], vn=3.0, vinit=(0, 0, 44.0))
-    dust = ico("E_dust", 1.0, (0, -14.0, 4.0), rough=0.25, scale=(52.0, 44.0, 2.6)); flow(dust, 'SMOKE', 8, 90, dens=0.40, temp=0.3, color=PALE[0], vn=1.5)
 
 if __name__ == "__main__":
     kind = sys.argv[1]; cache_dir, res, frames = os.path.abspath(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
