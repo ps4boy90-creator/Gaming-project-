@@ -121,6 +121,10 @@ simulation (the dust passes through them), and the dust of the buildings' own fa
 film does show correctly is the scale: the heavy damage is a circle about 250 m across in a district
 1.8 km across.
 
+Rendered on 26 November 2026 on a Runpod pod of the same kind (RTX PRO 4500 Blackwell, OptiX): the pod
+existed for 49 minutes, about 0.59 US dollars. The film (mc130_moab_city.mp4, 55 s) and stills
+(`city_still_*.jpg`) are in `renders/`.
+
 ## Sound
 
 Recorded effects from `../c130-blu82/sfx` (licensed, not in the repository), put together in `apost.py`;
