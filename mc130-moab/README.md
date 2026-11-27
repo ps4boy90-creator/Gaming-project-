@@ -48,6 +48,12 @@ falling without a parachute; guided over about 3 nautical miles. Yield about 11 
 Used once: at 7.32 pm local time on 13 April 2017, on a tunnel complex of the Islamic State's Khorasan
 branch at the mouth of the Mamand valley, Achin district, Nangarhar, Afghanistan.
 
+**Three weights that get mixed up.** The whole bomb weighs 9,800 kg (21,600 lb, about 10.8 US tons). The
+explosive in it weighs 8,500 kg (18,700 lb). Its blast equals about 11 tons of TNT, because H6 is about
+1.35 times as strong as TNT (the Armament Museum's figure). The film's captions lead with the 11 tons and
+give the 8.5 tonnes as what produces it; an earlier cut said only "8.5 tonnes of explosive", which read as
+if it contradicted the 11.
+
 **Reported, not official:** that it bursts about 6 ft above the ground (the film uses this).
 
 **What the 2017 strike left** (satellite pictures analysed by Alcis, published by Defense Update; Reuters

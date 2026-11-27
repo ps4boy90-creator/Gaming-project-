@@ -19,7 +19,7 @@ from npost import readout, dashed
 dim_line = B.dim_line
 KMH = lambda v: int(round(v * 3.6, -1))
 R = lambda x: int(math.floor(x + 0.5))
-SPECS = [("BOMB", "GBU-43/B Massive Ordnance Air Blast"), ("SIZE", "9.2 m long  ·  1.03 m across"), ("WEIGHT", "9,800 kg (21,600 lb)"), ("EXPLOSIVE", "8,500 kg of H6"),
+SPECS = [("BOMB", "GBU-43/B Massive Ordnance Air Blast"), ("SIZE", "9.2 m long  ·  1.03 m across  ·  9,800 kg"), ("BLAST", "equal to 11 tons of TNT"), ("EXPLOSIVE", "8,500 kg of H6, stronger than TNT"),
          ("CASE", "thin aluminium"), ("GUIDANCE", "GPS and inertial, four lattice fins"), ("DROPPED BY", "MC-130, pulled out by parachute"), ("FIRST USED", "13 April 2017, Afghanistan")]
 WHITE = (244, 244, 240)
 CITY = os.environ.get("MOAB_SITE") == "city"                          # the hypothetical drop on an invented ruined city district
@@ -58,7 +58,7 @@ def card_frame(img, i, n):
     a = ease((t - 0.45) / 0.5); d.rectangle([x0, 448, x0 + int(820 * a), 451], fill=(*AMBER, int(255 * a)))
     y = 478
     for k, (lab, val) in enumerate(SPECS):
-        a = ease((t - 0.65 - 0.11 * k) / 0.45); dx = int((1 - a) * 28); hot = lab == "EXPLOSIVE"
+        a = ease((t - 0.65 - 0.11 * k) / 0.45); dx = int((1 - a) * 28); hot = lab == "BLAST"
         text(d, (x0 + dx, y), lab, F_SEMI(30), RED if hot else DIM, a, tracking=3)
         text(d, (x0 + 250 + dx, y - 4), val, F_MED(35), INK, a)
         y += 55
@@ -131,7 +131,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
         A = lambda k: ease((i - 8 - 8 * k) / 8.0) * (1 - ease((i - (n - 7)) / 6.0)); px = {k: P(q) for k, q in an.items()}
         dim_line(d, (px["tail"][0], px["top"][1] - 112), (px["nose"][0], px["top"][1] - 112), "9.2 m  ·  9,800 kg", A(0))
         for k, (key, big, small, col, ex, ey) in enumerate((("fin", "LATTICE FINS", "FOUR OF THEM STEER IT", AMBER, -90, -70), ("wing", "FIXED WINGS", "", AMBER, 180, 110),
-                                                         ("cfill", "8,500 kg OF H6 EXPLOSIVE", "IN A THIN ALUMINIUM CASE", RED, 150, -115), ("cfuze", "FUZE AT THE NOSE", "FIRES JUST ABOVE THE GROUND", RED, 60, 140),
+                                                         ("cfill", "8,500 kg OF H6 EXPLOSIVE", "EQUAL TO 11 TONS OF TNT", RED, 150, -115), ("cfuze", "FUZE AT THE NOSE", "FIRES JUST ABOVE THE GROUND", RED, 60, 140),
                                                          ("cbox", "GUIDANCE", "GPS, INERTIAL, FIN DRIVES", RED, 60, 140))):
             label(d, *px[key], big, small, col, A(k + 1), dx=ex, dy=ey)
         text(d, (W - 64, 60), "THE INSIDE IS A DIAGRAM, NOT A DRAWING OF THE REAL BOMB", F_SEMI(22), DIM, A(3), anchor="ra", tracking=2)
@@ -158,7 +158,7 @@ def overlay_for(shot, i, n, m, info, hold=None):
         if a1 > 0:
             lower(d, "TWO METRES ABOVE THE GROUND", "The fuze fires it about 6 ft up (as reported), so that the blast goes outward and not into a crater", a1)
         if a2 > 0:
-            lower(d, "8.5 TONNES OF EXPLOSIVE", ("A fireball about %d m across  ·  the blast front crosses the district faster than sound  ·  the nearest blocks come down" if CITY else "A fireball about %d m across  ·  the blast front crosses the valley faster than sound, lifting dust as it goes") % round(info["FB_D"], -1), a2)
+            lower(d, "A BLAST EQUAL TO 11 TONS OF TNT", ("From 8.5 tonnes of H6, which is stronger than TNT  ·  a fireball about %d m across  ·  the nearest blocks come down" if CITY else "From 8.5 tonnes of H6, which is stronger than TNT  ·  a fireball about %d m across  ·  the front outruns sound") % round(info["FB_D"], -1), a2)
         if a3 > 0:
             lower(d, "THE CLOUD CLIMBS", "Hot gas rises on a stem of dust  ·  its size and speed are staged  ·  dust from the falling buildings is not shown" if CITY else "Hot gas rises on a stem of dust, as in the film released of the 2017 strike  ·  its size and speed here are staged", a3)
     elif shot == "reach":
@@ -186,8 +186,8 @@ def summary_frame(bg, i, n, info):
     text(d, (120, 140), "MOAB ON A CITY (HYPOTHETICAL)" if CITY else "GBU-43/B MOAB", F_TITLE(80), INK, ease((t - 0.1) / 0.5))
     a = ease((t - 0.4) / 0.5); d.rectangle([120, 248, 120 + int(1680 * a), 251], fill=(*AMBER, int(255 * a)))
     if CITY:
-        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
-                ("YIELD", "about 11 tons of TNT", DIM),
+        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it is H6 explosive, in a thin aluminium case", DIM),
+                ("BLAST", "equal to about 11 tons of TNT: H6 is about 1.35 times as strong as TNT", DIM),
                 ("CALCULATED BLAST, OPEN GROUND:", "", AMBER),
                 ("    10 psi", "out to about %d m   ·   concrete apartment blocks come down" % R(info["R_10"]), DIM),
                 ("    5 psi", "out to about %d m   ·   blocks partly down" % R(info["R_5"]), DIM),
@@ -196,8 +196,8 @@ def summary_frame(bg, i, n, info):
                 ("    AT ONE MILE", "about %.1f psi   ·   a bang, perhaps cracked glass" % info["PSI_MILE"], RED),
                 ("IN A CITY", "the heavy damage is a circle about %d m across, in a city about 9 km across" % int(round(2 * info["R_5"], -1)), DIM)]
     else:
-        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it explosive, in a thin aluminium case", DIM),
-                ("YIELD", "about 11 tons of TNT  ·  15 built, one used", DIM),
+        rows = [("WEIGHT", "9,800 kg (21,600 lb)  ·  8,500 kg of it is H6 explosive, in a thin aluminium case", DIM),
+                ("BLAST", "equal to about 11 tons of TNT (H6 is about 1.35 times as strong)  ·  15 built, one used", DIM),
                 ("CALCULATED BLAST, OPEN GROUND:", "", AMBER),
                 ("    10 psi", "out to about %d m   ·   heavy buildings badly damaged" % R(info["R_10"]), DIM),
                 ("    5 psi", "out to about %d m   ·   most buildings collapse" % R(info["R_5"]), DIM),
