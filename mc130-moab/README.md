@@ -143,6 +143,10 @@ Rendered on 26 November 2026 on a Runpod pod of the same kind (RTX PRO 4500 Blac
 existed for 72 minutes, about 0.86 US dollars. The film (mc130_moab_city.mp4, 65 s) and stills
 (`city_still_*.jpg`) are in `renders/`.
 
+**Re-rendered on 27 November 2026** (both films, for the corrected wording about 11 tons of TNT and 8.5 tonnes
+of explosive): one Runpod pod of the same kind for 89 minutes, about 1.06 US dollars, the two films rendering
+side by side. The costs given above are those of the first renders.
+
 ## Sound
 
 Recorded effects from `../c130-blu82/sfx` (licensed, not in the repository), put together in `apost.py`;
